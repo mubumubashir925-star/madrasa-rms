@@ -228,6 +228,7 @@
                                     <th class="py-2.5 px-4 text-center">Max</th>
                                     <th class="py-2.5 px-4 text-center hidden sm:table-cell">Pass</th>
                                     <th class="py-2.5 px-4 text-center">Obtained</th>
+                                    <th class="py-2.5 px-4 text-center">Grade</th>
                                     <th class="py-2.5 px-4 text-center">Status</th>
                                 </tr>
                             </thead>
@@ -725,6 +726,15 @@
                             <div class="flex gap-2"><input id="new-field-label" maxlength="40" placeholder="New field, e.g. Date of Birth" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white flex-1"><button type="button" onclick="addFieldRow()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-semibold">Add</button></div>
                             <button onclick="saveFields()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save fields</button>
                         </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
+                            <div><h3 class="font-bold text-slate-800"><i class="fas fa-user-shield text-red-600 mr-1.5"></i> Admin Login</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Change your admin username and/or password. Leave a field blank to keep it. Other logged-in sessions are signed out.</p></div>
+                            <input type="password" id="acc-current" autocomplete="current-password" placeholder="Current password (required)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                            <input type="text" id="acc-username" autocomplete="username" maxlength="40" placeholder="New username (optional)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                            <input type="password" id="acc-new" autocomplete="new-password" placeholder="New password (min 8 characters)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                            <input type="password" id="acc-confirm" autocomplete="new-password" placeholder="Confirm new password" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                            <button onclick="saveAccount()" class="bg-red-700 hover:bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Update login</button>
+                        </div>
                     </div>
 
                     <div id="admin-tab-marks" class="admin-tab-content hidden space-y-6">
@@ -1062,14 +1072,16 @@
                 return `<tr><td class="py-2.5 px-4 font-mono text-slate-400 hidden sm:table-cell">${i + 1}</td><td class="py-2.5 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
                     <td class="py-2.5 px-4 text-center text-slate-600">${sub.maxMarks}</td><td class="py-2.5 px-4 text-center text-slate-500 hidden sm:table-cell">${sub.passingMarks}</td>
                     <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</td>
+                    <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-amber-700' : 'text-red-600'}">${esc((result.grades[sub.id] || {}).grade || '-')}</td>
                     <td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
             }).join('');
-            $('res-tfoot').innerHTML = `<tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300"><td colspan="2" class="py-3 px-4 text-right">Grand Total</td><td class="py-3 px-4 text-center">${summary.max}</td><td class="py-3 px-4 text-center text-slate-500 hidden sm:table-cell">${totalPass}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.obtained}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.percentage}%</td></tr>`;
+            $('res-tfoot').innerHTML = `<tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300"><td colspan="2" class="py-3 px-4 text-right">Grand Total</td><td class="py-3 px-4 text-center">${summary.max}</td><td class="py-3 px-4 text-center text-slate-500 hidden sm:table-cell">${totalPass}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.obtained}</td><td class="py-3 px-4 text-center text-amber-700">${esc(summary.grade.grade)}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.percentage}%</td></tr>`;
             $('res-marks-cards').innerHTML = subjects.map(sub => {
                 const o = Number(result.marks[sub.id] ?? 0), ok = o >= sub.passingMarks;
                 return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
                     <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks} &bull; Pass ${sub.passingMarks}</p></div>
                     <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</p>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">${esc((result.grades[sub.id] || {}).grade || '-')}</span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></div></div>`;
             }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
 
@@ -1133,6 +1145,20 @@
             saveState(); renderAllAdminData(); showToast('Student fields saved', 'success');
         }
 
+        async function saveAccount() {
+            const v = id => document.getElementById(id).value;
+            const body = { current: v('acc-current'), username: v('acc-username').trim(), password: v('acc-new') };
+            if (!body.current) { showToast('Enter your current password.', 'error'); return; }
+            if (!body.username && !body.password) { showToast('Enter a new username or a new password.', 'error'); return; }
+            if (body.password !== v('acc-confirm')) { showToast('New passwords do not match.', 'error'); return; }
+            try {
+                const r = await api('/admin/account', { method: 'POST', body });
+                token = r.token; sessionStorage.setItem('rms_token', token);
+                ['acc-current', 'acc-username', 'acc-new', 'acc-confirm'].forEach(id => document.getElementById(id).value = '');
+                showToast('Login updated. Use the new details next time.', 'success');
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
         // ================= STUDENT FORM (dynamic fields) =================
         function renderStudentForm() {
             document.getElementById('std-adm-label').textContent = admLabel();
@@ -1171,7 +1197,7 @@
                 : subs.map(s => `<th class="${th}">${esc(s.name)}<br><span class="font-normal">/${s.maxMarks}</span></th>`).join('');
             const body = rows.map(r => `<tr><td class="${td} font-bold">${r.rank}</td><td class="${td}">${esc(r.st.admissionNo)}</td><td class="${td} text-left font-medium">${esc(r.st.name)}</td>`
                 + (all ? r.per.map(x => `<td class="${td}">${x ? x.o : '-'}</td>`).join('')
-                    : subs.map(s => { const v = r.per[0].m[s.id]; return `<td class="${td} ${Number(v ?? 0) < Number(s.passingMarks) ? 'text-red-600 font-bold' : ''}">${v ?? '-'}</td>`; }).join(''))
+                    : subs.map(s => { const v = r.per[0].m[s.id]; const bad = Number(v ?? 0) < Number(s.passingMarks), g = v === undefined ? '' : gradeOf(pctOf(Number(v), Number(s.maxMarks)), bad, G).grade; return `<td class="${td} ${bad ? 'text-red-600 font-bold' : ''}">${v ?? '-'}${g ? `<span class="block text-[9px] font-semibold text-slate-500">${esc(g)}</span>` : ''}</td>`; }).join(''))
                 + `<td class="${td} font-bold">${r.o}/${r.max}</td><td class="${td}">${r.p}%</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td} font-semibold ${r.failN ? 'text-red-600' : 'text-emerald-700'}">${all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
             const passed = rows.filter(r => r.failN === 0).length;
             const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail)`;
@@ -1784,10 +1810,10 @@
                     allPassed = false;
                 } else if (val >= pass) {
                     statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
-                    statusSpan.textContent = "PASS";
+                    statusSpan.textContent = "PASS \u2022 " + gradeOf(pctOf(val, max), false, appState.grades).grade;
                 } else {
                     statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700";
-                    statusSpan.textContent = "FAIL";
+                    statusSpan.textContent = "FAIL \u2022 " + gradeOf(pctOf(val, max), true, appState.grades).grade;
                     allPassed = false;
                 }
             });
