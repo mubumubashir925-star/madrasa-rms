@@ -11,14 +11,42 @@ async function hmac(secret, data) {
 async function safeEq(a, b, secret) { // compare digests in constant time
   return crypto.subtle.timingSafeEqual(await hmac(secret, a), await hmac(secret, b));
 }
-async function makeToken(env) {
-  const p = btoa(JSON.stringify({ exp: Date.now() + 12 * 3600e3 }));
+async function makeToken(env, ver) {
+  const p = btoa(JSON.stringify({ exp: Date.now() + 12 * 3600e3, v: ver || 0 }));
   return p + '.' + b64u(await hmac(env.JWT_SECRET, p));
 }
 async function isAdmin(req, env) {
   const [p, sig] = (req.headers.get('Authorization') || '').replace('Bearer ', '').split('.');
   if (!p || !sig || b64u(await hmac(env.JWT_SECRET, p)) !== sig) return false;
-  try { return JSON.parse(atob(p)).exp > Date.now(); } catch { return false; }
+  try { const t = JSON.parse(atob(p)); return t.exp > Date.now() && (t.v || 0) === ((await getAdmin(env.DB))?.ver || 0); } catch { return false; }
+}
+
+// ---------- admin credentials (stored hashed in D1; falls back to Cloudflare secrets) ----------
+const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+const unhex = h => Uint8Array.from(h.match(/../g), x => parseInt(x, 16));
+async function pbkdf2(pw, salt) {
+  const k = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, k, 256));
+}
+async function getAdmin(db) { const r = await db.prepare("SELECT value FROM settings WHERE key='admin'").first(); return r ? JSON.parse(r.value) : null; }
+async function passwordOk(env, adm, pw) {
+  return adm ? crypto.subtle.timingSafeEqual(await pbkdf2(String(pw), unhex(adm.salt)), unhex(adm.hash)) : safeEq(String(pw), env.ADMIN_PASSWORD, env.JWT_SECRET);
+}
+async function changeAccount(env, body) {
+  const adm = await getAdmin(env.DB);
+  if (!(await passwordOk(env, adm, body.current || ''))) return fail('Current password is wrong', 403);
+  const username = opt(body.username, 40) || adm?.username || env.ADMIN_USER;
+  if (username.length < 3) return fail('Username must be at least 3 characters');
+  let { salt, hash } = adm || {};
+  if (body.password) {
+    if (body.password.length < 8 || body.password.length > 100) return fail('New password must be 8 to 100 characters');
+    const s = crypto.getRandomValues(new Uint8Array(16)); salt = hex(s); hash = hex(await pbkdf2(body.password, s));
+  } else if (!adm) { // username-only change while still on the Cloudflare secret: keep the current password
+    const s = crypto.getRandomValues(new Uint8Array(16)); salt = hex(s); hash = hex(await pbkdf2(body.current, s));
+  }
+  const ver = Date.now();
+  await env.DB.prepare("INSERT INTO settings VALUES ('admin', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify({ username, salt, hash, ver })).run();
+  return json({ token: await makeToken(env, ver), username });
 }
 
 // ---------- validation + table mapping ----------
@@ -142,7 +170,7 @@ async function publicResult(db, url) {
   return json({
     madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200 }, subjects: subs,
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
-    result: { attendanceDays: cur.attendance_days, marks },
+    result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(subs.map(x => { const o = Number(marks[x.id] || 0); return [x.id, gradeOf(pctOf(o, x.maxMarks), o < x.passingMarks, set.grades)]; })) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(percentage, !passed, set.grades) },
     position: set.portal.showPosition ? { rank: 1 + totals.filter(t => t > obtained).length, of: totals.length } : null,
     exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), grade: gradeOf(pctOf(oObt, oMax), false, set.grades) },
@@ -164,15 +192,17 @@ export default {
 
       if (p === '/api/login' && req.method === 'POST') {
         const { username = '', password = '' } = await req.json();
-        const okU = await safeEq(String(username), env.ADMIN_USER, env.JWT_SECRET);
-        const okP = await safeEq(String(password), env.ADMIN_PASSWORD, env.JWT_SECRET);
+        const adm = await getAdmin(env.DB);
+        const okU = await safeEq(String(username), adm?.username || env.ADMIN_USER, env.JWT_SECRET);
+        const okP = await passwordOk(env, adm, password);
         if (!(okU && okP)) { await new Promise(r => setTimeout(r, 600)); return fail('Invalid username or password', 401); }
-        return json({ token: await makeToken(env) });
+        return json({ token: await makeToken(env, adm?.ver) });
       }
 
       if (p.startsWith('/api/admin/')) {
         if (!(await isAdmin(req, env))) return fail('Session expired. Please log in again.', 401);
         if (p === '/api/admin/state' && req.method === 'GET') return json(await adminState(env.DB));
+        if (p === '/api/admin/account' && req.method === 'POST') return changeAccount(env, await req.json());
         if (p === '/api/admin/sync' && req.method === 'POST') { await sync(env.DB, await req.json()); return json({ ok: true }); }
       }
       return fail('Not found', 404);
