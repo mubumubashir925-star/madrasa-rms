@@ -1,4 +1,5 @@
 name = "madrasa-rms"
+keep_vars = true
 main = "src/worker.js"
 compatibility_date = "2025-06-01"
 
