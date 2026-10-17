@@ -48,24 +48,22 @@
             animation-play-state: paused;
         }
 
-        /* Print Styles for Result Marksheet */
+        /* Print: A4 marksheet + landscape class sheet */
+        #print-root { display: none; }
+        @page { size: A4 portrait; margin: 10mm; }
+        @page cls { size: A4 landscape; margin: 8mm; }
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printable-result, #printable-result * {
-                visibility: visible;
-            }
-            #printable-result {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                box-shadow: none !important;
-            }
-            .no-print {
-                display: none !important;
-            }
+            body * { visibility: hidden; }
+            #printable-result, #printable-result * { visibility: visible; }
+            #printable-result { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; border-radius: 0 !important; padding: 6mm !important; font-size: 12px; line-height: 1.35; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #printable-result th, #printable-result td { padding: 5px 8px !important; }
+            .no-print { display: none !important; }
+            body.print-class > *:not(#print-root) { display: none !important; }
+            body.print-class #print-root, body.print-class #print-root * { visibility: visible; }
+            body.print-class #print-root { display: block; page: cls; position: static; font-size: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body.print-class #print-root table { width: 100%; border-collapse: collapse; }
+            body.print-class #print-root tr { break-inside: avoid; }
+            body.print-class #print-root thead { display: table-header-group; }
         }
 
         /* Mobile-first helpers */
@@ -141,8 +139,8 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3 w-full md:w-auto">
-                    <button onclick="switchView('admin')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-sm w-full md:w-auto">
-                        <i class="fas fa-lock"></i> Admin Portal
+                    <button onclick="shareLink()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-sm w-full md:w-auto">
+                        <i class="fas fa-share-alt"></i> Share this page
                     </button>
                 </div>
             </div>
@@ -150,7 +148,12 @@
 
         <!-- Result Search Section -->
         <main class="flex-grow container mx-auto px-4 py-5 md:py-8 max-w-4xl">
-            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
+            <div id="portal-closed" class="hidden bg-white rounded-2xl shadow-xl border border-amber-200 p-6 md:p-10 text-center mb-8">
+                <div class="w-16 h-16 mx-auto rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-2xl mb-4"><i class="fas fa-bullhorn"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 mb-2">Announcement</h2>
+                <p id="portal-closed-msg" class="text-slate-600 whitespace-pre-line"></p>
+            </div>
+            <div id="search-card" class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
                 <div class="bg-emerald-900 px-4 md:px-6 py-4 text-white flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-search text-amber-400"></i>
@@ -174,7 +177,7 @@
 
                         <!-- Admission Number Input -->
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Admission / Roll Number <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2"><span id="search-adm-label">Admission / Roll Number</span> <span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <input type="text" id="search-adm-input" required placeholder="e.g., ADM101" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition uppercase font-medium text-slate-800 placeholder:normal-case">
                                 <i class="fas fa-id-card absolute left-3.5 top-3.5 text-slate-400"></i>
@@ -197,7 +200,7 @@
                 <!-- Action Bar -->
                 <div class="flex flex-wrap justify-end gap-3 mb-4 no-print">
                     <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition">
-                        <i class="fas fa-print"></i> Print Marksheet
+                        <i class="fas fa-print"></i> Print / Save PDF
                     </button>
                     <button onclick="closeResultCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition">
                         <i class="fas fa-times"></i> Close
@@ -206,106 +209,57 @@
 
                 <!-- Printable Marksheet Card -->
                 <div id="printable-result" class="bg-white rounded-xl shadow-2xl p-4 sm:p-6 md:p-10 certificate-border">
-                    <!-- Watermark / Decorative Corner -->
-                    <div class="border-b-2 border-emerald-800 pb-6 mb-6 text-center relative">
+                    <div class="border-b-2 border-emerald-800 pb-4 mb-4 text-center">
                         <p class="text-amber-600 font-serif text-base mb-1">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
-                        <h2 id="res-madrasa-name" class="text-2xl md:text-3xl font-bold text-emerald-950 font-serif uppercase tracking-wide">Madrasa Name</h2>
-                        <p id="res-madrasa-address" class="text-slate-500 text-xs mt-1">Official Statement of Marks & Attendance</p>
-                        <div class="mt-3 inline-block bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-1 rounded-full text-sm font-bold tracking-wide" id="res-exam-title">
-                            Annual Examination 2025
-                        </div>
+                        <h2 id="res-madrasa-name" class="text-xl sm:text-2xl md:text-3xl font-bold text-emerald-950 font-serif uppercase tracking-wide"></h2>
+                        <p id="res-madrasa-address" class="text-slate-500 text-xs mt-1"></p>
+                        <div id="res-exam-title" class="mt-2 inline-block bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-1 rounded-full text-sm font-bold"></div>
+                        <p class="text-[11px] uppercase tracking-widest text-slate-400 mt-2">Statement of Marks</p>
                     </div>
-
-                    <!-- Student Info & Status Banner -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <div class="space-y-1.5 text-sm">
-                            <p class="text-slate-500">Student Name: <strong id="res-student-name" class="text-slate-900 font-bold block text-base"></strong></p>
-                            <p class="text-slate-500">Admission No: <strong id="res-adm-no" class="text-slate-800 font-mono"></strong></p>
-                        </div>
-                        <div class="space-y-1.5 text-sm">
-                            <p class="text-slate-500">Father/Guardian: <strong id="res-father-name" class="text-slate-800 block"></strong></p>
-                            <p class="text-slate-500">Class / Grade: <strong id="res-class-name" class="text-slate-800"></strong></p>
-                        </div>
-                        <div class="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 pt-3 md:pt-0 border-slate-200">
-                            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Final Result Status</span>
-                            <div id="res-status-badge" class="px-4 py-1.5 rounded-lg font-bold text-base tracking-wider uppercase flex items-center gap-2">
-                                <!-- PASSED / FAILED -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Marks Table -->
-                    <div id="res-marks-cards" class="md:hidden print:hidden space-y-2 mb-6"></div>
-                    <div class="hidden md:block print:block overflow-x-auto mb-6">
+                    <div id="res-details" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 mb-4 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 text-sm"></div>
+                    <div id="res-stats" class="grid gap-2 sm:gap-3 mb-4"></div>
+                    <div id="res-marks-cards" class="md:hidden print:hidden space-y-2 mb-4"></div>
+                    <div class="hidden md:block print:block overflow-x-auto mb-4">
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-emerald-900 text-white text-xs uppercase tracking-wider">
-                                    <th class="py-3 px-2 sm:px-4 rounded-tl-lg hidden sm:table-cell">#</th>
-                                    <th class="py-3 px-4">Subject Name</th>
-                                    <th class="py-3 px-4 text-center">Max Marks</th>
-                                    <th class="py-3 px-2 sm:px-4 text-center hidden sm:table-cell">Pass Marks</th>
-                                    <th class="py-3 px-4 text-center">Marks Obtained</th>
-                                    <th class="py-3 px-4 text-center rounded-tr-lg">Subject Status</th>
+                                    <th class="py-2.5 px-4 hidden sm:table-cell">#</th>
+                                    <th class="py-2.5 px-4">Subject</th>
+                                    <th class="py-2.5 px-4 text-center">Max</th>
+                                    <th class="py-2.5 px-4 text-center hidden sm:table-cell">Pass</th>
+                                    <th class="py-2.5 px-4 text-center">Obtained</th>
+                                    <th class="py-2.5 px-4 text-center">Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="res-marks-tbody" class="divide-y divide-slate-200 text-sm">
-                                <!-- Dynamic Subject Rows -->
-                            </tbody>
-                            <tfoot>
-                                <tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300 text-base">
-                                    <td colspan="2" class="py-3.5 px-4 text-right">Grand Total</td>
-                                    <td id="res-total-max" class="py-3.5 px-4 text-center">500</td>
-                                    <td id="res-total-pass" class="hidden sm:table-cell py-3.5 px-4 text-center text-slate-500 text-sm">-</td>
-                                    <td id="res-total-obtained" class="py-3.5 px-4 text-center text-emerald-800 text-lg">420</td>
-                                    <td id="res-percentage" class="py-3.5 px-4 text-center text-emerald-800">84.0%</td>
-                                </tr>
-                            </tfoot>
+                            <tbody id="res-marks-tbody" class="divide-y divide-slate-200 text-sm"></tbody>
+                            <tfoot id="res-tfoot"></tfoot>
                         </table>
                     </div>
-
-                    <!-- Summary Cards: Percentage, Grade & Attendance -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                        <!-- Academic Summary -->
-                        <div class="border border-slate-200 rounded-xl p-4 flex items-center justify-between bg-white">
-                            <div>
-                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Academic Performance</h4>
-                                <p class="text-2xl font-bold text-slate-800" id="res-summary-perc">88.5%</p>
-                                <p class="text-xs text-slate-500 mt-0.5" id="res-grade-remarks">Grade: A+ (Mumtaz)</p>
-                            </div>
-                            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-bold">
-                                <i class="fas fa-award"></i>
-                            </div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="border border-slate-200 rounded-xl p-3">
+                            <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Percentage</h4>
+                            <p class="text-xl sm:text-2xl font-bold text-slate-800" id="res-summary-perc"></p>
                         </div>
-
-                        <!-- Attendance Summary -->
-                        <div class="border border-slate-200 rounded-xl p-4 flex items-center justify-between bg-white">
-                            <div>
-                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Attendance Summary</h4>
-                                <div class="flex items-baseline gap-2">
-                                    <p class="text-2xl font-bold text-slate-800" id="res-attendance-perc">92%</p>
-                                    <span class="text-xs text-slate-500 font-medium" id="res-attendance-days">(184 / 200 Days)</span>
-                                </div>
-                                <div class="w-36 bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                    <div id="res-attendance-bar" class="bg-emerald-600 h-full rounded-full" style="width: 92%"></div>
-                                </div>
-                            </div>
-                            <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
+                        <div class="border border-slate-200 rounded-xl p-3">
+                            <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Attendance</h4>
+                            <p class="text-xl sm:text-2xl font-bold text-slate-800"><span id="res-attendance-perc"></span> <span class="text-[11px] text-slate-500 font-medium" id="res-attendance-days"></span></p>
+                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden"><div id="res-attendance-bar" class="bg-emerald-600 h-full rounded-full" style="width:0%"></div></div>
                         </div>
                     </div>
-
-                    <!-- Signatures / Footer -->
-                    <div class="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-slate-200 text-xs text-slate-500 gap-6">
-                        <div>
-                            <p>Date of Issue: <span id="res-issue-date" class="font-semibold text-slate-700"></span></p>
-                            <p class="mt-1">Computer generated result. Does not require physical stamp for online verification.</p>
-                        </div>
-                        <div class="text-center">
-                            <div class="w-32 border-b border-slate-400 mb-1 mx-auto h-6 font-serif italic text-slate-700 text-sm">Muhtamim / Principal</div>
-                            <p class="font-semibold text-slate-700">Controller of Examinations</p>
+                    <div id="res-overall" class="hidden mb-4">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Overall Performance &mdash; All Exams</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead><tr class="bg-slate-100 text-xs uppercase text-slate-600"><th class="py-2 px-3">Exam</th><th class="py-2 px-3 text-center">Marks</th><th class="py-2 px-3 text-center">%</th><th class="py-2 px-3 text-center">Grade</th></tr></thead>
+                                <tbody id="res-overall-body" class="divide-y divide-slate-200"></tbody>
+                            </table>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-6 pt-8 mt-2 border-t border-slate-200 text-xs text-slate-500 text-center">
+                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><p class="font-semibold text-slate-700">Class Teacher</p></div>
+                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><p class="font-semibold text-slate-700">Principal / Controller of Examinations</p></div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 text-center mt-3">Date of issue: <span id="res-issue-date"></span> &bull; Computer generated result.</p>
                 </div>
             </div>
         </main>
@@ -386,6 +340,12 @@
                     </button>
                     <button onclick="switchAdminTab('marks')" id="tab-btn-marks" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
                         <i class="fas fa-edit w-5 text-center"></i> <span>Marks & Attendance Entry</span>
+                    </button>
+                    <button onclick="switchAdminTab('reports')" id="tab-btn-reports" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
+                        <i class="fas fa-file-pdf w-5 text-center"></i> <span>Class Results (PDF)</span>
+                    </button>
+                    <button onclick="switchAdminTab('setup')" id="tab-btn-setup" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
+                        <i class="fas fa-sliders-h w-5 text-center"></i> <span>Setup & Grading</span>
                     </button>
                 </nav>
 
@@ -639,17 +599,14 @@
                                 </div>
                                 <form onsubmit="registerStudent(event)" class="p-5 space-y-3.5">
                                     <div>
-                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Admission Number <span class="text-red-500">*</span></label>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1"><span id="std-adm-label">Admission Number</span> <span class="text-red-500">*</span></label>
                                         <input type="text" id="std-adm-no" required placeholder="e.g., ADM106" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm uppercase">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Full Name <span class="text-red-500">*</span></label>
                                         <input type="text" id="std-name" required placeholder="Student Full Name" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
                                     </div>
-                                    <div>
-                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Father / Guardian Name <span class="text-red-500">*</span></label>
-                                        <input type="text" id="std-father" required placeholder="Guardian Name" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
-                                    </div>
+                                    <div id="std-extra-fields" class="space-y-3.5"></div>
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Assign Class <span class="text-red-500">*</span></label>
                                         <select id="std-class" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
@@ -710,7 +667,7 @@
                                         <tr class="bg-slate-100 text-xs uppercase text-slate-600">
                                             <th class="py-3 px-4">Admission No</th>
                                             <th class="py-3 px-4">Student Name</th>
-                                            <th class="py-3 px-4">Father / Guardian</th>
+                                            <th class="py-3 px-4">Details</th>
                                             <th class="py-3 px-4">Class</th>
                                             <th class="py-3 px-4 text-right">Actions</th>
                                         </tr>
@@ -724,6 +681,52 @@
                     </div>
 
                     <!-- TAB 4: MARKS & ATTENDANCE ENTRY -->
+                    <div id="admin-tab-reports" class="admin-tab-content hidden space-y-4">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5 flex flex-col md:flex-row gap-3 md:items-end">
+                            <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Examination</label><select id="rep-exam" onchange="renderClassReport()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+                            <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Class</label><select id="rep-class" onchange="renderClassReport()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+                            <button onclick="printClassReport()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Download / Print PDF</button>
+                        </div>
+                        <p class="text-xs text-slate-500"><i class="fas fa-info-circle"></i> In the print window choose <b>Save as PDF</b> as the destination. Positions are ranked by total marks.</p>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5 overflow-x-auto"><div id="class-print-area"></div></div>
+                    </div>
+
+                    <div id="admin-tab-setup" class="admin-tab-content hidden space-y-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
+                            <div class="flex items-start justify-between gap-4">
+                                <div><h3 class="font-bold text-slate-800"><i class="fas fa-globe text-emerald-700 mr-1.5"></i> Public Portal</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">While switched off, visitors only see your announcement message.</p></div>
+                                <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer shrink-0"><input type="checkbox" id="portal-enabled" onchange="savePortal()" class="w-5 h-5 accent-emerald-700"> <span id="portal-badge"></span></label>
+                            </div>
+                            <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Announcement shown while closed</label><textarea id="portal-message" rows="3" maxlength="500" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></textarea></div>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="portal-show-pos" class="w-4 h-4 accent-emerald-700"> Show class position on marksheet</label>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <button onclick="savePortal()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm">Save</button>
+                                <button onclick="shareLink()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-5 py-2.5 rounded-lg text-sm"><i class="fas fa-share-alt mr-1"></i> Share public link</button>
+                            </div>
+                            <p class="text-xs text-slate-500">Public link: <b id="portal-link"></b> &bull; Admin login lives only at <b>/admin</b> (never shown to the public).</p>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
+                            <div><h3 class="font-bold text-slate-800"><i class="fas fa-award text-amber-600 mr-1.5"></i> Grading Criteria</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">A student gets the highest grade whose minimum % they reach. Failing any subject gives the Fail grade. The all-exams grade uses overall percentage.</p></div>
+                            <div class="grid grid-cols-[4rem_4rem_minmax(0,1fr)_1.75rem] gap-2 text-[11px] font-bold uppercase text-slate-500"><span>Min %</span><span>Grade</span><span>Title / remark</span><span></span></div>
+                            <div id="grade-rows" class="space-y-2"></div>
+                            <button type="button" onclick="addGradeRow()" class="text-sm text-emerald-800 font-semibold"><i class="fas fa-plus mr-1"></i> Add grade</button>
+                            <div class="grid grid-cols-[5rem_minmax(0,1fr)] gap-2 items-center pt-2 border-t border-slate-100"><span class="text-xs font-bold uppercase text-red-600">Fail grade</span>
+                                <div class="grid grid-cols-[4rem_minmax(0,1fr)] gap-2"><input id="fail-grade" maxlength="12" class="min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm"><input id="fail-title" maxlength="40" class="min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm"></div></div>
+                            <button onclick="saveGrades()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save grading</button>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
+                            <div><h3 class="font-bold text-slate-800"><i class="fas fa-id-card text-sky-600 mr-1.5"></i> Student Details Fields</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Rename, remove or add the details you collect (e.g. Date of Birth, Mother&rsquo;s Name, Phone). Tick &ldquo;On marksheet&rdquo; to print it on the result. Name and the ID field are always kept.</p></div>
+                            <div id="field-rows" class="space-y-2"></div>
+                            <div class="flex gap-2"><input id="new-field-label" maxlength="40" placeholder="New field, e.g. Date of Birth" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white flex-1"><button type="button" onclick="addFieldRow()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-semibold">Add</button></div>
+                            <button onclick="saveFields()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save fields</button>
+                        </div>
+                    </div>
+
                     <div id="admin-tab-marks" class="admin-tab-content hidden space-y-6">
                         <!-- Selector Bar -->
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
@@ -822,6 +825,7 @@
     <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
     <script>
         // ================= STATE + API LAYER =================
+        const IS_ADMIN_ROUTE = location.pathname.replace(/\/+$/, '') === '/admin' || new URLSearchParams(location.search).get('view') === 'admin';
         let isAdminAuthenticated = false;
         let token = sessionStorage.getItem('rms_token') || '';
         let appState = emptyState();
@@ -830,7 +834,10 @@
         const TABLES = ['exams', 'classes', 'subjects', 'students', 'results'];
 
         function emptyState() {
-            return { madrasa: { name: 'Madrasa', subtitle: '', logo: '' }, announcements: [], exams: [], classes: [], subjects: [], students: [], results: [] };
+            return { madrasa: { name: 'Madrasa', subtitle: '', logo: '' }, announcements: [],
+                portal: { enabled: false, message: '', showPosition: true },
+                grades: { scale: [{ min: 85, grade: 'A+', title: 'Mumtaz' }, { min: 70, grade: 'A', title: 'Jayyid Jiddan' }, { min: 55, grade: 'B', title: 'Jayyid' }, { min: 0, grade: 'C', title: 'Maqbool' }], fail: { grade: 'F', title: 'Rasib' } },
+                fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], exams: [], classes: [], subjects: [], students: [], results: [] };
         }
         const clone = o => JSON.parse(JSON.stringify(o));
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -873,8 +880,7 @@
                 for (const k of old.keys()) if (!seen.has(k)) (deletes[t] ||= []).push(k);
             }
             const st = {};
-            if (JSON.stringify(appState.madrasa) !== JSON.stringify(snapshot.madrasa)) st.madrasa = appState.madrasa;
-            if (JSON.stringify(appState.announcements) !== JSON.stringify(snapshot.announcements)) st.announcements = appState.announcements;
+            for (const k of ['madrasa', 'announcements', 'portal', 'grades', 'fields']) if (JSON.stringify(appState[k]) !== JSON.stringify(snapshot[k])) st[k] = appState[k];
             if (Object.keys(st).length) upserts.settings = st;
             return (Object.keys(upserts).length || Object.keys(deletes).length) ? { upserts, deletes } : null;
         }
@@ -936,24 +942,14 @@
         }
 
         function switchView(view) {
-            const publicView = document.getElementById('public-view');
-            const adminView = document.getElementById('admin-view');
-            if (view === 'admin') {
-                publicView.classList.add('hidden');
-                adminView.classList.remove('hidden');
-                if (isAdminAuthenticated) {
-                    document.getElementById('admin-login-screen').classList.add('hidden');
-                    document.getElementById('admin-dashboard').classList.remove('hidden');
-                    renderAllAdminData();
-                } else {
-                    document.getElementById('admin-login-screen').classList.remove('hidden');
-                    document.getElementById('admin-dashboard').classList.add('hidden');
-                }
-            } else {
-                adminView.classList.add('hidden');
-                publicView.classList.remove('hidden');
-                if (isAdminAuthenticated) renderPublicPortal(); else loadPublicData();
-            }
+            if (view === 'public') { window.open('/', '_blank', 'noopener'); return; }
+            if (!IS_ADMIN_ROUTE) return; // public visitors can never reach the admin screens
+            document.getElementById('public-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.remove('hidden');
+            const on = isAdminAuthenticated;
+            document.getElementById('admin-login-screen').classList.toggle('hidden', on);
+            document.getElementById('admin-dashboard').classList.toggle('hidden', !on);
+            if (on) renderAllAdminData();
         }
 
         // ================= PUBLIC PORTAL LOGIC =================
@@ -999,6 +995,13 @@
                     examSelect.value = currentVal;
                 }
             }
+
+            const open = !!appState.portal.enabled;
+            document.getElementById('search-card').classList.toggle('hidden', !open);
+            document.getElementById('portal-closed').classList.toggle('hidden', open);
+            document.getElementById('portal-closed-msg').textContent = appState.portal.message || 'Results are not published yet. Please check back soon.';
+            if (!open) document.getElementById('result-display-container').classList.add('hidden');
+            document.getElementById('search-adm-label').textContent = admLabel();
         }
 
         async function handleResultSearch(e) {
@@ -1017,98 +1020,175 @@
             } finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
         }
 
-        function displayMarksheet({ madrasa, exam, student, cls, subjects, result: resultRecord }) {
-            document.getElementById('res-madrasa-name').textContent = madrasa.name;
-            document.getElementById('res-madrasa-address').textContent = madrasa.subtitle;
-            document.getElementById('res-exam-title').textContent = exam ? exam.name : 'Examination';
+        // ================= HELPERS =================
+        const sumMarks = (m, subs) => subs.reduce((a, s) => a + Number(m?.[s.id] || 0), 0);
+        const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
+        const ord = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+        const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
+        const admLabel = () => (appState.fields.find(f => f.id === 'admissionNo') || {}).label || 'Admission No';
+        const fieldVal = (s, id) => id === 'fatherName' ? (s.fatherName || '') : ((s.extra || {})[id] || '');
 
-            document.getElementById('res-student-name').textContent = student.name;
-            document.getElementById('res-adm-no').textContent = student.admissionNo;
-            document.getElementById('res-father-name').textContent = student.fatherName;
-            document.getElementById('res-class-name').textContent = cls ? cls.name : 'N/A';
+        async function shareLink() {
+            const url = location.origin + '/';
+            try {
+                if (navigator.share) { await navigator.share({ title: appState.madrasa.name, text: 'Check your exam results online - ' + appState.madrasa.name, url }); return; }
+                await navigator.clipboard.writeText(url);
+                showToast('Link copied: ' + url, 'success');
+            } catch (e) { if (e.name !== 'AbortError') window.prompt('Copy this link:', url); }
+        }
 
-            let totalMax = 0;
+        // ================= MARKSHEET (public) =================
+        function displayMarksheet(d) {
+            const { madrasa, exam, cls, subjects, details, result, summary, position, exams, overall } = d;
+            const $ = id => document.getElementById(id);
+            $('res-madrasa-name').textContent = madrasa.name;
+            $('res-madrasa-address').textContent = madrasa.subtitle;
+            $('res-exam-title').textContent = exam.name;
+            $('res-details').innerHTML = [...details, { label: 'Class', value: cls.name }].map(x =>
+                `<div><p class="text-[11px] uppercase tracking-wide text-slate-400">${esc(x.label)}</p><p class="font-semibold text-slate-900 break-words">${esc(x.value)}</p></div>`).join('');
+
+            const box = (cl, label, val, sub) => `<div class="rounded-xl border p-2.5 sm:p-3 text-center ${cl}"><p class="text-[10px] uppercase tracking-wider opacity-70">${label}</p><p class="text-base sm:text-lg font-bold leading-tight">${val}</p>${sub ? `<p class="text-[11px] opacity-80">${sub}</p>` : ''}</div>`;
+            const boxes = [
+                summary.passed ? box('bg-emerald-50 border-emerald-300 text-emerald-800', 'Result', 'PASSED') : box('bg-red-50 border-red-300 text-red-700', 'Result', 'FAILED'),
+                box('bg-amber-50 border-amber-300 text-amber-900', 'Grade', esc(summary.grade.grade), esc(summary.grade.title))
+            ];
+            if (position) boxes.push(box('bg-sky-50 border-sky-300 text-sky-900', 'Class Position', ord(position.rank), `of ${position.of} students`));
+            $('res-stats').style.gridTemplateColumns = `repeat(${boxes.length}, minmax(0, 1fr))`;
+            $('res-stats').innerHTML = boxes.join('');
+
             let totalPass = 0;
-            let totalObtained = 0;
-            let allSubjectsPassed = true;
-
-            const tbody = document.getElementById('res-marks-tbody');
-            tbody.innerHTML = subjects.map((sub, idx) => {
-                const obtained = Number(resultRecord.marks[sub.id] ?? 0);
-                const max = Number(sub.maxMarks);
-                const pass = Number(sub.passingMarks);
-                const isPass = obtained >= pass;
-
-                if (!isPass) allSubjectsPassed = false;
-                totalMax += max;
-                totalPass += pass;
-                totalObtained += obtained;
-
-                return `
-                    <tr class="hover:bg-slate-50">
-                        <td class="py-3 px-2 sm:px-4 font-mono text-slate-400 hidden sm:table-cell">${idx + 1}</td>
-                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
-                        <td class="py-3 px-4 text-center text-slate-600">${max}</td>
-                        <td class="py-3 px-2 sm:px-4 text-center text-slate-500 hidden sm:table-cell">${pass}</td>
-                        <td class="py-3 px-4 text-center font-bold ${isPass ? 'text-slate-900' : 'text-red-600'}">${obtained}</td>
-                        <td class="py-3 px-4 text-center">
-                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">
-                                ${isPass ? 'PASS' : 'FAIL'}
-                            </span>
-                        </td>
-                    </tr>
-                `;
+            $('res-marks-tbody').innerHTML = subjects.map((sub, i) => {
+                const o = Number(result.marks[sub.id] ?? 0), ok = o >= sub.passingMarks; totalPass += sub.passingMarks;
+                return `<tr><td class="py-2.5 px-4 font-mono text-slate-400 hidden sm:table-cell">${i + 1}</td><td class="py-2.5 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
+                    <td class="py-2.5 px-4 text-center text-slate-600">${sub.maxMarks}</td><td class="py-2.5 px-4 text-center text-slate-500 hidden sm:table-cell">${sub.passingMarks}</td>
+                    <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</td>
+                    <td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
             }).join('');
-
-            const percentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : 0;
-
-            document.getElementById('res-marks-cards').innerHTML = subjects.map(sub => {
-                const o = Number(resultRecord.marks[sub.id] ?? 0), ok = o >= Number(sub.passingMarks);
+            $('res-tfoot').innerHTML = `<tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300"><td colspan="2" class="py-3 px-4 text-right">Grand Total</td><td class="py-3 px-4 text-center">${summary.max}</td><td class="py-3 px-4 text-center text-slate-500 hidden sm:table-cell">${totalPass}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.obtained}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.percentage}%</td></tr>`;
+            $('res-marks-cards').innerHTML = subjects.map(sub => {
+                const o = Number(result.marks[sub.id] ?? 0), ok = o >= sub.passingMarks;
                 return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
                     <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks} &bull; Pass ${sub.passingMarks}</p></div>
                     <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</p>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></div></div>`;
-            }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${totalObtained} / ${totalMax} &bull; ${percentage}%</span></div>`;
+            }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
 
-            document.getElementById('res-total-max').textContent = totalMax;
-            document.getElementById('res-total-pass').textContent = totalPass;
-            document.getElementById('res-total-obtained').textContent = totalObtained;
-            document.getElementById('res-percentage').textContent = `${percentage}%`;
-            document.getElementById('res-summary-perc').textContent = `${percentage}%`;
+            $('res-summary-perc').textContent = summary.percentage + '%';
+            const days = Number(cls.totalWorkingDays) || 200, present = Number(result.attendanceDays || 0), att = days > 0 ? Math.min(100, present / days * 100).toFixed(1) : 0;
+            $('res-attendance-perc').textContent = att + '%';
+            $('res-attendance-days').textContent = `(${present}/${days} days)`;
+            $('res-attendance-bar').style.width = att + '%';
 
-            // Grade Calculation
-            let gradeText = "Rasib (Needs Improvement)";
-            if (allSubjectsPassed) {
-                if (percentage >= 85) gradeText = "Grade: A+ • Mumtaz (Distinction)";
-                else if (percentage >= 70) gradeText = "Grade: A • Jayyid Jiddan (Very Good)";
-                else if (percentage >= 55) gradeText = "Grade: B • Jayyid (Good)";
-                else gradeText = "Grade: C • Maqbool (Satisfactory)";
-            }
-            document.getElementById('res-grade-remarks').textContent = gradeText;
+            $('res-overall').classList.toggle('hidden', exams.length < 2);
+            $('res-overall-body').innerHTML = exams.map(x => `<tr><td class="py-2 px-3">${esc(x.name)}</td><td class="py-2 px-3 text-center">${x.obtained}/${x.max}</td><td class="py-2 px-3 text-center">${x.percentage}%</td><td class="py-2 px-3 text-center font-bold">${esc(x.grade.grade)}</td></tr>`).join('')
+                + `<tr class="bg-slate-100 font-bold"><td class="py-2 px-3">Overall</td><td class="py-2 px-3 text-center">${overall.obtained}/${overall.max}</td><td class="py-2 px-3 text-center">${overall.percentage}%</td><td class="py-2 px-3 text-center">${esc(overall.grade.grade)} ${overall.grade.title ? '&bull; ' + esc(overall.grade.title) : ''}</td></tr>`;
+            $('res-issue-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-            // Final Status Badge
-            const badge = document.getElementById('res-status-badge');
-            if (allSubjectsPassed && subjects.length > 0) {
-                badge.className = "px-4 py-1.5 rounded-lg font-bold text-base tracking-wider uppercase flex items-center gap-2 bg-emerald-100 text-emerald-800 border border-emerald-300";
-                badge.innerHTML = `<i class="fas fa-check-circle"></i> PASSED`;
-            } else {
-                badge.className = "px-4 py-1.5 rounded-lg font-bold text-base tracking-wider uppercase flex items-center gap-2 bg-red-100 text-red-800 border border-red-300";
-                badge.innerHTML = `<i class="fas fa-times-circle"></i> FAILED`;
-            }
-
-            // Attendance Summary
-            const totalDays = cls ? Number(cls.totalWorkingDays) : 200;
-            const presentDays = Number(resultRecord.attendanceDays || 0);
-            const attPerc = totalDays > 0 ? Math.min(100, ((presentDays / totalDays) * 100)).toFixed(1) : 0;
-
-            document.getElementById('res-attendance-perc').textContent = `${attPerc}%`;
-            document.getElementById('res-attendance-days').textContent = `(${presentDays} / ${totalDays} Working Days)`;
-            document.getElementById('res-attendance-bar').style.width = `${attPerc}%`;
-            document.getElementById('res-issue-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-            const container = document.getElementById('result-display-container');
+            const container = $('result-display-container');
             container.classList.remove('hidden');
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ================= SETUP TAB =================
+        const IN = 'min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm w-full';
+        const gradeRowHTML = r => `<div class="grade-row grid grid-cols-[4rem_4rem_minmax(0,1fr)_1.75rem] gap-2 items-center"><input type="number" min="0" max="100" step="0.1" value="${esc(r.min)}" class="g-min ${IN}"><input value="${esc(r.grade)}" maxlength="12" class="g-grade ${IN}"><input value="${esc(r.title || '')}" maxlength="40" class="g-title ${IN}"><button type="button" onclick="this.closest('.grade-row').remove()" class="text-slate-400 hover:text-red-600"><i class="fas fa-trash"></i></button></div>`;
+        const fieldRowHTML = f => `<div class="field-row flex items-center gap-2" data-id="${esc(f.id)}"><input value="${esc(f.label)}" maxlength="40" class="f-label ${IN} flex-1"><label class="flex items-center gap-1 text-xs whitespace-nowrap"><input type="checkbox" class="f-show accent-emerald-700" ${f.show ? 'checked' : ''}> On marksheet</label>${f.id === 'admissionNo' ? '<span class="w-6"></span>' : `<button type="button" onclick="this.closest('.field-row').remove()" class="text-slate-400 hover:text-red-600 w-6"><i class="fas fa-trash"></i></button>`}</div>`;
+
+        function renderSetup() {
+            const p = appState.portal;
+            document.getElementById('portal-enabled').checked = !!p.enabled;
+            document.getElementById('portal-badge').textContent = p.enabled ? 'Public: ON' : 'Public: OFF';
+            document.getElementById('portal-message').value = p.message || '';
+            document.getElementById('portal-show-pos').checked = p.showPosition !== false;
+            document.getElementById('portal-link').textContent = location.origin + '/';
+            document.getElementById('grade-rows').innerHTML = [...appState.grades.scale].sort((a, b) => b.min - a.min).map(gradeRowHTML).join('');
+            document.getElementById('fail-grade').value = appState.grades.fail.grade;
+            document.getElementById('fail-title').value = appState.grades.fail.title || '';
+            document.getElementById('field-rows').innerHTML = appState.fields.map(fieldRowHTML).join('');
+        }
+        function savePortal() {
+            appState.portal = { enabled: document.getElementById('portal-enabled').checked, message: document.getElementById('portal-message').value.trim(), showPosition: document.getElementById('portal-show-pos').checked };
+            document.getElementById('portal-badge').textContent = appState.portal.enabled ? 'Public: ON' : 'Public: OFF';
+            saveState();
+            showToast(appState.portal.enabled ? 'Public portal is now ON' : 'Public portal is now OFF', 'success');
+        }
+        function addGradeRow() { document.getElementById('grade-rows').insertAdjacentHTML('beforeend', gradeRowHTML({ min: 0, grade: '', title: '' })); }
+        function saveGrades() {
+            const scale = [...document.querySelectorAll('.grade-row')].map(r => ({ min: Number(r.querySelector('.g-min').value), grade: r.querySelector('.g-grade').value.trim(), title: r.querySelector('.g-title').value.trim() }));
+            const fail = { grade: document.getElementById('fail-grade').value.trim(), title: document.getElementById('fail-title').value.trim() };
+            if (!scale.length || scale.some(x => !x.grade || isNaN(x.min) || x.min < 0 || x.min > 100) || !fail.grade) { showToast('Fill every grade row (min % 0-100) and the fail grade.', 'error'); return; }
+            appState.grades = { scale: scale.sort((a, b) => b.min - a.min), fail };
+            saveState(); renderSetup(); showToast('Grading criteria saved', 'success');
+        }
+        function addFieldRow() {
+            const inp = document.getElementById('new-field-label'), label = inp.value.trim();
+            if (!label) return;
+            document.getElementById('field-rows').insertAdjacentHTML('beforeend', fieldRowHTML({ id: 'f_' + Date.now().toString(36), label, show: true }));
+            inp.value = '';
+        }
+        function saveFields() {
+            const fields = [...document.querySelectorAll('.field-row')].map(r => ({ id: r.dataset.id, label: r.querySelector('.f-label').value.trim(), show: r.querySelector('.f-show').checked }));
+            if (fields.some(f => !f.label)) { showToast('Every field needs a label.', 'error'); return; }
+            appState.fields = fields;
+            saveState(); renderAllAdminData(); showToast('Student fields saved', 'success');
+        }
+
+        // ================= STUDENT FORM (dynamic fields) =================
+        function renderStudentForm() {
+            document.getElementById('std-adm-label').textContent = admLabel();
+            const keep = {}; document.querySelectorAll('#std-extra-fields input').forEach(i => keep[i.id] = i.value);
+            document.getElementById('std-extra-fields').innerHTML = appState.fields.filter(f => f.id !== 'admissionNo').map(f =>
+                `<div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">${esc(f.label)}</label><input type="text" id="std-f-${esc(f.id)}" value="${esc(keep['std-f-' + f.id] || '')}" maxlength="200" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm"></div>`).join('');
+        }
+
+        // ================= CLASS RESULT REPORT =================
+        function renderReportSelectors() {
+            const e = document.getElementById('rep-exam'), c = document.getElementById('rep-class'), ev = e.value, cv = c.value;
+            e.innerHTML = appState.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') + (appState.exams.length > 1 ? '<option value="__ALL__">All exams (cumulative)</option>' : '');
+            c.innerHTML = appState.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            if ([...e.options].some(o => o.value === ev)) e.value = ev;
+            if ([...c.options].some(o => o.value === cv)) c.value = cv;
+            renderClassReport();
+        }
+        function renderClassReport() {
+            const area = document.getElementById('class-print-area');
+            const examId = document.getElementById('rep-exam').value, classId = document.getElementById('rep-class').value;
+            const cls = appState.classes.find(c => c.id === classId);
+            if (!examId || !cls) { area.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">Create an exam and a class first.</p>'; return; }
+            const all = examId === '__ALL__', G = appState.grades;
+            const exams = all ? appState.exams : appState.exams.filter(e => e.id === examId);
+            const subs = appState.subjects.filter(s => s.classId === classId);
+            const maxPer = subs.reduce((a, s) => a + Number(s.maxMarks), 0);
+            const rows = appState.students.filter(s => s.classId === classId).map(st => {
+                const per = exams.map(ex => { const r = appState.results.find(r => r.examId === ex.id && r.studentId === st.id); return r ? { m: r.marks, o: sumMarks(r.marks, subs), fail: subs.some(s => Number(r.marks[s.id] ?? 0) < Number(s.passingMarks)) } : null; });
+                const have = per.filter(Boolean); if (!have.length) return null;
+                const o = have.reduce((a, x) => a + x.o, 0), max = have.length * maxPer, p = pctOf(o, max), failN = have.filter(x => x.fail).length;
+                return { st, per, o, max, p, failN, grade: gradeOf(p, !all && failN > 0, G) };
+            }).filter(Boolean).sort((a, b) => b.o - a.o || a.st.name.localeCompare(b.st.name));
+            rows.forEach(r => r.rank = 1 + rows.filter(x => x.o > r.o).length);
+            const th = 'border border-slate-300 px-2 py-1.5 bg-slate-100 text-[11px] uppercase', td = 'border border-slate-300 px-2 py-1 text-center';
+            const cols = all ? exams.map(e => `<th class="${th}">${esc(e.name)}<br><span class="font-normal">/${maxPer}</span></th>`).join('')
+                : subs.map(s => `<th class="${th}">${esc(s.name)}<br><span class="font-normal">/${s.maxMarks}</span></th>`).join('');
+            const body = rows.map(r => `<tr><td class="${td} font-bold">${r.rank}</td><td class="${td}">${esc(r.st.admissionNo)}</td><td class="${td} text-left font-medium">${esc(r.st.name)}</td>`
+                + (all ? r.per.map(x => `<td class="${td}">${x ? x.o : '-'}</td>`).join('')
+                    : subs.map(s => { const v = r.per[0].m[s.id]; return `<td class="${td} ${Number(v ?? 0) < Number(s.passingMarks) ? 'text-red-600 font-bold' : ''}">${v ?? '-'}</td>`; }).join(''))
+                + `<td class="${td} font-bold">${r.o}/${r.max}</td><td class="${td}">${r.p}%</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td} font-semibold ${r.failN ? 'text-red-600' : 'text-emerald-700'}">${all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
+            const passed = rows.filter(r => r.failN === 0).length;
+            const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail)`;
+            area.innerHTML = `<div class="text-center mb-3"><h2 class="text-lg font-bold uppercase font-serif">${esc(appState.madrasa.name)}</h2>
+                <p class="text-sm font-semibold">${all ? 'All Exams (Cumulative)' : esc(exams[0] ? exams[0].name : '')} &bull; ${esc(cls.name)}</p>
+                <p class="text-xs text-slate-500 mt-1">Appeared: ${rows.length} &bull; Passed: ${passed} &bull; Pass rate: ${pctOf(passed, rows.length)}% &bull; ${new Date().toLocaleDateString('en-GB')}</p></div>`
+                + (rows.length ? `<table class="min-w-full text-xs border-collapse"><thead><tr><th class="${th}">Pos</th><th class="${th}">${esc(admLabel())}</th><th class="${th} text-left">Name</th>${cols}<th class="${th}">Total</th><th class="${th}">%</th><th class="${th}">Grade</th><th class="${th}">${all ? 'Exams' : 'Result'}</th></tr></thead><tbody>${body}</tbody></table><p class="text-[10px] text-slate-500 mt-2">Grade key: ${key}</p>`
+                    : '<p class="text-sm text-slate-400 text-center py-6">No results entered for this selection yet.</p>');
+        }
+        function printClassReport() {
+            const src = document.getElementById('class-print-area');
+            if (!src.querySelector('table')) { showToast('No results to print for this selection.', 'error'); return; }
+            const root = document.createElement('div'); root.id = 'print-root'; root.innerHTML = src.innerHTML;
+            document.body.appendChild(root); document.body.classList.add('print-class');
+            const done = () => { document.body.classList.remove('print-class'); root.remove(); window.removeEventListener('afterprint', done); };
+            window.addEventListener('afterprint', done);
+            setTimeout(() => window.print(), 80);
         }
 
         function closeResultCard() {
@@ -1141,7 +1221,7 @@
             isAdminAuthenticated = false; snapshot = null;
             closeSidebar();
             appState = emptyState();
-            switchView('public');
+            switchView('admin');
             showToast("Logged out successfully.", "info");
         }
 
@@ -1151,7 +1231,9 @@
                 overview: "Overview, Madrasa Branding & Announcements",
                 academics: "Examination, Class & Subject Configuration",
                 students: "Student Registration & CSV Bulk Import",
-                marks: "Student Marks & Attendance Entry"
+                marks: "Student Marks & Attendance Entry",
+                reports: "Class Result Sheets (PDF)",
+                setup: "Setup: Portal, Grading & Student Fields"
             };
             document.getElementById('admin-page-title').textContent = titles[tabId] || "Dashboard";
 
@@ -1166,9 +1248,9 @@
                 activeBtn.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition whitespace-nowrap bg-amber-500 text-slate-950 shadow";
             }
 
-            if (tabId === 'marks') {
-                initMarksEntrySelectors();
-            }
+            if (tabId === 'marks') initMarksEntrySelectors();
+            if (tabId === 'reports') renderReportSelectors();
+            if (tabId === 'setup') renderSetup();
         }
 
         function renderAllAdminData() {
@@ -1189,6 +1271,9 @@
             populateClassDropdowns();
             renderAdminSubjects();
             renderAdminStudents();
+            renderStudentForm();
+            renderReportSelectors();
+            renderSetup();
         }
 
         // ================= TAB 1: SETTINGS & ANNOUNCEMENTS =================
@@ -1444,26 +1529,20 @@
             e.preventDefault();
             const admissionNo = document.getElementById('std-adm-no').value.trim().toUpperCase();
             const name = document.getElementById('std-name').value.trim();
-            const fatherName = document.getElementById('std-father').value.trim();
             const classId = document.getElementById('std-class').value;
-
             if (appState.students.some(s => s.admissionNo.toUpperCase() === admissionNo)) {
-                showToast(`Student with Admission No ${admissionNo} already exists!`, "error");
+                showToast(`${admLabel()} ${admissionNo} already exists!`, "error");
                 return;
             }
-
-            appState.students.push({
-                id: 'ST_' + Date.now(),
-                admissionNo,
-                name,
-                fatherName,
-                classId
+            let fatherName = ''; const extra = {};
+            appState.fields.filter(f => f.id !== 'admissionNo').forEach(f => {
+                const v = (document.getElementById('std-f-' + f.id)?.value || '').trim();
+                if (f.id === 'fatherName') fatherName = v; else if (v) extra[f.id] = v;
             });
-
+            appState.students.push({ id: 'ST_' + Date.now(), admissionNo, name, fatherName, extra, classId });
             document.getElementById('std-adm-no').value = '';
             document.getElementById('std-name').value = '';
-            document.getElementById('std-father').value = '';
-
+            document.querySelectorAll('#std-extra-fields input').forEach(i => i.value = '');
             saveState();
             renderAllAdminData();
             showToast(`Student ${name} (${admissionNo}) registered!`, "success");
@@ -1475,7 +1554,7 @@
 
             const filtered = appState.students.filter(s => {
                 const matchClass = filterClass === 'ALL' || s.classId === filterClass;
-                const matchQuery = s.name.toLowerCase().includes(query) || s.admissionNo.toLowerCase().includes(query);
+                const matchQuery = s.name.toLowerCase().includes(query) || s.admissionNo.toLowerCase().includes(query) || Object.values(s.extra || {}).some(v => String(v).toLowerCase().includes(query));
                 return matchClass && matchQuery;
             });
 
@@ -1491,7 +1570,7 @@
                     <tr class="hover:bg-slate-50">
                         <td class="py-3 px-4 font-mono font-bold text-emerald-800">${esc(s.admissionNo)}</td>
                         <td class="py-3 px-4 font-semibold text-slate-800">${esc(s.name)}</td>
-                        <td class="py-3 px-4 text-slate-600">${esc(s.fatherName)}</td>
+                        <td class="py-3 px-4 text-slate-600 text-xs space-y-0.5">${appState.fields.filter(f => f.id !== 'admissionNo').map(f => fieldVal(s, f.id) ? `<div><span class="text-slate-400">${esc(f.label)}:</span> ${esc(fieldVal(s, f.id))}</div>` : '').join('') || '-'}</td>
                         <td class="py-3 px-4"><span class="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium">${esc(cls ? cls.name : 'Unassigned')}</span></td>
                         <td class="py-3 px-4 text-right space-x-2">
                             <button onclick="jumpToStudentMarks('${s.id}', '${s.classId}')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded font-semibold">
@@ -1528,89 +1607,55 @@
         }
 
         function downloadSampleCSV() {
-            const sampleRows = [
-                ["AdmissionNo", "Name", "FatherName", "ClassName"],
-                ["ADM108", "Hassan Ali", "Hussain Ali", "Ibtidaiyah (Primary - Year 1)"],
-                ["ADM109", "Maryam Bibi", "Ibrahim Khalil", "Ibtidaiyah (Primary - Year 1)"],
-                ["ADM205", "Yusuf Mansoor", "Mansoor Ahmad", "Mutawassitah (Middle - Year 2)"]
-            ];
-            const csv = sampleRows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+            const labels = appState.fields.filter(f => f.id !== 'admissionNo').map(f => f.label);
+            const cls = appState.classes[0] ? appState.classes[0].name : 'Class 1';
+            const sample = n => [n === 1 ? 'ADM108' : 'ADM109', n === 1 ? 'Hassan Ali' : 'Maryam Bibi', ...labels.map(l => 'Sample ' + l), cls];
+            const csv = [[admLabel(), 'Name', ...labels, 'ClassName'], sample(1), sample(2)].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
             const link = document.createElement("a");
             link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
             link.download = "madrasa_students_sample.csv";
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+            document.body.appendChild(link); link.click(); link.remove();
         }
 
         function processCSVUpload() {
             const fileInput = document.getElementById('csv-file-input');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                showToast("Please select a .CSV file first.", "error");
-                return;
-            }
-
-            const file = fileInput.files[0];
+            if (!fileInput.files || fileInput.files.length === 0) { showToast("Please select a .CSV file first.", "error"); return; }
             const reader = new FileReader();
             reader.onload = function (e) {
-                const text = String(e.target.result).replace(/^\uFEFF/, '');
-                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-                if (lines.length < 2) {
-                    showToast("CSV file is empty or missing data rows.", "error");
-                    return;
+                const lines = String(e.target.result).replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length < 2) { showToast("CSV file is empty or missing data rows.", "error"); return; }
+                const norm = x => String(x).toLowerCase().replace(/[^a-z0-9]/g, '');
+                const targetOf = h => {
+                    const n = norm(h);
+                    if (['admissionno', 'admissionnumber', 'admno', 'rollno', 'rollnumber'].includes(n) || n === norm(admLabel())) return 'admissionNo';
+                    if (['name', 'fullname', 'studentname'].includes(n)) return 'name';
+                    if (['classname', 'class'].includes(n)) return 'class';
+                    const f = appState.fields.find(f => f.id !== 'admissionNo' && (norm(f.label) === n || norm(f.id) === n));
+                    if (f) return f.id;
+                    return ['fathername', 'guardian', 'fatherguardian'].includes(n) ? 'fatherName' : null;
+                };
+                let targets = parseCSVLine(lines[0]).map(targetOf), start = 1;
+                if (!targets.includes('admissionNo') || !targets.includes('name')) { targets = ['admissionNo', 'name', 'fatherName', 'class']; start = 0; }
+                let imported = 0, skipped = 0;
+                for (let i = start; i < lines.length; i++) {
+                    const cols = parseCSVLine(lines[i]), rec = {};
+                    targets.forEach((t, j) => { if (t && cols[j] !== undefined) rec[t] = cols[j]; });
+                    const admNo = (rec.admissionNo || '').toUpperCase();
+                    if (!admNo || !rec.name) continue;
+                    if (appState.students.some(s => s.admissionNo.toUpperCase() === admNo)) { skipped++; continue; }
+                    const className = rec.class || (appState.classes[0] && appState.classes[0].name) || 'General';
+                    let target = appState.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
+                    if (!target) { target = { id: 'CLS_' + Date.now() + '_' + i, name: className, totalWorkingDays: 200 }; appState.classes.push(target); }
+                    const extra = {};
+                    appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'fatherName').forEach(f => { if (rec[f.id]) extra[f.id] = rec[f.id]; });
+                    appState.students.push({ id: 'ST_' + Date.now() + '_' + i, admissionNo: admNo, name: rec.name, fatherName: rec.fatherName || '', extra, classId: target.id });
+                    imported++;
                 }
-
-                let importedCount = 0;
-                let skippedCount = 0;
-
-                // Start from index 1 if first row has headers
-                const firstRowLower = lines[0].toLowerCase();
-                const startIdx = (firstRowLower.includes('admission') || firstRowLower.includes('name')) ? 1 : 0;
-
-                for (let i = startIdx; i < lines.length; i++) {
-                    const cols = parseCSVLine(lines[i]);
-                    if (cols.length < 3) continue;
-
-                    const admNo = cols[0].toUpperCase();
-                    const stdName = cols[1];
-                    const fatherName = cols[2];
-                    const className = cols[3] || appState.classes[0].name;
-
-                    if (!admNo || !stdName) continue;
-
-                    // Prevent duplicate admission numbers
-                    if (appState.students.some(s => s.admissionNo.toUpperCase() === admNo)) {
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // Match or Auto-create Class
-                    let targetClass = appState.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
-                    if (!targetClass) {
-                        targetClass = {
-                            id: 'CLS_' + Date.now() + '_' + i,
-                            name: className,
-                            totalWorkingDays: 200
-                        };
-                        appState.classes.push(targetClass);
-                    }
-
-                    appState.students.push({
-                        id: 'ST_' + Date.now() + '_' + i,
-                        admissionNo: admNo,
-                        name: stdName,
-                        fatherName: fatherName,
-                        classId: targetClass.id
-                    });
-                    importedCount++;
-                }
-
                 fileInput.value = '';
-                saveState();
-                renderAllAdminData();
-                showToast(`CSV Import Complete: ${importedCount} added, ${skippedCount} duplicates skipped.`, "success");
+                saveState(); renderAllAdminData();
+                showToast(`CSV Import Complete: ${imported} added, ${skipped} duplicates skipped.`, "success");
             };
-            reader.readAsText(file);
+            reader.readAsText(fileInput.files[0]);
         }
 
         // ================= TAB 4: MARKS & ATTENDANCE ENTRY =================
@@ -1664,7 +1709,7 @@
             if (!student || !cls) { workspace.classList.add('opacity-50', 'pointer-events-none'); return; }
 
             document.getElementById('entry-sheet-student-title').textContent = `${student.name} (${student.admissionNo})`;
-            document.getElementById('entry-sheet-subtitle').textContent = `Class: ${cls.name} • Guardian: ${student.fatherName}`;
+            document.getElementById('entry-sheet-subtitle').textContent = `Class: ${cls.name} • ${student.admissionNo}`;
             document.getElementById('entry-total-working-days').textContent = cls.totalWorkingDays;
 
             const existingBadge = document.getElementById('entry-existing-badge');
@@ -1810,20 +1855,17 @@
         // Initialize Application on Load
         window.addEventListener('DOMContentLoaded', async () => {
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
-            const wantsAdmin = new URLSearchParams(location.search).get('view') === 'admin';
+            if (!IS_ADMIN_ROUTE) { await loadPublicData(); return; }
+            document.title = 'Admin | Madrasa RMS';
+            switchView('admin');
             if (token) {
                 try {
                     isAdminAuthenticated = true;
                     await loadAdminState();
-                    document.getElementById('admin-login-screen').classList.add('hidden');
-                    document.getElementById('admin-dashboard').classList.remove('hidden');
+                    switchView('admin');
                     switchAdminTab('overview');
-                    if (wantsAdmin) switchView('admin');
-                    return;
-                } catch (e) { token = ''; sessionStorage.removeItem('rms_token'); isAdminAuthenticated = false; }
+                } catch (e) { token = ''; sessionStorage.removeItem('rms_token'); isAdminAuthenticated = false; switchView('admin'); }
             }
-            await loadPublicData();
-            if (wantsAdmin) switchView('admin');
         });
     </script>
 </body>
