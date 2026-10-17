@@ -1,0 +1,10 @@
+{
+  "name": "madrasa-rms",
+  "private": true,
+  "scripts": {
+    "css": "tailwindcss -c tailwind.config.js -i src/input.css -o public/styles.css --minify",
+    "dev": "npm run css && wrangler dev",
+    "deploy": "npm run css && wrangler deploy"
+  },
+  "devDependencies": { "tailwindcss": "^3.4.17", "wrangler": "^4" }
+}

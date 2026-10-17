@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#064e3b">
+    <meta name="description" content="Madrasa online result portal and admin panel">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Madrasa RMS">
+    <title>Al-Noor Madrasa Result Management System</title>
+    <!-- Tailwind CSS (compiled; run `npm run css` after editing classes) -->
+    <link rel="stylesheet" href="/styles.css">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom Islamic Geometric Background Pattern */
+        .bg-islamic-pattern {
+            background-color: #064e3b;
+            background-image: radial-gradient(#047857 1px, transparent 1px), radial-gradient(#047857 1px, #064e3b 1px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+        }
+
+        .certificate-border {
+            border: 8px double #064e3b;
+            position: relative;
+        }
+        
+        /* Marquee Animation for Announcements */
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 25s linear infinite;
+        }
+        .animate-marquee:hover {
+            animation-play-state: paused;
+        }
+
+        /* Print Styles for Result Marksheet */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-result, #printable-result * {
+                visibility: visible;
+            }
+            #printable-result {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Mobile-first helpers */
+        html { -webkit-tap-highlight-color: transparent; }
+        body { padding-bottom: env(safe-area-inset-bottom); }
+        @media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }
+        @media (max-width: 640px) { .certificate-border { border-width: 4px; } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-3 right-3 left-3 sm:left-auto sm:w-96 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ================= PUBLIC PORTAL VIEW ================= -->
+    <div id="public-view" class="flex-grow flex flex-col">
+        <!-- Top Announcement Bar -->
+        <div id="announcement-bar" class="bg-amber-500 text-slate-950 py-2 px-4 overflow-hidden relative flex items-center shadow-sm">
+            <span class="bg-amber-600 text-white text-xs font-bold px-2 py-1 rounded uppercase tracking-wider z-10 flex items-center gap-1 shadow-sm mr-3 shrink-0">
+                <i class="fas fa-bullhorn animate-pulse"></i> Notice
+            </span>
+            <div class="overflow-hidden w-full">
+                <div id="public-announcements" class="animate-marquee font-medium text-sm">
+                    <!-- Dynamic Announcements Injected Here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Header -->
+        <header class="bg-islamic-pattern text-white shadow-lg border-b-4 border-amber-500 relative">
+            <div class="container mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
+                    <div id="public-logo-container" class="w-16 h-16 rounded-full bg-white text-emerald-900 flex items-center justify-center text-3xl font-serif font-bold shadow-md border-2 border-amber-400 shrink-0 overflow-hidden">
+                        <i class="fas fa-mosque text-emerald-800"></i>
+                    </div>
+                    <div>
+                        <p class="text-amber-400 font-serif text-lg tracking-wider">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
+                        <h1 id="public-madrasa-name" class="text-2xl md:text-3xl font-bold tracking-tight font-serif">Madrasa Darul Uloom</h1>
+                        <p id="public-madrasa-subtitle" class="text-emerald-200 text-xs md:text-sm">Islamic Education & Modern Sciences • Online Result Portal</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="switchView('admin')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2 rounded-lg shadow-md transition flex items-center gap-2 text-sm">
+                        <i class="fas fa-lock"></i> Admin Portal
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Result Search Section -->
+        <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
+                <div class="bg-emerald-900 px-6 py-4 text-white flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-search text-amber-400"></i>
+                        <h2 class="font-semibold text-lg">Check Student Result</h2>
+                    </div>
+                </div>
+                
+                <form id="result-search-form" onsubmit="handleResultSearch(event)" class="p-6 md:p-8 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Exam Selector -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Select Examination <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <select id="search-exam-select" required class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition appearance-none text-slate-700 font-medium">
+                                    <!-- Dynamic Public Exams -->
+                                </select>
+                                <i class="fas fa-book-open absolute left-3.5 top-3.5 text-slate-400"></i>
+                                <i class="fas fa-chevron-down absolute right-3.5 top-4 text-slate-400 text-xs pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- Admission Number Input -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Admission / Roll Number <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="text" id="search-adm-input" required placeholder="e.g., ADM101" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition uppercase font-medium text-slate-800 placeholder:normal-case">
+                                <i class="fas fa-id-card absolute left-3.5 top-3.5 text-slate-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                        <p class="text-xs text-slate-500"><i class="fas fa-shield-alt text-emerald-600 mr-1"></i> Official verified marksheet generated electronically.</p>
+                        <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-8 py-3.5 rounded-xl shadow-lg shadow-emerald-900/20 transition flex items-center justify-center gap-2">
+                            <span>View Result</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Result Display Container (Hidden by default) -->
+            <div id="result-display-container" class="hidden transition-all duration-300">
+                <!-- Action Bar -->
+                <div class="flex flex-wrap justify-end gap-3 mb-4 no-print">
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition">
+                        <i class="fas fa-print"></i> Print Marksheet
+                    </button>
+                    <button onclick="closeResultCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+
+                <!-- Printable Marksheet Card -->
+                <div id="printable-result" class="bg-white rounded-xl shadow-2xl p-4 sm:p-6 md:p-10 certificate-border">
+                    <!-- Watermark / Decorative Corner -->
+                    <div class="border-b-2 border-emerald-800 pb-6 mb-6 text-center relative">
+                        <p class="text-amber-600 font-serif text-base mb-1">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
+                        <h2 id="res-madrasa-name" class="text-2xl md:text-3xl font-bold text-emerald-950 font-serif uppercase tracking-wide">Madrasa Name</h2>
+                        <p id="res-madrasa-address" class="text-slate-500 text-xs mt-1">Official Statement of Marks & Attendance</p>
+                        <div class="mt-3 inline-block bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-1 rounded-full text-sm font-bold tracking-wide" id="res-exam-title">
+                            Annual Examination 2025
+                        </div>
+                    </div>
+
+                    <!-- Student Info & Status Banner -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div class="space-y-1.5 text-sm">
+                            <p class="text-slate-500">Student Name: <strong id="res-student-name" class="text-slate-900 font-bold block text-base"></strong></p>
+                            <p class="text-slate-500">Admission No: <strong id="res-adm-no" class="text-slate-800 font-mono"></strong></p>
+                        </div>
+                        <div class="space-y-1.5 text-sm">
+                            <p class="text-slate-500">Father/Guardian: <strong id="res-father-name" class="text-slate-800 block"></strong></p>
+                            <p class="text-slate-500">Class / Grade: <strong id="res-class-name" class="text-slate-800"></strong></p>
+                        </div>
+                        <div class="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 pt-3 md:pt-0 border-slate-200">
+                            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Final Result Status</span>
+                            <div id="res-status-badge" class="px-4 py-1.5 rounded-lg font-bold text-base tracking-wider uppercase flex items-center gap-2">
+                                <!-- PASSED / FAILED -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Marks Table -->
+                    <div class="overflow-x-auto mb-6">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-emerald-900 text-white text-xs uppercase tracking-wider">
+                                    <th class="py-3 px-2 sm:px-4 rounded-tl-lg hidden sm:table-cell">#</th>
+                                    <th class="py-3 px-4">Subject Name</th>
+                                    <th class="py-3 px-4 text-center">Max Marks</th>
+                                    <th class="py-3 px-2 sm:px-4 text-center hidden sm:table-cell">Pass Marks</th>
+                                    <th class="py-3 px-4 text-center">Marks Obtained</th>
+                                    <th class="py-3 px-4 text-center rounded-tr-lg">Subject Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="res-marks-tbody" class="divide-y divide-slate-200 text-sm">
+                                <!-- Dynamic Subject Rows -->
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300 text-base">
+                                    <td colspan="2" class="py-3.5 px-4 text-right">Grand Total</td>
+                                    <td id="res-total-max" class="py-3.5 px-4 text-center">500</td>
+                                    <td id="res-total-pass" class="hidden sm:table-cell py-3.5 px-4 text-center text-slate-500 text-sm">-</td>
+                                    <td id="res-total-obtained" class="py-3.5 px-4 text-center text-emerald-800 text-lg">420</td>
+                                    <td id="res-percentage" class="py-3.5 px-4 text-center text-emerald-800">84.0%</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Summary Cards: Percentage, Grade & Attendance -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <!-- Academic Summary -->
+                        <div class="border border-slate-200 rounded-xl p-4 flex items-center justify-between bg-white">
+                            <div>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Academic Performance</h4>
+                                <p class="text-2xl font-bold text-slate-800" id="res-summary-perc">88.5%</p>
+                                <p class="text-xs text-slate-500 mt-0.5" id="res-grade-remarks">Grade: A+ (Mumtaz)</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-bold">
+                                <i class="fas fa-award"></i>
+                            </div>
+                        </div>
+
+                        <!-- Attendance Summary -->
+                        <div class="border border-slate-200 rounded-xl p-4 flex items-center justify-between bg-white">
+                            <div>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Attendance Summary</h4>
+                                <div class="flex items-baseline gap-2">
+                                    <p class="text-2xl font-bold text-slate-800" id="res-attendance-perc">92%</p>
+                                    <span class="text-xs text-slate-500 font-medium" id="res-attendance-days">(184 / 200 Days)</span>
+                                </div>
+                                <div class="w-36 bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                    <div id="res-attendance-bar" class="bg-emerald-600 h-full rounded-full" style="width: 92%"></div>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Signatures / Footer -->
+                    <div class="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-slate-200 text-xs text-slate-500 gap-6">
+                        <div>
+                            <p>Date of Issue: <span id="res-issue-date" class="font-semibold text-slate-700"></span></p>
+                            <p class="mt-1">Computer generated result. Does not require physical stamp for online verification.</p>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-32 border-b border-slate-400 mb-1 mx-auto h-6 font-serif italic text-slate-700 text-sm">Muhtamim / Principal</div>
+                            <p class="font-semibold text-slate-700">Controller of Examinations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 no-print">
+            <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <p>&copy; <span id="footer-year"></span> <span id="footer-madrasa-name" class="text-white font-medium">Al-Noor Madrasa</span>. All rights reserved.</p>
+                <p class="flex items-center gap-2">
+                    <span>Powered by Madrasa Result Management System</span>
+                    <span class="text-emerald-500">•</span>
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ================= ADMIN PANEL & AUTHENTICATION VIEW ================= -->
+    <div id="admin-view" class="hidden flex-grow flex flex-col min-h-screen bg-slate-100">
+        
+        <!-- Admin Login Screen -->
+        <div id="admin-login-screen" class="flex-grow flex items-center justify-center p-4 bg-islamic-pattern">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+                <div class="bg-emerald-950 p-6 text-center text-white border-b-4 border-amber-500">
+                    <div class="w-14 h-14 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-2xl mx-auto mb-3 font-bold shadow">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h2 class="text-xl font-bold font-serif">Admin Portal Authentication</h2>
+                    <p class="text-emerald-300 text-xs mt-1">Sign in to manage exams, students, and marks</p>
+                </div>
+                <form onsubmit="handleAdminLogin(event)" class="p-6 md:p-8 space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Username</label>
+                        <input type="text" id="login-username" autocomplete="username" required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Password</label>
+                        <input type="password" id="login-password" autocomplete="current-password" required class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm">
+                    </div>
+                    <div class="pt-2 flex flex-col gap-2">
+                        <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl shadow-md transition">
+                            Login to Dashboard
+                        </button>
+                        <button type="button" onclick="switchView('public')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2.5 rounded-xl text-sm transition">
+                            <i class="fas fa-arrow-left mr-1"></i> Back to Public Result Portal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Authenticated Admin Dashboard -->
+        <div id="admin-dashboard" class="hidden flex-grow flex flex-row">
+            <!-- Sidebar -->
+            <div id="sidebar-overlay" onclick="closeSidebar()" class="hidden fixed inset-0 bg-slate-950/60 z-30 md:hidden"></div>
+            <aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:self-start md:w-64 transition-transform duration-200 bg-emerald-950 text-white flex flex-col shrink-0 shadow-xl">
+                <div class="p-5 border-b border-emerald-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
+                            <i class="fas fa-mosque"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm leading-tight">Madrasa RMS</h3>
+                            <span class="text-[11px] text-emerald-400 block">Admin Control Panel</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="p-3 space-y-1 flex-grow flex flex-col overflow-y-auto">
+                    <button onclick="switchAdminTab('overview')" id="tab-btn-overview" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
+                        <i class="fas fa-chart-pie w-5 text-center"></i> <span>Overview & Settings</span>
+                    </button>
+                    <button onclick="switchAdminTab('academics')" id="tab-btn-academics" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
+                        <i class="fas fa-sitemap w-5 text-center"></i> <span>Exams, Classes & Subjects</span>
+                    </button>
+                    <button onclick="switchAdminTab('students')" id="tab-btn-students" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
+                        <i class="fas fa-user-graduate w-5 text-center"></i> <span>Students & CSV Import</span>
+                    </button>
+                    <button onclick="switchAdminTab('marks')" id="tab-btn-marks" class="admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap">
+                        <i class="fas fa-edit w-5 text-center"></i> <span>Marks & Attendance Entry</span>
+                    </button>
+                </nav>
+
+                <div class="p-4 border-t border-emerald-900 space-y-2">
+                    <button onclick="switchView('public')" class="w-full bg-emerald-900 hover:bg-emerald-800 text-emerald-100 py-2 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition">
+                        <i class="fas fa-external-link-alt"></i> View Public Portal
+                    </button>
+                    <button onclick="handleAdminLogout()" class="w-full bg-red-950/60 hover:bg-red-900 text-red-200 py-2 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <div class="flex-grow min-w-0 flex flex-col">
+                <!-- Top Bar -->
+                <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex justify-between items-center gap-3 sticky top-0 z-20">
+                    <button onclick="toggleSidebar()" aria-label="Open menu" class="md:hidden w-10 h-10 shrink-0 rounded-lg bg-emerald-900 text-white flex items-center justify-center"><i class="fas fa-bars"></i></button>
+                    <h2 id="admin-page-title" class="flex-grow min-w-0 truncate text-sm sm:text-base md:text-lg font-bold text-slate-800">Dashboard & Madrasa Settings</h2>
+                    <div class="flex items-center gap-3">
+                        
+                        <span class="hidden sm:inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-full font-medium border border-emerald-200">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> System Active
+                        </span>
+                    </div>
+                </header>
+
+                <div class="p-4 md:p-6 max-w-7xl w-full mx-auto space-y-6">
+
+                    <!-- TAB 1: OVERVIEW, MADRASA SETTINGS & ANNOUNCEMENTS -->
+                    <div id="admin-tab-overview" class="admin-tab-content space-y-6">
+                        <!-- Quick Stats -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Total Students</p>
+                                    <h3 id="stat-students" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl"><i class="fas fa-users"></i></div>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Active Classes</p>
+                                    <h3 id="stat-classes" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-xl"><i class="fas fa-chalkboard"></i></div>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Published Exams</p>
+                                    <h3 id="stat-exams" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl"><i class="fas fa-file-signature"></i></div>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-400 uppercase">Results Recorded</p>
+                                    <h3 id="stat-results" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-xl"><i class="fas fa-poll-h"></i></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Madrasa Profile Settings -->
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-university text-emerald-700"></i> Madrasa Profile & Branding</h3>
+                                </div>
+                                <form onsubmit="saveMadrasaSettings(event)" class="p-6 space-y-4">
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Madrasa Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="setting-madrasa-name" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tagline / Address / Subtitle</label>
+                                        <input type="text" id="setting-madrasa-subtitle" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Logo Image URL (Optional)</label>
+                                        <input type="url" id="setting-madrasa-logo" placeholder="https://example.com/logo.png" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
+                                        <p class="text-[11px] text-slate-400 mt-1">Leave blank to use the default Islamic Mosque emblem.</p>
+                                    </div>
+                                    <div class="pt-2">
+                                        <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow transition">
+                                            <i class="fas fa-save mr-1"></i> Save Profile Changes
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Announcements Management -->
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-bullhorn text-amber-500"></i> Public Portal Announcements</h3>
+                                </div>
+                                <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
+                                    <form onsubmit="addAnnouncement(event)" class="flex gap-2">
+                                        <input type="text" id="new-announcement-text" required placeholder="Write new announcement or notice..." class="flex-grow px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
+                                        <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2 rounded-lg text-sm shrink-0 transition">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </form>
+                                    <div id="admin-announcements-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                        <!-- Dynamic list -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: EXAMS, CLASSES & SUBJECTS -->
+                    <div id="admin-tab-academics" class="admin-tab-content hidden space-y-6">
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            <!-- Exam Management (5 cols) -->
+                            <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="px-5 py-4 bg-slate-50 border-b border-slate-200">
+                                    <h3 class="font-bold text-slate-800"><i class="fas fa-calendar-alt text-emerald-700 mr-1.5"></i> 1. Examination Management</h3>
+                                    <p class="text-xs text-slate-500">Create exams and toggle public visibility</p>
+                                </div>
+                                <div class="p-5 space-y-4">
+                                    <form onsubmit="createExam(event)" class="space-y-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 mb-1">Exam Title</label>
+                                            <input type="text" id="new-exam-name" required placeholder="e.g., Final Term Examination 2025" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="flex items-center justify-between pt-1">
+                                            <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                                                <input type="checkbox" id="new-exam-public" checked class="rounded text-emerald-600 focus:ring-emerald-500">
+                                                <span>Publish on Public Portal</span>
+                                            </label>
+                                            <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition">
+                                                + Create Exam
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <div id="admin-exams-list" class="space-y-2">
+                                        <!-- Dynamic Exams -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Class & Working Days Management (7 cols) -->
+                            <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="px-5 py-4 bg-slate-50 border-b border-slate-200">
+                                    <h3 class="font-bold text-slate-800"><i class="fas fa-layer-group text-emerald-700 mr-1.5"></i> 2. Class & Working Days Configuration</h3>
+                                    <p class="text-xs text-slate-500">Configure classes and total working days for attendance calculation</p>
+                                </div>
+                                <div class="p-5 space-y-4">
+                                    <form onsubmit="createClass(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+                                        <div class="sm:col-span-3">
+                                            <label class="block text-xs font-bold text-slate-600 mb-1">Class / Grade Name</label>
+                                            <input type="text" id="new-class-name" required placeholder="e.g., Ibtidaiyah - Year 1" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="sm:col-span-1">
+                                            <label class="block text-xs font-bold text-slate-600 mb-1">Working Days</label>
+                                            <input type="number" id="new-class-days" required min="1" max="365" value="200" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="sm:col-span-1 flex items-end">
+                                            <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-2 rounded-lg text-xs font-semibold transition">
+                                                + Add Class
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left border-collapse text-sm">
+                                            <thead>
+                                                <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase">
+                                                    <th class="py-2 px-3">Class Name</th>
+                                                    <th class="py-2 px-3 text-center">Total Working Days</th>
+                                                    <th class="py-2 px-3 text-center">Subjects</th>
+                                                    <th class="py-2 px-3 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="admin-classes-tbody" class="divide-y divide-slate-100">
+                                                <!-- Dynamic Classes -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subject Configuration (Full Width) -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <h3 class="font-bold text-slate-800"><i class="fas fa-book text-emerald-700 mr-1.5"></i> 3. Subject Configuration (Passing & Max Marks)</h3>
+                                    <p class="text-xs text-slate-500">Assign subjects to classes with custom maximum and minimum passing marks</p>
+                                </div>
+                                <select id="subject-filter-class" onchange="renderAdminSubjects()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-medium bg-white">
+                                    <!-- Class Filter -->
+                                </select>
+                            </div>
+                            <div class="p-6 space-y-5">
+                                <form onsubmit="createSubject(event)" class="grid grid-cols-1 sm:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Target Class</label>
+                                        <select id="new-subject-class" required class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm"></select>
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Subject Name</label>
+                                        <input type="text" id="new-subject-name" required placeholder="e.g., Tajweed-ul-Quran" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Max Marks</label>
+                                        <input type="number" id="new-subject-max" required min="10" max="500" value="100" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1">Passing Marks</label>
+                                        <div class="flex gap-2">
+                                            <input type="number" id="new-subject-pass" required min="1" max="500" value="35" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                            <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shrink-0 transition">
+                                                Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse text-sm">
+                                        <thead>
+                                            <tr class="bg-slate-100 text-xs uppercase text-slate-600">
+                                                <th class="py-2.5 px-4">Subject Name</th>
+                                                <th class="py-2.5 px-4">Assigned Class</th>
+                                                <th class="py-2.5 px-4 text-center">Maximum Marks</th>
+                                                <th class="py-2.5 px-4 text-center">Passing Marks</th>
+                                                <th class="py-2.5 px-4 text-right">Remove</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-subjects-tbody" class="divide-y divide-slate-200">
+                                            <!-- Dynamic Subjects -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: STUDENT MANAGEMENT & CSV BULK IMPORT -->
+                    <div id="admin-tab-students" class="admin-tab-content hidden space-y-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            
+                            <!-- Individual Student Registration (5 cols) -->
+                            <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="px-5 py-4 bg-slate-50 border-b border-slate-200">
+                                    <h3 class="font-bold text-slate-800"><i class="fas fa-user-plus text-emerald-700 mr-1.5"></i> Register Student</h3>
+                                </div>
+                                <form onsubmit="registerStudent(event)" class="p-5 space-y-3.5">
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Admission Number <span class="text-red-500">*</span></label>
+                                        <input type="text" id="std-adm-no" required placeholder="e.g., ADM106" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm uppercase">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Full Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="std-name" required placeholder="Student Full Name" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Father / Guardian Name <span class="text-red-500">*</span></label>
+                                        <input type="text" id="std-father" required placeholder="Guardian Name" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Assign Class <span class="text-red-500">*</span></label>
+                                        <select id="std-class" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+                                    </div>
+                                    <div class="pt-2">
+                                        <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm shadow transition">
+                                            Register Student
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- CSV Bulk Import (7 cols) -->
+                            <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                                <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                                    <div>
+                                        <h3 class="font-bold text-slate-800"><i class="fas fa-file-csv text-amber-600 mr-1.5"></i> Bulk Import Students via CSV</h3>
+                                        <p class="text-xs text-slate-500">Upload a .csv file to register multiple students simultaneously</p>
+                                    </div>
+                                    <button onclick="downloadSampleCSV()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition">
+                                        <i class="fas fa-download"></i> Sample .CSV
+                                    </button>
+                                </div>
+                                <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
+                                    <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-600 transition bg-slate-50/50">
+                                        <i class="fas fa-cloud-upload-alt text-3xl text-emerald-700 mb-2"></i>
+                                        <p class="text-sm font-semibold text-slate-700">Select a CSV file to upload</p>
+                                        <p class="text-xs text-slate-500 mt-1 mb-4">Required Columns: <code class="bg-slate-200 px-1.5 py-0.5 rounded">AdmissionNo, Name, FatherName, ClassName</code></p>
+                                        <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-800 file:text-white hover:file:bg-emerald-700 cursor-pointer max-w-xs mx-auto">
+                                    </div>
+
+                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3.5 text-xs text-blue-900 space-y-1">
+                                        <p class="font-bold"><i class="fas fa-info-circle mr-1"></i> Smart Class Matching:</p>
+                                        <p>If a <code class="font-mono">ClassName</code> in your CSV matches an existing class, the student is added to it. If the class doesn't exist yet, the system automatically creates the class for you!</p>
+                                    </div>
+
+                                    <button onclick="processCSVUpload()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-bolt"></i> Process & Import CSV File
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Student Directory Table -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                                <h3 class="font-bold text-slate-800">Registered Student Directory</h3>
+                                <div class="flex items-center gap-2 w-full sm:w-auto">
+                                    <select id="student-list-filter-class" onchange="renderAdminStudents()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium bg-white">
+                                        <!-- Class filter -->
+                                    </select>
+                                    <input type="text" id="student-list-search" oninput="renderAdminStudents()" placeholder="Search name or ID..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white flex-grow">
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr class="bg-slate-100 text-xs uppercase text-slate-600">
+                                            <th class="py-3 px-4">Admission No</th>
+                                            <th class="py-3 px-4">Student Name</th>
+                                            <th class="py-3 px-4">Father / Guardian</th>
+                                            <th class="py-3 px-4">Class</th>
+                                            <th class="py-3 px-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-students-tbody" class="divide-y divide-slate-200">
+                                        <!-- Dynamic Students -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: MARKS & ATTENDANCE ENTRY -->
+                    <div id="admin-tab-marks" class="admin-tab-content hidden space-y-6">
+                        <!-- Selector Bar -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <i class="fas fa-calculator text-emerald-700"></i> Select Student for Marks & Attendance Entry
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">1. Select Examination</label>
+                                    <select id="entry-exam-select" onchange="loadMarksEntrySheet()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">2. Select Class</label>
+                                    <select id="entry-class-select" onchange="populateEntryStudentDropdown()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">3. Select Student</label>
+                                    <select id="entry-student-select" onchange="loadMarksEntrySheet()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Marksheet Entry Form & Live Calculation -->
+                        <div id="marks-entry-workspace" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-6 py-4 bg-emerald-900 text-white flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                <div>
+                                    <h4 id="entry-sheet-student-title" class="font-bold text-base">Student Marksheet</h4>
+                                    <p id="entry-sheet-subtitle" class="text-xs text-emerald-200">Enter subject marks and days present</p>
+                                </div>
+                                <span id="entry-existing-badge" class="hidden bg-amber-500 text-slate-950 text-xs font-bold px-3 py-1 rounded-full">
+                                    Editing Existing Record
+                                </span>
+                            </div>
+
+                            <form onsubmit="saveStudentResult(event)" class="p-6 space-y-6">
+                                <!-- Attendance Input Box -->
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div>
+                                        <h5 class="font-bold text-sm text-slate-800"><i class="fas fa-user-clock text-emerald-700 mr-1"></i> Student Attendance Record</h5>
+                                        <p class="text-xs text-slate-500">Total configured working days for this class: <strong id="entry-total-working-days" class="text-slate-800">200</strong> days</p>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <label class="text-xs font-bold uppercase text-slate-600">Days Present:</label>
+                                        <input type="number" id="entry-days-present" required min="0" max="365" oninput="recalculateLiveEntry()" class="w-28 px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
+                                        <span id="entry-live-att-perc" class="text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1.5 rounded-lg">0%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Subject Marks Table -->
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse text-sm">
+                                        <thead>
+                                            <tr class="bg-slate-100 text-xs uppercase text-slate-600 border-y border-slate-200">
+                                                <th class="py-3 px-4">Subject Name</th>
+                                                <th class="py-3 px-4 text-center">Max Marks</th>
+                                                <th class="py-3 px-4 text-center">Passing Marks</th>
+                                                <th class="py-3 px-4 text-center w-44">Marks Obtained</th>
+                                                <th class="py-3 px-4 text-center">Live Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="entry-subjects-tbody" class="divide-y divide-slate-200">
+                                            <!-- Dynamic Subject Inputs -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Automatic Calculation Summary Bar -->
+                                <div class="bg-slate-900 text-white p-5 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-4 items-center">
+                                    <div>
+                                        <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Total Marks</span>
+                                        <span id="live-total-marks" class="text-xl font-bold">0 / 0</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Percentage</span>
+                                        <span id="live-percentage" class="text-xl font-bold text-amber-400">0.0%</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Overall Result</span>
+                                        <span id="live-pass-fail" class="inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-slate-700">-</span>
+                                    </div>
+                                    <div class="text-right col-span-2 sm:col-span-1">
+                                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                                            <i class="fas fa-check-circle"></i> Save Result
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
+    <script>
+        // ================= STATE + API LAYER =================
+        let isAdminAuthenticated = false;
+        let token = sessionStorage.getItem('rms_token') || '';
+        let appState = emptyState();
+        let snapshot = null;
+        let syncChain = Promise.resolve();
+        const TABLES = ['exams', 'classes', 'subjects', 'students', 'results'];
+
+        function emptyState() {
+            return { madrasa: { name: 'Madrasa', subtitle: '', logo: '' }, announcements: [], exams: [], classes: [], subjects: [], students: [], results: [] };
+        }
+        const clone = o => JSON.parse(JSON.stringify(o));
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        async function api(path, opts = {}) {
+            const res = await fetch('/api' + path, {
+                method: opts.method || 'GET',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+                body: opts.body ? JSON.stringify(opts.body) : undefined
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { const err = new Error(data.error || 'Request failed'); err.status = res.status; throw err; }
+            return data;
+        }
+
+        async function loadPublicData() {
+            try { appState = { ...emptyState(), ...(await api('/public')) }; renderPublicPortal(); }
+            catch (e) { showToast('Could not load data. Check your connection.', 'error'); }
+        }
+
+        async function loadAdminState() {
+            appState = { ...emptyState(), ...(await api('/admin/state')) };
+            snapshot = clone(appState);
+            renderPublicPortal();
+            renderAllAdminData();
+        }
+
+        const rowKey = (t, r) => t === 'results' ? r.examId + '|' + r.studentId : r.id;
+
+        // Compares current state with last synced snapshot; sends only what changed
+        function computeDiff() {
+            const upserts = {}, deletes = {};
+            for (const t of TABLES) {
+                const old = new Map(snapshot[t].map(r => [rowKey(t, r), JSON.stringify(r)]));
+                const seen = new Set();
+                for (const r of appState[t]) {
+                    const k = rowKey(t, r); seen.add(k);
+                    if (old.get(k) !== JSON.stringify(r)) (upserts[t] ||= []).push(r);
+                }
+                for (const k of old.keys()) if (!seen.has(k)) (deletes[t] ||= []).push(k);
+            }
+            const st = {};
+            if (JSON.stringify(appState.madrasa) !== JSON.stringify(snapshot.madrasa)) st.madrasa = appState.madrasa;
+            if (JSON.stringify(appState.announcements) !== JSON.stringify(snapshot.announcements)) st.announcements = appState.announcements;
+            if (Object.keys(st).length) upserts.settings = st;
+            return (Object.keys(upserts).length || Object.keys(deletes).length) ? { upserts, deletes } : null;
+        }
+
+        function saveState() {
+            renderPublicPortal();
+            if (!isAdminAuthenticated || !snapshot) return;
+            const diff = computeDiff();
+            if (!diff) return;
+            snapshot = clone(appState);
+            syncChain = syncChain
+                .then(() => api('/admin/sync', { method: 'POST', body: diff }))
+                .catch(async err => {
+                    if (err.status === 401) return handleSessionExpired();
+                    showToast(err.message, 'error');
+                    try { await loadAdminState(); } catch (e) {}
+                });
+        }
+
+        function handleSessionExpired() {
+            token = ''; sessionStorage.removeItem('rms_token');
+            isAdminAuthenticated = false; snapshot = null;
+            switchView('admin');
+            showToast('Session expired. Please log in again.', 'error');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('admin-sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.toggle('hidden');
+        }
+        function closeSidebar() {
+            document.getElementById('admin-sidebar').classList.add('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.add('hidden');
+        }
+
+        // ================= UI UTILITIES =================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-900 text-white border-emerald-600',
+                error: 'bg-red-900 text-white border-red-600',
+                info: 'bg-slate-800 text-white border-amber-400'
+            };
+            const icons = {
+                success: 'fa-check-circle text-amber-400',
+                error: 'fa-exclamation-circle text-red-300',
+                info: 'fa-info-circle text-amber-400'
+            };
+            toast.className = `pointer-events-auto ${colors[type]} border-l-4 px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 text-sm font-medium transition-all duration-300`;
+            toast.innerHTML = `<i class="fas ${icons[type]} text-base"></i> <span>${esc(message)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function switchView(view) {
+            const publicView = document.getElementById('public-view');
+            const adminView = document.getElementById('admin-view');
+            if (view === 'admin') {
+                publicView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+                if (isAdminAuthenticated) {
+                    document.getElementById('admin-login-screen').classList.add('hidden');
+                    document.getElementById('admin-dashboard').classList.remove('hidden');
+                    renderAllAdminData();
+                } else {
+                    document.getElementById('admin-login-screen').classList.remove('hidden');
+                    document.getElementById('admin-dashboard').classList.add('hidden');
+                }
+            } else {
+                adminView.classList.add('hidden');
+                publicView.classList.remove('hidden');
+                if (isAdminAuthenticated) renderPublicPortal(); else loadPublicData();
+            }
+        }
+
+        // ================= PUBLIC PORTAL LOGIC =================
+        function renderPublicPortal() {
+            // Header Info
+            document.getElementById('public-madrasa-name').textContent = appState.madrasa.name;
+            document.getElementById('public-madrasa-subtitle').textContent = appState.madrasa.subtitle;
+            document.getElementById('footer-madrasa-name').textContent = appState.madrasa.name;
+            document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+            const logoContainer = document.getElementById('public-logo-container');
+            logoContainer.innerHTML = `<i class="fas fa-mosque text-emerald-800"></i>`;
+            const logoUrl = (appState.madrasa.logo || '').trim();
+            if (/^https?:\/\//i.test(logoUrl)) {
+                const img = new Image();
+                img.alt = 'Logo'; img.className = 'w-full h-full object-cover';
+                img.onload = () => { logoContainer.innerHTML = ''; logoContainer.appendChild(img); };
+                img.src = logoUrl;
+            }
+
+            // Announcements Bar
+            const annBar = document.getElementById('announcement-bar');
+            const annContainer = document.getElementById('public-announcements');
+            if (appState.announcements.length === 0) {
+                annBar.classList.add('hidden');
+            } else {
+                annBar.classList.remove('hidden');
+                annContainer.innerHTML = appState.announcements
+                    .map(a => `<span class="mx-8"><i class="fas fa-star text-xs text-emerald-900 mr-1.5"></i> ${esc(a)}</span>`)
+                    .join('');
+            }
+
+            // Public Exams Dropdown
+            const examSelect = document.getElementById('search-exam-select');
+            const currentVal = examSelect.value;
+            const publicExams = appState.exams.filter(e => e.isPublic);
+            
+            if (publicExams.length === 0) {
+                examSelect.innerHTML = `<option value="">No Public Exams Available</option>`;
+            } else {
+                examSelect.innerHTML = publicExams.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
+                if (publicExams.some(e => e.id === currentVal)) {
+                    examSelect.value = currentVal;
+                }
+            }
+        }
+
+        async function handleResultSearch(e) {
+            e.preventDefault();
+            const examId = document.getElementById('search-exam-select').value;
+            const adm = document.getElementById('search-adm-input').value.trim().toUpperCase();
+            if (!examId) { showToast("Please select an active examination.", "error"); return; }
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true; btn.classList.add('opacity-60');
+            try {
+                const data = await api(`/result?exam=${encodeURIComponent(examId)}&adm=${encodeURIComponent(adm)}`);
+                displayMarksheet(data);
+            } catch (err) {
+                document.getElementById('result-display-container').classList.add('hidden');
+                showToast(err.message, err.status === 404 ? 'info' : 'error');
+            } finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
+        }
+
+        function displayMarksheet({ madrasa, exam, student, cls, subjects, result: resultRecord }) {
+            document.getElementById('res-madrasa-name').textContent = madrasa.name;
+            document.getElementById('res-madrasa-address').textContent = madrasa.subtitle;
+            document.getElementById('res-exam-title').textContent = exam ? exam.name : 'Examination';
+
+            document.getElementById('res-student-name').textContent = student.name;
+            document.getElementById('res-adm-no').textContent = student.admissionNo;
+            document.getElementById('res-father-name').textContent = student.fatherName;
+            document.getElementById('res-class-name').textContent = cls ? cls.name : 'N/A';
+
+            let totalMax = 0;
+            let totalPass = 0;
+            let totalObtained = 0;
+            let allSubjectsPassed = true;
+
+            const tbody = document.getElementById('res-marks-tbody');
+            tbody.innerHTML = subjects.map((sub, idx) => {
+                const obtained = Number(resultRecord.marks[sub.id] ?? 0);
+                const max = Number(sub.maxMarks);
+                const pass = Number(sub.passingMarks);
+                const isPass = obtained >= pass;
+
+                if (!isPass) allSubjectsPassed = false;
+                totalMax += max;
+                totalPass += pass;
+                totalObtained += obtained;
+
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-3 px-2 sm:px-4 font-mono text-slate-400 hidden sm:table-cell">${idx + 1}</td>
+                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
+                        <td class="py-3 px-4 text-center text-slate-600">${max}</td>
+                        <td class="py-3 px-2 sm:px-4 text-center text-slate-500 hidden sm:table-cell">${pass}</td>
+                        <td class="py-3 px-4 text-center font-bold ${isPass ? 'text-slate-900' : 'text-red-600'}">${obtained}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">
+                                ${isPass ? 'PASS' : 'FAIL'}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const percentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : 0;
+
+            document.getElementById('res-total-max').textContent = totalMax;
+            document.getElementById('res-total-pass').textContent = totalPass;
+            document.getElementById('res-total-obtained').textContent = totalObtained;
+            document.getElementById('res-percentage').textContent = `${percentage}%`;
+            document.getElementById('res-summary-perc').textContent = `${percentage}%`;
+
+            // Grade Calculation
+            let gradeText = "Rasib (Needs Improvement)";
+            if (allSubjectsPassed) {
+                if (percentage >= 85) gradeText = "Grade: A+ • Mumtaz (Distinction)";
+                else if (percentage >= 70) gradeText = "Grade: A • Jayyid Jiddan (Very Good)";
+                else if (percentage >= 55) gradeText = "Grade: B • Jayyid (Good)";
+                else gradeText = "Grade: C • Maqbool (Satisfactory)";
+            }
+            document.getElementById('res-grade-remarks').textContent = gradeText;
+
+            // Final Status Badge
+            const badge = document.getElementById('res-status-badge');
+            if (allSubjectsPassed && subjects.length > 0) {
+                badge.className = "px-4 py-1.5 rounded-lg font-bold text-base tracking-wider uppercase flex items-center gap-2 bg-emerald-100 text-emerald-800 border border-emerald-300";
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> PASSED`;
+            } else {
+                badge.className = "px-4 py-1.5 rounded-lg font-bold text-base tracking-wider uppercase flex items-center gap-2 bg-red-100 text-red-800 border border-red-300";
+                badge.innerHTML = `<i class="fas fa-times-circle"></i> FAILED`;
+            }
+
+            // Attendance Summary
+            const totalDays = cls ? Number(cls.totalWorkingDays) : 200;
+            const presentDays = Number(resultRecord.attendanceDays || 0);
+            const attPerc = totalDays > 0 ? Math.min(100, ((presentDays / totalDays) * 100)).toFixed(1) : 0;
+
+            document.getElementById('res-attendance-perc').textContent = `${attPerc}%`;
+            document.getElementById('res-attendance-days').textContent = `(${presentDays} / ${totalDays} Working Days)`;
+            document.getElementById('res-attendance-bar').style.width = `${attPerc}%`;
+            document.getElementById('res-issue-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+            const container = document.getElementById('result-display-container');
+            container.classList.remove('hidden');
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeResultCard() {
+            document.getElementById('result-display-container').classList.add('hidden');
+        }
+
+        // ================= ADMIN AUTHENTICATION & NAVIGATION =================
+        async function handleAdminLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            try {
+                const { token: t } = await api('/login', { method: 'POST', body: { username, password } });
+                token = t; sessionStorage.setItem('rms_token', t);
+                isAdminAuthenticated = true;
+                document.getElementById('login-password').value = '';
+                document.getElementById('admin-login-screen').classList.add('hidden');
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                switchAdminTab('overview');
+                await loadAdminState();
+                showToast("Welcome to the Madrasa Admin Panel", "success");
+            } catch (err) {
+                isAdminAuthenticated = false;
+                showToast(err.message, "error");
+            }
+        }
+
+        function handleAdminLogout() {
+            token = ''; sessionStorage.removeItem('rms_token');
+            isAdminAuthenticated = false; snapshot = null;
+            closeSidebar();
+            appState = emptyState();
+            switchView('public');
+            showToast("Logged out successfully.", "info");
+        }
+
+        function switchAdminTab(tabId) {
+            closeSidebar();
+            const titles = {
+                overview: "Overview, Madrasa Branding & Announcements",
+                academics: "Examination, Class & Subject Configuration",
+                students: "Student Registration & CSV Bulk Import",
+                marks: "Student Marks & Attendance Entry"
+            };
+            document.getElementById('admin-page-title').textContent = titles[tabId] || "Dashboard";
+
+            document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`admin-tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+                btn.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition whitespace-nowrap text-emerald-200 hover:bg-emerald-900/60";
+            });
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "admin-tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition whitespace-nowrap bg-amber-500 text-slate-950 shadow";
+            }
+
+            if (tabId === 'marks') {
+                initMarksEntrySelectors();
+            }
+        }
+
+        function renderAllAdminData() {
+            // Overview stats
+            document.getElementById('stat-students').textContent = appState.students.length;
+            document.getElementById('stat-classes').textContent = appState.classes.length;
+            document.getElementById('stat-exams').textContent = appState.exams.filter(e => e.isPublic).length;
+            document.getElementById('stat-results').textContent = appState.results.length;
+
+            // Settings inputs
+            document.getElementById('setting-madrasa-name').value = appState.madrasa.name;
+            document.getElementById('setting-madrasa-subtitle').value = appState.madrasa.subtitle;
+            document.getElementById('setting-madrasa-logo').value = appState.madrasa.logo || '';
+
+            renderAdminAnnouncements();
+            renderAdminExams();
+            renderAdminClasses();
+            populateClassDropdowns();
+            renderAdminSubjects();
+            renderAdminStudents();
+        }
+
+        // ================= TAB 1: SETTINGS & ANNOUNCEMENTS =================
+        function saveMadrasaSettings(e) {
+            e.preventDefault();
+            appState.madrasa.name = document.getElementById('setting-madrasa-name').value.trim();
+            appState.madrasa.subtitle = document.getElementById('setting-madrasa-subtitle').value.trim();
+            appState.madrasa.logo = document.getElementById('setting-madrasa-logo').value.trim();
+            saveState();
+            showToast("Madrasa profile & header updated!", "success");
+        }
+
+        function renderAdminAnnouncements() {
+            const container = document.getElementById('admin-announcements-list');
+            if (appState.announcements.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-4 text-center">No active announcements.</p>`;
+                return;
+            }
+            container.innerHTML = appState.announcements.map((text, idx) => `
+                <div class="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+                    <span class="text-slate-700 font-medium">${esc(text)}</span>
+                    <button onclick="deleteAnnouncement(${idx})" class="text-red-500 hover:text-red-700 px-2 py-1 shrink-0">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addAnnouncement(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-announcement-text');
+            if (input.value.trim()) {
+                appState.announcements.unshift(input.value.trim());
+                input.value = '';
+                saveState();
+                renderAdminAnnouncements();
+                showToast("Announcement published on public portal!", "success");
+            }
+        }
+
+        function deleteAnnouncement(index) {
+            appState.announcements.splice(index, 1);
+            saveState();
+            renderAdminAnnouncements();
+            showToast("Announcement removed.", "info");
+        }
+
+        // ================= TAB 2: EXAMS, CLASSES & SUBJECTS =================
+        function renderAdminExams() {
+            const list = document.getElementById('admin-exams-list');
+            list.innerHTML = appState.exams.map(ex => `
+                <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white">
+                    <div>
+                        <p class="font-semibold text-sm text-slate-800">${esc(ex.name)}</p>
+                        <span class="text-[11px] ${ex.isPublic ? 'text-emerald-600 font-semibold' : 'text-slate-400'}">
+                            ${ex.isPublic ? '● Visible on Public Portal' : '○ Hidden (Draft)'}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleExamVisibility('${ex.id}')" class="px-2.5 py-1 rounded text-xs font-semibold border ${ex.isPublic ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-300 text-slate-600'}">
+                            ${ex.isPublic ? 'Public' : 'Hidden'}
+                        </button>
+                        <button onclick="deleteExam('${ex.id}')" class="text-slate-400 hover:text-red-600 p-1">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function createExam(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-exam-name').value.trim();
+            const isPublic = document.getElementById('new-exam-public').checked;
+            appState.exams.push({
+                id: 'EX_' + Date.now(),
+                name,
+                isPublic
+            });
+            document.getElementById('new-exam-name').value = '';
+            saveState();
+            renderAllAdminData();
+            showToast(`Exam "${name}" created.`, "success");
+        }
+
+        function toggleExamVisibility(examId) {
+            const ex = appState.exams.find(e => e.id === examId);
+            if (ex) {
+                ex.isPublic = !ex.isPublic;
+                saveState();
+                renderAllAdminData();
+                showToast(`Exam visibility updated.`, "info");
+            }
+        }
+
+        function deleteExam(examId) {
+            if (appState.exams.length <= 1) {
+                showToast("At least one examination must remain in the system.", "error");
+                return;
+            }
+            appState.exams = appState.exams.filter(e => e.id !== examId);
+            appState.results = appState.results.filter(r => r.examId !== examId);
+            saveState();
+            renderAllAdminData();
+            showToast("Exam deleted.", "info");
+        }
+
+        function renderAdminClasses() {
+            const tbody = document.getElementById('admin-classes-tbody');
+            tbody.innerHTML = appState.classes.map(cls => {
+                const subCount = appState.subjects.filter(s => s.classId === cls.id).length;
+                return `
+                    <tr>
+                        <td class="py-2.5 px-3 font-semibold text-slate-800">${esc(cls.name)}</td>
+                        <td class="py-2.5 px-3 text-center">
+                            <input type="number" value="${cls.totalWorkingDays}" min="1" max="365"
+                                onchange="updateClassWorkingDays('${cls.id}', this.value)"
+                                class="w-20 px-2 py-1 border border-slate-300 rounded text-center text-xs font-bold">
+                        </td>
+                        <td class="py-2.5 px-3 text-center">
+                            <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-semibold">${subCount} Subjects</span>
+                        </td>
+                        <td class="py-2.5 px-3 text-right">
+                            <button onclick="deleteClass('${cls.id}')" class="text-slate-400 hover:text-red-600">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function createClass(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-class-name').value.trim();
+            const days = Number(document.getElementById('new-class-days').value);
+            appState.classes.push({
+                id: 'CLS_' + Date.now(),
+                name,
+                totalWorkingDays: days
+            });
+            document.getElementById('new-class-name').value = '';
+            saveState();
+            renderAllAdminData();
+            showToast(`Class "${name}" added!`, "success");
+        }
+
+        function updateClassWorkingDays(classId, newDays) {
+            const cls = appState.classes.find(c => c.id === classId);
+            if (cls && Number(newDays) > 0) {
+                cls.totalWorkingDays = Number(newDays);
+                saveState();
+                showToast(`Total working days updated for ${cls.name}.`, "success");
+            }
+        }
+
+        function deleteClass(classId) {
+            if (appState.classes.length <= 1) {
+                showToast("Cannot delete the only class.", "error");
+                return;
+            }
+            appState.classes = appState.classes.filter(c => c.id !== classId);
+            appState.subjects = appState.subjects.filter(s => s.classId !== classId);
+            saveState();
+            renderAllAdminData();
+            showToast("Class and its subjects removed.", "info");
+        }
+
+        function populateClassDropdowns() {
+            const optionsHtml = appState.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+            const filterOptionsHtml = `<option value="ALL">All Classes</option>` + optionsHtml;
+
+            document.getElementById('new-subject-class').innerHTML = optionsHtml;
+            document.getElementById('std-class').innerHTML = optionsHtml;
+            
+            const subFilter = document.getElementById('subject-filter-class');
+            const currentSubFilter = subFilter.value;
+            subFilter.innerHTML = filterOptionsHtml;
+            if (currentSubFilter) subFilter.value = currentSubFilter;
+
+            const stdFilter = document.getElementById('student-list-filter-class');
+            const currentStdFilter = stdFilter.value;
+            stdFilter.innerHTML = filterOptionsHtml;
+            if (currentStdFilter) stdFilter.value = currentStdFilter;
+        }
+
+        function renderAdminSubjects() {
+            const filterClassId = document.getElementById('subject-filter-class').value || 'ALL';
+            const tbody = document.getElementById('admin-subjects-tbody');
+            const filtered = filterClassId === 'ALL'
+                ? appState.subjects
+                : appState.subjects.filter(s => s.classId === filterClassId);
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400 text-xs">No subjects configured for this class yet.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(sub => {
+                const cls = appState.classes.find(c => c.id === sub.classId);
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2.5 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
+                        <td class="py-2.5 px-4 text-xs text-slate-500">${esc(cls ? cls.name : 'Unknown')}</td>
+                        <td class="py-2.5 px-4 text-center font-medium">${sub.maxMarks}</td>
+                        <td class="py-2.5 px-4 text-center text-emerald-700 font-semibold">${sub.passingMarks}</td>
+                        <td class="py-2.5 px-4 text-right">
+                            <button onclick="deleteSubject('${sub.id}')" class="text-slate-400 hover:text-red-600">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function createSubject(e) {
+            e.preventDefault();
+            const classId = document.getElementById('new-subject-class').value;
+            const name = document.getElementById('new-subject-name').value.trim();
+            const maxMarks = Number(document.getElementById('new-subject-max').value);
+            const passingMarks = Number(document.getElementById('new-subject-pass').value);
+
+            if (passingMarks > maxMarks) {
+                showToast("Passing marks cannot exceed Maximum marks!", "error");
+                return;
+            }
+
+            appState.subjects.push({
+                id: 'SUB_' + Date.now(),
+                classId,
+                name,
+                maxMarks,
+                passingMarks
+            });
+            document.getElementById('new-subject-name').value = '';
+            saveState();
+            renderAdminSubjects();
+            renderAdminClasses();
+            showToast(`Subject "${name}" added.`, "success");
+        }
+
+        function deleteSubject(subId) {
+            appState.subjects = appState.subjects.filter(s => s.id !== subId);
+            saveState();
+            renderAdminSubjects();
+            renderAdminClasses();
+            showToast("Subject removed.", "info");
+        }
+
+        // ================= TAB 3: STUDENT MANAGEMENT & CSV IMPORT =================
+        function registerStudent(e) {
+            e.preventDefault();
+            const admissionNo = document.getElementById('std-adm-no').value.trim().toUpperCase();
+            const name = document.getElementById('std-name').value.trim();
+            const fatherName = document.getElementById('std-father').value.trim();
+            const classId = document.getElementById('std-class').value;
+
+            if (appState.students.some(s => s.admissionNo.toUpperCase() === admissionNo)) {
+                showToast(`Student with Admission No ${admissionNo} already exists!`, "error");
+                return;
+            }
+
+            appState.students.push({
+                id: 'ST_' + Date.now(),
+                admissionNo,
+                name,
+                fatherName,
+                classId
+            });
+
+            document.getElementById('std-adm-no').value = '';
+            document.getElementById('std-name').value = '';
+            document.getElementById('std-father').value = '';
+
+            saveState();
+            renderAllAdminData();
+            showToast(`Student ${name} (${admissionNo}) registered!`, "success");
+        }
+
+        function renderAdminStudents() {
+            const filterClass = document.getElementById('student-list-filter-class').value || 'ALL';
+            const query = (document.getElementById('student-list-search').value || '').toLowerCase();
+
+            const filtered = appState.students.filter(s => {
+                const matchClass = filterClass === 'ALL' || s.classId === filterClass;
+                const matchQuery = s.name.toLowerCase().includes(query) || s.admissionNo.toLowerCase().includes(query);
+                return matchClass && matchQuery;
+            });
+
+            const tbody = document.getElementById('admin-students-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400 text-xs">No matching student records found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(s => {
+                const cls = appState.classes.find(c => c.id === s.classId);
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-3 px-4 font-mono font-bold text-emerald-800">${esc(s.admissionNo)}</td>
+                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(s.name)}</td>
+                        <td class="py-3 px-4 text-slate-600">${esc(s.fatherName)}</td>
+                        <td class="py-3 px-4"><span class="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium">${esc(cls ? cls.name : 'Unassigned')}</span></td>
+                        <td class="py-3 px-4 text-right space-x-2">
+                            <button onclick="jumpToStudentMarks('${s.id}', '${s.classId}')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded font-semibold">
+                                <i class="fas fa-edit mr-1"></i>Enter Marks
+                            </button>
+                            <button onclick="deleteStudent('${s.id}')" class="text-slate-400 hover:text-red-600 p-1">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function deleteStudent(studentId) {
+            appState.students = appState.students.filter(s => s.id !== studentId);
+            appState.results = appState.results.filter(r => r.studentId !== studentId);
+            saveState();
+            renderAllAdminData();
+            showToast("Student record deleted.", "info");
+        }
+
+        function parseCSVLine(line) {
+            const out = []; let cur = '', q = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+                else if (ch === '"') q = true;
+                else if (ch === ',') { out.push(cur.trim()); cur = ''; }
+                else cur += ch;
+            }
+            out.push(cur.trim());
+            return out;
+        }
+
+        function downloadSampleCSV() {
+            const sampleRows = [
+                ["AdmissionNo", "Name", "FatherName", "ClassName"],
+                ["ADM108", "Hassan Ali", "Hussain Ali", "Ibtidaiyah (Primary - Year 1)"],
+                ["ADM109", "Maryam Bibi", "Ibrahim Khalil", "Ibtidaiyah (Primary - Year 1)"],
+                ["ADM205", "Yusuf Mansoor", "Mansoor Ahmad", "Mutawassitah (Middle - Year 2)"]
+            ];
+            const csv = sampleRows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+            link.download = "madrasa_students_sample.csv";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function processCSVUpload() {
+            const fileInput = document.getElementById('csv-file-input');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showToast("Please select a .CSV file first.", "error");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const text = String(e.target.result).replace(/^\uFEFF/, '');
+                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length < 2) {
+                    showToast("CSV file is empty or missing data rows.", "error");
+                    return;
+                }
+
+                let importedCount = 0;
+                let skippedCount = 0;
+
+                // Start from index 1 if first row has headers
+                const firstRowLower = lines[0].toLowerCase();
+                const startIdx = (firstRowLower.includes('admission') || firstRowLower.includes('name')) ? 1 : 0;
+
+                for (let i = startIdx; i < lines.length; i++) {
+                    const cols = parseCSVLine(lines[i]);
+                    if (cols.length < 3) continue;
+
+                    const admNo = cols[0].toUpperCase();
+                    const stdName = cols[1];
+                    const fatherName = cols[2];
+                    const className = cols[3] || appState.classes[0].name;
+
+                    if (!admNo || !stdName) continue;
+
+                    // Prevent duplicate admission numbers
+                    if (appState.students.some(s => s.admissionNo.toUpperCase() === admNo)) {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Match or Auto-create Class
+                    let targetClass = appState.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
+                    if (!targetClass) {
+                        targetClass = {
+                            id: 'CLS_' + Date.now() + '_' + i,
+                            name: className,
+                            totalWorkingDays: 200
+                        };
+                        appState.classes.push(targetClass);
+                    }
+
+                    appState.students.push({
+                        id: 'ST_' + Date.now() + '_' + i,
+                        admissionNo: admNo,
+                        name: stdName,
+                        fatherName: fatherName,
+                        classId: targetClass.id
+                    });
+                    importedCount++;
+                }
+
+                fileInput.value = '';
+                saveState();
+                renderAllAdminData();
+                showToast(`CSV Import Complete: ${importedCount} added, ${skippedCount} duplicates skipped.`, "success");
+            };
+            reader.readAsText(file);
+        }
+
+        // ================= TAB 4: MARKS & ATTENDANCE ENTRY =================
+        function jumpToStudentMarks(studentId, classId) {
+            switchAdminTab('marks');
+            document.getElementById('entry-class-select').value = classId;
+            populateEntryStudentDropdown();
+            document.getElementById('entry-student-select').value = studentId;
+            loadMarksEntrySheet();
+        }
+
+        function initMarksEntrySelectors() {
+            const examSel = document.getElementById('entry-exam-select');
+            const classSel = document.getElementById('entry-class-select');
+
+            examSel.innerHTML = appState.exams.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
+            classSel.innerHTML = appState.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+            populateEntryStudentDropdown();
+        }
+
+        function populateEntryStudentDropdown() {
+            const classId = document.getElementById('entry-class-select').value;
+            const studentSel = document.getElementById('entry-student-select');
+            const studentsInClass = appState.students.filter(s => s.classId === classId);
+
+            if (studentsInClass.length === 0) {
+                studentSel.innerHTML = `<option value="">No students in this class</option>`;
+            } else {
+                studentSel.innerHTML = studentsInClass.map(s => `<option value="${s.id}">${esc(s.admissionNo)} — ${esc(s.name)}</option>`).join('');
+            }
+            loadMarksEntrySheet();
+        }
+
+        function loadMarksEntrySheet() {
+            const examId = document.getElementById('entry-exam-select').value;
+            const classId = document.getElementById('entry-class-select').value;
+            const studentId = document.getElementById('entry-student-select').value;
+
+            const workspace = document.getElementById('marks-entry-workspace');
+            if (!examId || !classId || !studentId) {
+                workspace.classList.add('opacity-50', 'pointer-events-none');
+                return;
+            }
+            workspace.classList.remove('opacity-50', 'pointer-events-none');
+
+            const student = appState.students.find(s => s.id === studentId);
+            const cls = appState.classes.find(c => c.id === classId);
+            const subjects = appState.subjects.filter(sub => sub.classId === classId);
+            const existingResult = appState.results.find(r => r.examId === examId && r.studentId === studentId);
+            if (!student || !cls) { workspace.classList.add('opacity-50', 'pointer-events-none'); return; }
+
+            document.getElementById('entry-sheet-student-title').textContent = `${student.name} (${student.admissionNo})`;
+            document.getElementById('entry-sheet-subtitle').textContent = `Class: ${cls.name} • Guardian: ${student.fatherName}`;
+            document.getElementById('entry-total-working-days').textContent = cls.totalWorkingDays;
+
+            const existingBadge = document.getElementById('entry-existing-badge');
+            if (existingResult) {
+                existingBadge.classList.remove('hidden');
+                document.getElementById('entry-days-present').value = existingResult.attendanceDays;
+            } else {
+                existingBadge.classList.add('hidden');
+                document.getElementById('entry-days-present').value = cls.totalWorkingDays;
+            }
+            document.getElementById('entry-days-present').max = cls.totalWorkingDays;
+
+            const tbody = document.getElementById('entry-subjects-tbody');
+            if (subjects.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No subjects configured for this class. Add subjects in Tab 2 first.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = subjects.map(sub => {
+                const val = existingResult && existingResult.marks[sub.id] !== undefined ? existingResult.marks[sub.id] : '';
+                return `
+                    <tr>
+                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
+                        <td class="py-3 px-4 text-center text-slate-500">${sub.maxMarks}</td>
+                        <td class="py-3 px-4 text-center text-slate-500">${sub.passingMarks}</td>
+                        <td class="py-3 px-4 text-center">
+                            <input type="number" required min="0" max="${sub.maxMarks}"
+                                data-subject-id="${sub.id}"
+                                data-max="${sub.maxMarks}"
+                                data-pass="${sub.passingMarks}"
+                                value="${val}"
+                                placeholder="0 - ${sub.maxMarks}"
+                                oninput="recalculateLiveEntry()"
+                                class="entry-mark-input w-full px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <span id="live-sub-status-${sub.id}" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">-</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            recalculateLiveEntry();
+        }
+
+        function recalculateLiveEntry() {
+            const classId = document.getElementById('entry-class-select').value;
+            const cls = appState.classes.find(c => c.id === classId);
+            const totalDays = cls ? Number(cls.totalWorkingDays) : 200;
+            const daysPresent = Number(document.getElementById('entry-days-present').value || 0);
+            const attPerc = totalDays > 0 ? Math.min(100, ((daysPresent / totalDays) * 100)).toFixed(1) : 0;
+            document.getElementById('entry-live-att-perc').textContent = `${attPerc}% Attendance`;
+
+            const inputs = document.querySelectorAll('.entry-mark-input');
+            let totalMax = 0;
+            let totalObtained = 0;
+            let allPassed = true;
+
+            inputs.forEach(inp => {
+                const subId = inp.getAttribute('data-subject-id');
+                const max = Number(inp.getAttribute('data-max'));
+                const pass = Number(inp.getAttribute('data-pass'));
+                const val = inp.value === '' ? 0 : Number(inp.value);
+
+                totalMax += max;
+                totalObtained += val;
+
+                const statusSpan = document.getElementById(`live-sub-status-${subId}`);
+                if (inp.value === '') {
+                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-400";
+                    statusSpan.textContent = "Pending";
+                    allPassed = false;
+                } else if (val >= pass) {
+                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
+                    statusSpan.textContent = "PASS";
+                } else {
+                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700";
+                    statusSpan.textContent = "FAIL";
+                    allPassed = false;
+                }
+            });
+
+            const perc = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : '0.0';
+            document.getElementById('live-total-marks').textContent = `${totalObtained} / ${totalMax}`;
+            document.getElementById('live-percentage').textContent = `${perc}%`;
+
+            const overallEl = document.getElementById('live-pass-fail');
+            if (inputs.length === 0) {
+                overallEl.textContent = '-';
+            } else if (allPassed) {
+                overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-emerald-500 text-slate-950";
+                overallEl.textContent = "PASSED";
+            } else {
+                overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-red-500 text-white";
+                overallEl.textContent = "FAILED";
+            }
+        }
+
+        function saveStudentResult(e) {
+            e.preventDefault();
+            const examId = document.getElementById('entry-exam-select').value;
+            const studentId = document.getElementById('entry-student-select').value;
+            const attendanceDays = Number(document.getElementById('entry-days-present').value);
+
+            const marksObj = {};
+            const inputs = document.querySelectorAll('.entry-mark-input');
+            inputs.forEach(inp => {
+                const subId = inp.getAttribute('data-subject-id');
+                marksObj[subId] = Number(inp.value);
+            });
+
+            const existingIdx = appState.results.findIndex(r => r.examId === examId && r.studentId === studentId);
+            if (existingIdx > -1) {
+                appState.results[existingIdx].attendanceDays = attendanceDays;
+                appState.results[existingIdx].marks = marksObj;
+            } else {
+                appState.results.push({
+                    examId,
+                    studentId,
+                    attendanceDays,
+                    marks: marksObj
+                });
+            }
+
+            saveState();
+            renderAllAdminData();
+            document.getElementById('entry-existing-badge').classList.remove('hidden');
+            const student = appState.students.find(s => s.id === studentId);
+            showToast(`Result saved for ${student.name} (${student.admissionNo})!`, "success");
+        }
+
+        // Initialize Application on Load
+        window.addEventListener('DOMContentLoaded', async () => {
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+            const wantsAdmin = new URLSearchParams(location.search).get('view') === 'admin';
+            if (token) {
+                try {
+                    isAdminAuthenticated = true;
+                    await loadAdminState();
+                    document.getElementById('admin-login-screen').classList.add('hidden');
+                    document.getElementById('admin-dashboard').classList.remove('hidden');
+                    switchAdminTab('overview');
+                    if (wantsAdmin) switchView('admin');
+                    return;
+                } catch (e) { token = ''; sessionStorage.removeItem('rms_token'); isAdminAuthenticated = false; }
+            }
+            await loadPublicData();
+            if (wantsAdmin) switchView('admin');
+        });
+    </script>
+</body>
+</html>

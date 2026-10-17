@@ -1,0 +1,17 @@
+name = "madrasa-rms"
+main = "src/worker.js"
+compatibility_date = "2025-06-01"
+
+# Static frontend (public/) is served by Cloudflare; /api/* is handled by the Worker
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "madrasa-rms"
+database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+
+[vars]
+ADMIN_USER = "admin"
+# ADMIN_PASSWORD and JWT_SECRET are SECRETS -> set with `wrangler secret put` (never put them here)

@@ -1,0 +1,22 @@
+{
+  "name": "Madrasa Result Management System",
+  "short_name": "Madrasa RMS",
+  "description": "Online result portal and admin panel for your Madrasa",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#064e3b",
+  "theme_color": "#064e3b",
+  "lang": "en",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Admin Portal", "url": "/?view=admin", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
