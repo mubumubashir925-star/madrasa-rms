@@ -10,7 +10,7 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Madrasa RMS">
     <title>Al-Noor Madrasa Result Management System</title>
     <!-- Tailwind CSS (compiled; run `npm run css` after editing classes) -->
@@ -73,6 +73,24 @@
         body { padding-bottom: env(safe-area-inset-bottom); }
         @media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }
         @media (max-width: 640px) { .certificate-border { border-width: 4px; } }
+        body { overflow-x: hidden; }
+        img { max-width: 100%; }
+        /* Touch targets */
+        @media (pointer: coarse) { button, select { min-height: 40px; } button { min-width: 40px; } }
+        /* Tables -> stacked cards on phones (labels are set by labelTables()) */
+        @media (max-width: 767px) {
+            .rtable, .rtable tbody { display: block; width: 100%; }
+            .rtable thead { display: none; }
+            .rtable tr { display: block; border: 1px solid #e2e8f0 !important; border-radius: 12px; margin-bottom: 10px; padding: 4px 12px; background: #fff; }
+            .rtable td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0 !important; border: 0 !important; text-align: right !important; width: 100%; }
+            .rtable td + td { border-top: 1px dashed #e2e8f0 !important; }
+            .rtable td::before { content: attr(data-label); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #64748b; text-align: left; flex-shrink: 0; }
+            .rtable td[colspan] { display: block; text-align: center !important; }
+            .rtable td[colspan]::before { content: none; }
+            .rtable td input[type=number] { max-width: 8rem; }
+            .rtable td:first-child { justify-content: flex-start; text-align: left !important; font-size: 15px; }
+            .rtable td:first-child::before { display: none; }
+        }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -90,7 +108,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-dvh flex flex-col">
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-3 right-3 left-3 sm:left-auto sm:w-96 z-[60] flex flex-col gap-2 pointer-events-none"></div>
@@ -113,17 +131,17 @@
         <header class="bg-islamic-pattern text-white shadow-lg border-b-4 border-amber-500 relative">
             <div class="container mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
-                    <div id="public-logo-container" class="w-16 h-16 rounded-full bg-white text-emerald-900 flex items-center justify-center text-3xl font-serif font-bold shadow-md border-2 border-amber-400 shrink-0 overflow-hidden">
+                    <div id="public-logo-container" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white text-emerald-900 flex items-center justify-center text-3xl font-serif font-bold shadow-md border-2 border-amber-400 shrink-0 overflow-hidden">
                         <i class="fas fa-mosque text-emerald-800"></i>
                     </div>
                     <div>
                         <p class="text-amber-400 font-serif text-lg tracking-wider">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
-                        <h1 id="public-madrasa-name" class="text-2xl md:text-3xl font-bold tracking-tight font-serif">Madrasa Darul Uloom</h1>
+                        <h1 id="public-madrasa-name" class="text-xl md:text-3xl font-bold tracking-tight font-serif">Madrasa Darul Uloom</h1>
                         <p id="public-madrasa-subtitle" class="text-emerald-200 text-xs md:text-sm">Islamic Education & Modern Sciences • Online Result Portal</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="switchView('admin')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2 rounded-lg shadow-md transition flex items-center gap-2 text-sm">
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <button onclick="switchView('admin')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-sm w-full md:w-auto">
                         <i class="fas fa-lock"></i> Admin Portal
                     </button>
                 </div>
@@ -131,16 +149,16 @@
         </header>
 
         <!-- Result Search Section -->
-        <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+        <main class="flex-grow container mx-auto px-4 py-5 md:py-8 max-w-4xl">
             <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
-                <div class="bg-emerald-900 px-6 py-4 text-white flex items-center justify-between">
+                <div class="bg-emerald-900 px-4 md:px-6 py-4 text-white flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-search text-amber-400"></i>
                         <h2 class="font-semibold text-lg">Check Student Result</h2>
                     </div>
                 </div>
                 
-                <form id="result-search-form" onsubmit="handleResultSearch(event)" class="p-6 md:p-8 space-y-6">
+                <form id="result-search-form" onsubmit="handleResultSearch(event)" class="p-4 md:p-8 space-y-5 md:space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Exam Selector -->
                         <div>
@@ -217,7 +235,8 @@
                     </div>
 
                     <!-- Marks Table -->
-                    <div class="overflow-x-auto mb-6">
+                    <div id="res-marks-cards" class="md:hidden print:hidden space-y-2 mb-6"></div>
+                    <div class="hidden md:block print:block overflow-x-auto mb-6">
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-emerald-900 text-white text-xs uppercase tracking-wider">
@@ -304,12 +323,12 @@
     </div>
 
     <!-- ================= ADMIN PANEL & AUTHENTICATION VIEW ================= -->
-    <div id="admin-view" class="hidden flex-grow flex flex-col min-h-screen bg-slate-100">
+    <div id="admin-view" class="hidden flex-grow flex flex-col min-h-dvh bg-slate-100">
         
         <!-- Admin Login Screen -->
         <div id="admin-login-screen" class="flex-grow flex items-center justify-center p-4 bg-islamic-pattern">
             <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
-                <div class="bg-emerald-950 p-6 text-center text-white border-b-4 border-amber-500">
+                <div class="bg-emerald-950 p-4 md:p-6 text-center text-white border-b-4 border-amber-500">
                     <div class="w-14 h-14 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-2xl mx-auto mb-3 font-bold shadow">
                         <i class="fas fa-user-shield"></i>
                     </div>
@@ -341,7 +360,7 @@
         <div id="admin-dashboard" class="hidden flex-grow flex flex-row">
             <!-- Sidebar -->
             <div id="sidebar-overlay" onclick="closeSidebar()" class="hidden fixed inset-0 bg-slate-950/60 z-30 md:hidden"></div>
-            <aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:self-start md:w-64 transition-transform duration-200 bg-emerald-950 text-white flex flex-col shrink-0 shadow-xl">
+            <aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-dvh md:self-start md:w-64 transition-transform duration-200 bg-emerald-950 text-white flex flex-col shrink-0 shadow-xl">
                 <div class="p-5 border-b border-emerald-800 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
@@ -399,44 +418,44 @@
                     <!-- TAB 1: OVERVIEW, MADRASA SETTINGS & ANNOUNCEMENTS -->
                     <div id="admin-tab-overview" class="admin-tab-content space-y-6">
                         <!-- Quick Stats -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                            <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-slate-400 uppercase">Total Students</p>
                                     <h3 id="stat-students" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
                                 </div>
-                                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl"><i class="fas fa-users"></i></div>
+                                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 hidden sm:flex items-center justify-center text-xl"><i class="fas fa-users"></i></div>
                             </div>
-                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-slate-400 uppercase">Active Classes</p>
                                     <h3 id="stat-classes" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
                                 </div>
-                                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-xl"><i class="fas fa-chalkboard"></i></div>
+                                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 hidden sm:flex items-center justify-center text-xl"><i class="fas fa-chalkboard"></i></div>
                             </div>
-                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-slate-400 uppercase">Published Exams</p>
                                     <h3 id="stat-exams" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
                                 </div>
-                                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl"><i class="fas fa-file-signature"></i></div>
+                                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 hidden sm:flex items-center justify-center text-xl"><i class="fas fa-file-signature"></i></div>
                             </div>
-                            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                                 <div>
                                     <p class="text-xs font-semibold text-slate-400 uppercase">Results Recorded</p>
                                     <h3 id="stat-results" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
                                 </div>
-                                <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-xl"><i class="fas fa-poll-h"></i></div>
+                                <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 hidden sm:flex items-center justify-center text-xl"><i class="fas fa-poll-h"></i></div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <!-- Madrasa Profile Settings -->
                             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                                <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                                     <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-university text-emerald-700"></i> Madrasa Profile & Branding</h3>
                                 </div>
-                                <form onsubmit="saveMadrasaSettings(event)" class="p-6 space-y-4">
+                                <form onsubmit="saveMadrasaSettings(event)" class="p-4 md:p-6 space-y-4">
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Madrasa Name <span class="text-red-500">*</span></label>
                                         <input type="text" id="setting-madrasa-name" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
@@ -460,10 +479,10 @@
 
                             <!-- Announcements Management -->
                             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                                <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200">
                                     <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-bullhorn text-amber-500"></i> Public Portal Announcements</h3>
                                 </div>
-                                <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
+                                <div class="p-4 md:p-6 flex-grow flex flex-col justify-between space-y-4">
                                     <form onsubmit="addAnnouncement(event)" class="flex gap-2">
                                         <input type="text" id="new-announcement-text" required placeholder="Write new announcement or notice..." class="flex-grow px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
                                         <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2 rounded-lg text-sm shrink-0 transition">
@@ -535,7 +554,7 @@
                                     </form>
 
                                     <div class="overflow-x-auto">
-                                        <table class="w-full text-left border-collapse text-sm">
+                                        <table class="w-full text-left border-collapse text-sm rtable">
                                             <thead>
                                                 <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase">
                                                     <th class="py-2 px-3">Class Name</th>
@@ -555,7 +574,7 @@
 
                         <!-- Subject Configuration (Full Width) -->
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div>
                                     <h3 class="font-bold text-slate-800"><i class="fas fa-book text-emerald-700 mr-1.5"></i> 3. Subject Configuration (Passing & Max Marks)</h3>
                                     <p class="text-xs text-slate-500">Assign subjects to classes with custom maximum and minimum passing marks</p>
@@ -564,7 +583,7 @@
                                     <!-- Class Filter -->
                                 </select>
                             </div>
-                            <div class="p-6 space-y-5">
+                            <div class="p-4 md:p-6 space-y-5">
                                 <form onsubmit="createSubject(event)" class="grid grid-cols-1 sm:grid-cols-6 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs font-bold text-slate-600 mb-1">Target Class</label>
@@ -590,7 +609,7 @@
                                 </form>
 
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse text-sm">
+                                    <table class="w-full text-left border-collapse text-sm rtable">
                                         <thead>
                                             <tr class="bg-slate-100 text-xs uppercase text-slate-600">
                                                 <th class="py-2.5 px-4">Subject Name</th>
@@ -654,8 +673,8 @@
                                         <i class="fas fa-download"></i> Sample .CSV
                                     </button>
                                 </div>
-                                <div class="p-6 flex-grow flex flex-col justify-between space-y-4">
-                                    <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-600 transition bg-slate-50/50">
+                                <div class="p-4 md:p-6 flex-grow flex flex-col justify-between space-y-4">
+                                    <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 md:p-6 text-center hover:border-emerald-600 transition bg-slate-50/50">
                                         <i class="fas fa-cloud-upload-alt text-3xl text-emerald-700 mb-2"></i>
                                         <p class="text-sm font-semibold text-slate-700">Select a CSV file to upload</p>
                                         <p class="text-xs text-slate-500 mt-1 mb-4">Required Columns: <code class="bg-slate-200 px-1.5 py-0.5 rounded">AdmissionNo, Name, FatherName, ClassName</code></p>
@@ -676,17 +695,17 @@
 
                         <!-- Student Directory Table -->
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                            <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
                                 <h3 class="font-bold text-slate-800">Registered Student Directory</h3>
-                                <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                                     <select id="student-list-filter-class" onchange="renderAdminStudents()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium bg-white">
                                         <!-- Class filter -->
                                     </select>
-                                    <input type="text" id="student-list-search" oninput="renderAdminStudents()" placeholder="Search name or ID..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white flex-grow">
+                                    <input type="text" id="student-list-search" oninput="renderAdminStudents()" placeholder="Search name or ID..." class="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white flex-grow w-full">
                                 </div>
                             </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse text-sm">
+                            <div class="overflow-x-auto p-3 md:p-0">
+                                <table class="w-full text-left border-collapse text-sm rtable">
                                     <thead>
                                         <tr class="bg-slate-100 text-xs uppercase text-slate-600">
                                             <th class="py-3 px-4">Admission No</th>
@@ -707,7 +726,7 @@
                     <!-- TAB 4: MARKS & ATTENDANCE ENTRY -->
                     <div id="admin-tab-marks" class="admin-tab-content hidden space-y-6">
                         <!-- Selector Bar -->
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
                             <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
                                 <i class="fas fa-calculator text-emerald-700"></i> Select Student for Marks & Attendance Entry
                             </h3>
@@ -729,7 +748,7 @@
 
                         <!-- Marksheet Entry Form & Live Calculation -->
                         <div id="marks-entry-workspace" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div class="px-6 py-4 bg-emerald-900 text-white flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                            <div class="px-4 md:px-6 py-4 bg-emerald-900 text-white flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                                 <div>
                                     <h4 id="entry-sheet-student-title" class="font-bold text-base">Student Marksheet</h4>
                                     <p id="entry-sheet-subtitle" class="text-xs text-emerald-200">Enter subject marks and days present</p>
@@ -739,7 +758,7 @@
                                 </span>
                             </div>
 
-                            <form onsubmit="saveStudentResult(event)" class="p-6 space-y-6">
+                            <form onsubmit="saveStudentResult(event)" class="p-4 md:p-6 space-y-6">
                                 <!-- Attendance Input Box -->
                                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                     <div>
@@ -755,7 +774,7 @@
 
                                 <!-- Subject Marks Table -->
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse text-sm">
+                                    <table class="w-full text-left border-collapse text-sm rtable">
                                         <thead>
                                             <tr class="bg-slate-100 text-xs uppercase text-slate-600 border-y border-slate-200">
                                                 <th class="py-3 px-4">Subject Name</th>
@@ -772,7 +791,7 @@
                                 </div>
 
                                 <!-- Automatic Calculation Summary Bar -->
-                                <div class="bg-slate-900 text-white p-5 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-4 items-center">
+                                <div class="bg-slate-900 text-white p-4 md:p-5 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-4 items-center sticky bottom-3 z-10 shadow-2xl md:static md:shadow-none">
                                     <div>
                                         <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Total Marks</span>
                                         <span id="live-total-marks" class="text-xl font-bold">0 / 0</span>
@@ -885,10 +904,12 @@
         function toggleSidebar() {
             document.getElementById('admin-sidebar').classList.toggle('-translate-x-full');
             document.getElementById('sidebar-overlay').classList.toggle('hidden');
+            document.body.classList.toggle('overflow-hidden', !document.getElementById('admin-sidebar').classList.contains('-translate-x-full'));
         }
         function closeSidebar() {
             document.getElementById('admin-sidebar').classList.add('-translate-x-full');
             document.getElementById('sidebar-overlay').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
         }
 
         // ================= UI UTILITIES =================
@@ -1040,6 +1061,14 @@
             }).join('');
 
             const percentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : 0;
+
+            document.getElementById('res-marks-cards').innerHTML = subjects.map(sub => {
+                const o = Number(resultRecord.marks[sub.id] ?? 0), ok = o >= Number(sub.passingMarks);
+                return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
+                    <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks} &bull; Pass ${sub.passingMarks}</p></div>
+                    <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</p>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></div></div>`;
+            }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${totalObtained} / ${totalMax} &bull; ${percentage}%</span></div>`;
 
             document.getElementById('res-total-max').textContent = totalMax;
             document.getElementById('res-total-pass').textContent = totalPass;
@@ -1766,6 +1795,17 @@
             const student = appState.students.find(s => s.id === studentId);
             showToast(`Result saved for ${student.name} (${student.admissionNo})!`, "success");
         }
+
+        function labelTables() {
+            document.querySelectorAll('table.rtable').forEach(t => {
+                const heads = [...t.querySelectorAll('thead th')].map(h => h.textContent.trim());
+                t.querySelectorAll('tbody tr').forEach(tr => {
+                    if (tr.children.length === heads.length) [...tr.children].forEach((td, i) => td.setAttribute('data-label', heads[i]));
+                });
+            });
+        }
+        const labelObserver = new MutationObserver(labelTables);
+        document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('table.rtable tbody').forEach(tb => labelObserver.observe(tb, { childList: true })));
 
         // Initialize Application on Load
         window.addEventListener('DOMContentLoaded', async () => {
