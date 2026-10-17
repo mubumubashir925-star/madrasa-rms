@@ -1,4 +1,4 @@
-const CACHE = 'madrasa-rms-v3';
+const CACHE = 'madrasa-rms-v4';
 const SHELL = ['/', '/index.html', '/styles.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', e => {
