@@ -10,7 +10,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "madrasa-rms"
-database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+database_id = "2a408277-8297-482d-9ba6-ec773b5feff7"
 
 [vars]
 ADMIN_USER = "admin"
