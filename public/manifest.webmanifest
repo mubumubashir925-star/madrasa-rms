@@ -1,7 +1,7 @@
 {
-  "name": "Madrasa Result Management System",
-  "short_name": "Madrasa RMS",
-  "description": "Online result portal and admin panel for your Madrasa",
+  "name": "Result Management System",
+  "short_name": "Results",
+  "description": "Online result portal and admin panel for your institution",
   "id": "/",
   "start_url": "/",
   "scope": "/",

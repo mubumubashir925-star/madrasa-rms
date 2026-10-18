@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#064e3b">
-    <meta name="description" content="Madrasa online result portal and admin panel">
+    <meta name="description" content="Online result portal and admin panel">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Madrasa RMS">
-    <title>Al-Noor Madrasa Result Management System</title>
+    <meta name="apple-mobile-web-app-title" content="Results">
+    <title>Result Management System</title>
     <!-- Tailwind CSS (compiled; run `npm run css` after editing classes) -->
     <link rel="stylesheet" href="/styles.css">
     <!-- Font Awesome Icons -->
@@ -129,13 +129,13 @@
         <header class="bg-islamic-pattern text-white shadow-lg border-b-4 border-amber-500 relative">
             <div class="container mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
-                    <div id="public-logo-container" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white text-emerald-900 flex items-center justify-center text-3xl font-serif font-bold shadow-md border-2 border-amber-400 shrink-0 overflow-hidden">
-                        <i class="fas fa-mosque text-emerald-800"></i>
+                    <div id="public-logo-container" onclick="logoTap()" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white text-emerald-900 flex items-center justify-center text-3xl font-serif font-bold shadow-md border-2 border-amber-400 shrink-0 overflow-hidden">
+                        <i class="fas fa-school text-emerald-800"></i>
                     </div>
                     <div>
-                        <p class="text-amber-400 font-serif text-lg tracking-wider">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
-                        <h1 id="public-madrasa-name" class="text-xl md:text-3xl font-bold tracking-tight font-serif">Madrasa Darul Uloom</h1>
-                        <p id="public-madrasa-subtitle" class="text-emerald-200 text-xs md:text-sm">Islamic Education & Modern Sciences • Online Result Portal</p>
+                        <p id="public-bismillah" class="text-amber-400 font-serif text-lg tracking-wider">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
+                        <h1 id="public-madrasa-name" class="text-xl md:text-3xl font-bold tracking-tight font-serif">Institution Name</h1>
+                        <p id="public-madrasa-subtitle" class="text-emerald-200 text-xs md:text-sm">Online Result Portal</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 w-full md:w-auto">
@@ -210,7 +210,7 @@
                 <!-- Printable Marksheet Card -->
                 <div id="printable-result" class="bg-white rounded-xl shadow-2xl p-4 sm:p-6 md:p-10 certificate-border">
                     <div class="border-b-2 border-emerald-800 pb-4 mb-4 text-center">
-                        <p class="text-amber-600 font-serif text-base mb-1">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
+                        <p id="res-bismillah" class="text-amber-600 font-serif text-base mb-1">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
                         <h2 id="res-madrasa-name" class="text-xl sm:text-2xl md:text-3xl font-bold text-emerald-950 font-serif uppercase tracking-wide"></h2>
                         <p id="res-madrasa-address" class="text-slate-500 text-xs mt-1"></p>
                         <div id="res-exam-title" class="mt-2 inline-block bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-1 rounded-full text-sm font-bold"></div>
@@ -250,28 +250,39 @@
                     <div id="res-overall" class="hidden mb-4">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Overall Performance &mdash; All Exams</h4>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-sm">
-                                <thead><tr class="bg-slate-100 text-xs uppercase text-slate-600"><th class="py-2 px-3">Exam</th><th class="py-2 px-3 text-center">Marks</th><th class="py-2 px-3 text-center">%</th><th class="py-2 px-3 text-center">Grade</th></tr></thead>
+                            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                                <thead><tr class="bg-slate-100 text-xs uppercase text-slate-600"><th class="py-2 px-1.5 sm:px-3">Exam</th><th class="py-2 px-1.5 sm:px-3 text-center">Marks</th><th class="py-2 px-1.5 sm:px-3 text-center">%</th><th class="py-2 px-1.5 sm:px-3 text-center">Result</th><th class="py-2 px-1.5 sm:px-3 text-center">Grade</th></tr></thead>
                                 <tbody id="res-overall-body" class="divide-y divide-slate-200"></tbody>
                             </table>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-6 pt-8 mt-2 border-t border-slate-200 text-xs text-slate-500 text-center">
-                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><p class="font-semibold text-slate-700">Class Teacher</p></div>
-                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><p class="font-semibold text-slate-700">Principal / Controller of Examinations</p></div>
+                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><div id="res-sign-left"></div></div>
+                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><div id="res-sign-right"></div></div>
                     </div>
                     <p class="text-[11px] text-slate-400 text-center mt-3">Date of issue: <span id="res-issue-date"></span> &bull; Computer generated result.</p>
                 </div>
             </div>
         </main>
 
+        <!-- Staff login (opened from the small lock icon in the footer, or by tapping the logo 5 times) -->
+        <div id="staff-modal" class="hidden fixed inset-0 z-[90] bg-slate-950/70 flex items-center justify-center p-4 no-print">
+            <form onsubmit="staffLogin(event)" class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4">
+                <div class="flex items-center justify-between"><h3 class="font-bold text-slate-800"><i class="fas fa-user-shield text-emerald-700 mr-1.5"></i> Staff Login</h3>
+                    <button type="button" onclick="closeStaffLogin()" aria-label="Close" class="text-slate-400 hover:text-slate-700 text-xl px-2">&times;</button></div>
+                <input type="text" id="staff-user" autocomplete="username" required placeholder="Username" class="w-full px-4 py-3 border border-slate-300 rounded-xl">
+                <input type="password" id="staff-pass" autocomplete="current-password" required placeholder="Password" class="w-full px-4 py-3 border border-slate-300 rounded-xl">
+                <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl">Login</button>
+            </form>
+        </div>
+
         <!-- Footer -->
         <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 no-print">
             <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p>&copy; <span id="footer-year"></span> <span id="footer-madrasa-name" class="text-white font-medium">Al-Noor Madrasa</span>. All rights reserved.</p>
+                <p>&copy; <span id="footer-year"></span> <span id="footer-madrasa-name" class="text-white font-medium">Institution</span>. All rights reserved.</p>
                 <p class="flex items-center gap-2">
-                    <span>Powered by Madrasa Result Management System</span>
-                    <span class="text-emerald-500">•</span>
+                    <span>Powered by Result Management System</span>
+                    <button type="button" onclick="openStaffLogin()" aria-label="Staff login" title="Staff login" class="text-slate-600 hover:text-amber-400" style="min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center"><i class="fas fa-lock"></i></button>
                 </p>
             </div>
         </footer>
@@ -319,10 +330,10 @@
                 <div class="p-5 border-b border-emerald-800 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
-                            <i class="fas fa-mosque"></i>
+                            <i class="fas fa-school"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-sm leading-tight">Madrasa RMS</h3>
+                            <h3 class="font-bold text-sm leading-tight">Results Admin</h3>
                             <span class="text-[11px] text-emerald-400 block">Admin Control Panel</span>
                         </div>
                     </div>
@@ -365,7 +376,7 @@
                 <!-- Top Bar -->
                 <header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex justify-between items-center gap-3 sticky top-0 z-20">
                     <button onclick="toggleSidebar()" aria-label="Open menu" class="md:hidden w-10 h-10 shrink-0 rounded-lg bg-emerald-900 text-white flex items-center justify-center"><i class="fas fa-bars"></i></button>
-                    <h2 id="admin-page-title" class="flex-grow min-w-0 truncate text-sm sm:text-base md:text-lg font-bold text-slate-800">Dashboard & Madrasa Settings</h2>
+                    <h2 id="admin-page-title" class="flex-grow min-w-0 truncate text-sm sm:text-base md:text-lg font-bold text-slate-800">Dashboard & Institution Settings</h2>
                     <div class="flex items-center gap-3">
                         
                         <span class="hidden sm:inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-full font-medium border border-emerald-200">
@@ -414,11 +425,11 @@
                             <!-- Madrasa Profile Settings -->
                             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-university text-emerald-700"></i> Madrasa Profile & Branding</h3>
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-university text-emerald-700"></i> Institution Profile & Branding</h3>
                                 </div>
                                 <form onsubmit="saveMadrasaSettings(event)" class="p-4 md:p-6 space-y-4">
                                     <div>
-                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Madrasa Name <span class="text-red-500">*</span></label>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Institution Name <span class="text-red-500">*</span></label>
                                         <input type="text" id="setting-madrasa-name" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
                                     </div>
                                     <div>
@@ -428,8 +439,16 @@
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Logo Image URL (Optional)</label>
                                         <input type="url" id="setting-madrasa-logo" placeholder="https://example.com/logo.png" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
-                                        <p class="text-[11px] text-slate-400 mt-1">Leave blank to use the default Islamic Mosque emblem.</p>
+                                        <p class="text-[11px] text-slate-400 mt-1">Leave blank to use the default school emblem.</p>
                                     </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Head&rsquo;s Designation</label>
+                                            <input type="text" id="setting-head-title" maxlength="60" placeholder="e.g., Principal / Sadar Muallim / Manager" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm"></div>
+                                        <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Head&rsquo;s Name</label>
+                                            <input type="text" id="setting-head-name" maxlength="80" placeholder="e.g., Mubashir" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm"></div>
+                                        <p class="sm:col-span-2 text-[11px] text-slate-400 -mt-1">Shown as the signature on every result sheet and class report.</p>
+                                    </div>
+                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="setting-bismillah" class="w-4 h-4 accent-emerald-700"> Show Bismillah (Arabic calligraphy) at the top of pages and results</label>
                                     <div class="pt-2">
                                         <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow transition">
                                             <i class="fas fa-save mr-1"></i> Save Profile Changes
@@ -501,14 +520,22 @@
                                     <form onsubmit="createClass(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                                         <div class="sm:col-span-3">
                                             <label class="block text-xs font-bold text-slate-600 mb-1">Class / Grade Name</label>
-                                            <input type="text" id="new-class-name" required placeholder="e.g., Ibtidaiyah - Year 1" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                            <input type="text" id="new-class-name" required placeholder="e.g., Class 5 - A" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
                                         </div>
                                         <div class="sm:col-span-1">
                                             <label class="block text-xs font-bold text-slate-600 mb-1">Working Days</label>
                                             <input type="number" id="new-class-days" required min="1" max="365" value="200" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
                                         </div>
-                                        <div class="sm:col-span-1 flex items-end">
-                                            <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-2 rounded-lg text-xs font-semibold transition">
+                                        <div class="sm:col-span-2">
+                                            <label class="block text-xs font-bold text-slate-600 mb-1">Teacher Designation</label>
+                                            <input type="text" id="new-class-teacher-title" maxlength="60" placeholder="e.g., Class Teacher / Class Ustad" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="sm:col-span-3">
+                                            <label class="block text-xs font-bold text-slate-600 mb-1">Teacher Name</label>
+                                            <input type="text" id="new-class-teacher-name" maxlength="80" placeholder="e.g., Ahmed Ali" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                        </div>
+                                        <div class="sm:col-span-5 flex items-end">
+                                            <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-sm font-semibold transition">
                                                 + Add Class
                                             </button>
                                         </div>
@@ -519,6 +546,7 @@
                                             <thead>
                                                 <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase">
                                                     <th class="py-2 px-3">Class Name</th>
+                                                    <th class="py-2 px-3">Class Teacher</th>
                                                     <th class="py-2 px-3 text-center">Total Working Days</th>
                                                     <th class="py-2 px-3 text-center">Subjects</th>
                                                     <th class="py-2 px-3 text-right">Actions</th>
@@ -552,7 +580,7 @@
                                     </div>
                                     <div class="sm:col-span-2">
                                         <label class="block text-xs font-bold text-slate-600 mb-1">Subject Name</label>
-                                        <input type="text" id="new-subject-name" required placeholder="e.g., Tajweed-ul-Quran" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
+                                        <input type="text" id="new-subject-name" required placeholder="e.g., Mathematics" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-600 mb-1">Max Marks</label>
@@ -785,6 +813,7 @@
                                     </div>
                                 </div>
 
+                                <div class="flex justify-end -mb-3"><button type="button" onclick="markAllAbsent()" class="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg"><i class="fas fa-user-slash mr-1"></i> Mark absent in all subjects</button></div>
                                 <!-- Subject Marks Table -->
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-left border-collapse text-sm rtable">
@@ -794,6 +823,7 @@
                                                 <th class="py-3 px-4 text-center">Max Marks</th>
                                                 <th class="py-3 px-4 text-center">Passing Marks</th>
                                                 <th class="py-3 px-4 text-center w-44">Marks Obtained</th>
+                                                <th class="py-3 px-4 text-center">Absent</th>
                                                 <th class="py-3 px-4 text-center">Live Status</th>
                                             </tr>
                                         </thead>
@@ -837,16 +867,16 @@
         // ================= STATE + API LAYER =================
         const IS_ADMIN_ROUTE = location.pathname.replace(/\/+$/, '') === '/admin' || new URLSearchParams(location.search).get('view') === 'admin';
         let isAdminAuthenticated = false;
-        let token = sessionStorage.getItem('rms_token') || '';
+        let token = localStorage.getItem('rms_token') || '';
         let appState = emptyState();
         let snapshot = null;
         let syncChain = Promise.resolve();
         const TABLES = ['exams', 'classes', 'subjects', 'students', 'results'];
 
         function emptyState() {
-            return { madrasa: { name: 'Madrasa', subtitle: '', logo: '' }, announcements: [],
+            return { madrasa: { name: 'Institution', subtitle: '', logo: '', headTitle: 'Principal', headName: '', bismillah: false }, announcements: [],
                 portal: { enabled: false, message: '', showPosition: true },
-                grades: { scale: [{ min: 85, grade: 'A+', title: 'Mumtaz' }, { min: 70, grade: 'A', title: 'Jayyid Jiddan' }, { min: 55, grade: 'B', title: 'Jayyid' }, { min: 0, grade: 'C', title: 'Maqbool' }], fail: { grade: 'F', title: 'Rasib' } },
+                grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
                 fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], exams: [], classes: [], subjects: [], students: [], results: [] };
         }
         const clone = o => JSON.parse(JSON.stringify(o));
@@ -911,7 +941,7 @@
         }
 
         function handleSessionExpired() {
-            token = ''; sessionStorage.removeItem('rms_token');
+            token = ''; localStorage.removeItem('rms_token');
             isAdminAuthenticated = false; snapshot = null;
             switchView('admin');
             showToast('Session expired. Please log in again.', 'error');
@@ -955,7 +985,7 @@
         }
 
         function switchView(view) {
-            if (view === 'public') { window.open('/', '_blank', 'noopener'); return; }
+            if (view === 'public') { location.href = '/'; return; }
             if (!IS_ADMIN_ROUTE) return; // public visitors can never reach the admin screens
             document.getElementById('public-view').classList.add('hidden');
             document.getElementById('admin-view').classList.remove('hidden');
@@ -971,10 +1001,11 @@
             document.getElementById('public-madrasa-name').textContent = appState.madrasa.name;
             document.getElementById('public-madrasa-subtitle').textContent = appState.madrasa.subtitle;
             document.getElementById('footer-madrasa-name').textContent = appState.madrasa.name;
+            document.getElementById('public-bismillah').classList.toggle('hidden', appState.madrasa.bismillah === false);
             document.getElementById('footer-year').textContent = new Date().getFullYear();
 
             const logoContainer = document.getElementById('public-logo-container');
-            logoContainer.innerHTML = `<i class="fas fa-mosque text-emerald-800"></i>`;
+            logoContainer.innerHTML = `<i class="fas fa-school text-emerald-800"></i>`;
             const logoUrl = (appState.madrasa.logo || '').trim();
             if (/^https?:\/\//i.test(logoUrl)) {
                 const img = new Image();
@@ -1034,12 +1065,31 @@
         }
 
         // ================= HELPERS =================
-        const sumMarks = (m, subs) => subs.reduce((a, s) => a + Number(m?.[s.id] || 0), 0);
+        const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0), 0);
+        const exactPct = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, not the rounded one
+        const isAb = v => v === 'AB';
         const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
         const ord = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
         const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
         const admLabel = () => (appState.fields.find(f => f.id === 'admissionNo') || {}).label || 'Admission No';
         const fieldVal = (s, id) => id === 'fatherName' ? (s.fatherName || '') : ((s.extra || {})[id] || '');
+
+        let logoTaps = 0, logoTimer;
+        function logoTap() { logoTaps++; clearTimeout(logoTimer); logoTimer = setTimeout(() => logoTaps = 0, 1500); if (logoTaps >= 5) { logoTaps = 0; openStaffLogin(); } }
+        function openStaffLogin() {
+            if (token) { location.href = '/admin'; return; }
+            document.getElementById('staff-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('staff-user').focus(), 50);
+        }
+        function closeStaffLogin() { document.getElementById('staff-modal').classList.add('hidden'); }
+        async function staffLogin(e) {
+            e.preventDefault();
+            try {
+                const r = await api('/login', { method: 'POST', body: { username: document.getElementById('staff-user').value.trim(), password: document.getElementById('staff-pass').value } });
+                localStorage.setItem('rms_token', r.token);
+                location.href = '/admin';
+            } catch (err) { showToast(err.message, 'error'); }
+        }
 
         async function shareLink() {
             const url = location.origin + '/';
@@ -1057,6 +1107,10 @@
             $('res-madrasa-name').textContent = madrasa.name;
             $('res-madrasa-address').textContent = madrasa.subtitle;
             $('res-exam-title').textContent = exam.name;
+            $('res-bismillah').classList.toggle('hidden', madrasa.bismillah === false);
+            const sig = (id, title, name) => { $(id).innerHTML = (name ? `<p class="font-bold text-slate-800 text-sm">${esc(name)}</p>` : '') + `<p class="${name ? '' : 'font-semibold text-slate-700'}">${esc(title)}</p>`; };
+            sig('res-sign-left', cls.teacherTitle || 'Class Teacher', cls.teacherName);
+            sig('res-sign-right', madrasa.headTitle || 'Principal', madrasa.headName);
             $('res-details').innerHTML = [...details, { label: 'Class', value: cls.name }].map(x =>
                 `<div><p class="text-[11px] uppercase tracking-wide text-slate-400">${esc(x.label)}</p><p class="font-semibold text-slate-900 break-words">${esc(x.value)}</p></div>`).join('');
 
@@ -1071,21 +1125,21 @@
 
             let totalPass = 0;
             $('res-marks-tbody').innerHTML = subjects.map((sub, i) => {
-                const o = Number(result.marks[sub.id] ?? 0), ok = o >= sub.passingMarks; totalPass += sub.passingMarks;
+                const ab = result.marks[sub.id] === 'AB', o = ab ? 0 : Number(result.marks[sub.id] ?? 0), ok = !ab && o >= sub.passingMarks; totalPass += sub.passingMarks;
                 return `<tr><td class="py-2.5 px-4 font-mono text-slate-400 hidden sm:table-cell">${i + 1}</td><td class="py-2.5 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
                     <td class="py-2.5 px-4 text-center text-slate-600">${sub.maxMarks}</td><td class="py-2.5 px-4 text-center text-slate-500 hidden sm:table-cell">${sub.passingMarks}</td>
-                    <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</td>
+                    <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-slate-900' : 'text-red-600'}">${ab ? 'AB' : o}</td>
                     <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-amber-700' : 'text-red-600'}">${esc((result.grades[sub.id] || {}).grade || '-')}</td>
-                    <td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
+                    <td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
             }).join('');
             $('res-tfoot').innerHTML = `<tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300"><td colspan="2" class="py-3 px-4 text-right">Grand Total</td><td class="py-3 px-4 text-center">${summary.max}</td><td class="py-3 px-4 text-center text-slate-500 hidden sm:table-cell">${totalPass}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.obtained}</td><td class="py-3 px-4 text-center text-amber-700">${esc(summary.grade.grade)}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.percentage}%</td></tr>`;
             $('res-marks-cards').innerHTML = subjects.map(sub => {
-                const o = Number(result.marks[sub.id] ?? 0), ok = o >= sub.passingMarks;
+                const ab = result.marks[sub.id] === 'AB', o = ab ? 0 : Number(result.marks[sub.id] ?? 0), ok = !ab && o >= sub.passingMarks;
                 return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
                     <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks} &bull; Pass ${sub.passingMarks}</p></div>
-                    <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${o}</p>
+                    <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${ab ? 'AB' : o}</p>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">${esc((result.grades[sub.id] || {}).grade || '-')}</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ok ? 'PASS' : 'FAIL'}</span></div></div>`;
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></div></div>`;
             }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
 
             $('res-summary-perc').textContent = summary.percentage + '%';
@@ -1095,8 +1149,8 @@
             $('res-attendance-bar').style.width = att + '%';
 
             $('res-overall').classList.toggle('hidden', exams.length < 2);
-            $('res-overall-body').innerHTML = exams.map(x => `<tr><td class="py-2 px-3">${esc(x.name)}</td><td class="py-2 px-3 text-center">${x.obtained}/${x.max}</td><td class="py-2 px-3 text-center">${x.percentage}%</td><td class="py-2 px-3 text-center font-bold">${esc(x.grade.grade)}</td></tr>`).join('')
-                + `<tr class="bg-slate-100 font-bold"><td class="py-2 px-3">Overall</td><td class="py-2 px-3 text-center">${overall.obtained}/${overall.max}</td><td class="py-2 px-3 text-center">${overall.percentage}%</td><td class="py-2 px-3 text-center">${esc(overall.grade.grade)} ${overall.grade.title ? '&bull; ' + esc(overall.grade.title) : ''}</td></tr>`;
+            $('res-overall-body').innerHTML = exams.map(x => `<tr><td class="py-2 px-1.5 sm:px-3">${esc(x.name)}</td><td class="py-2 px-1.5 sm:px-3 text-center">${x.obtained}/${x.max}</td><td class="py-2 px-1.5 sm:px-3 text-center">${x.percentage}%</td><td class="py-2 px-1.5 sm:px-3 text-center text-xs font-bold ${x.passed ? 'text-emerald-700' : 'text-red-600'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="py-2 px-1.5 sm:px-3 text-center font-bold">${esc(x.grade.grade)}</td></tr>`).join('')
+                + `<tr class="bg-slate-100 font-bold"><td class="py-2 px-1.5 sm:px-3">Overall</td><td class="py-2 px-1.5 sm:px-3 text-center">${overall.obtained}/${overall.max}</td><td class="py-2 px-1.5 sm:px-3 text-center">${overall.percentage}%</td><td class="py-2 px-1.5 sm:px-3 text-center text-xs ${overall.failedCount ? 'text-red-600' : 'text-emerald-700'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="py-2 px-1.5 sm:px-3 text-center">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr>`;
             $('res-issue-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
             const container = $('result-display-container');
@@ -1156,7 +1210,7 @@
             if (body.password !== v('acc-confirm')) { showToast('New passwords do not match.', 'error'); return; }
             try {
                 const r = await api('/admin/account', { method: 'POST', body });
-                token = r.token; sessionStorage.setItem('rms_token', token);
+                token = r.token; localStorage.setItem('rms_token', token);
                 ['acc-current', 'acc-username', 'acc-new', 'acc-confirm'].forEach(id => document.getElementById(id).value = '');
                 showToast('Login updated. Use the new details next time.', 'success');
             } catch (err) { showToast(err.message, 'error'); }
@@ -1184,15 +1238,17 @@
             const examId = document.getElementById('rep-exam').value, classId = document.getElementById('rep-class').value;
             const cls = appState.classes.find(c => c.id === classId);
             if (!examId || !cls) { area.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">Create an exam and a class first.</p>'; return; }
-            const all = examId === '__ALL__', G = appState.grades;
+            const all = examId === '__ALL__', G = appState.grades, days = Number(cls.totalWorkingDays) || 200;
             const exams = all ? appState.exams : appState.exams.filter(e => e.id === examId);
             const subs = appState.subjects.filter(s => s.classId === classId);
             const maxPer = subs.reduce((a, s) => a + Number(s.maxMarks), 0);
-            const rows = appState.students.filter(s => s.classId === classId).map(st => {
-                const per = exams.map(ex => { const r = appState.results.find(r => r.examId === ex.id && r.studentId === st.id); return r ? { m: r.marks, o: sumMarks(r.marks, subs), fail: subs.some(s => Number(r.marks[s.id] ?? 0) < Number(s.passingMarks)) } : null; });
+            const students = appState.students.filter(s => s.classId === classId);
+            const rows = students.map(st => {
+                const per = exams.map(ex => { const r = appState.results.find(r => r.examId === ex.id && r.studentId === st.id);
+                    return r ? { m: r.marks, att: Number(r.attendanceDays) || 0, o: sumMarks(r.marks, subs), fail: subs.some(s => isAb(r.marks[s.id]) || (Number(r.marks[s.id]) || 0) < Number(s.passingMarks)) } : null; });
                 const have = per.filter(Boolean); if (!have.length) return null;
-                const o = have.reduce((a, x) => a + x.o, 0), max = have.length * maxPer, p = pctOf(o, max), failN = have.filter(x => x.fail).length;
-                return { st, per, o, max, p, failN, grade: gradeOf(p, !all && failN > 0, G) };
+                const o = have.reduce((a, x) => a + x.o, 0), max = have.length * maxPer, failN = have.filter(x => x.fail).length;
+                return { st, per, o, max, p: pctOf(o, max), failN, attDays: have[0].att, attPct: pctOf(have.reduce((a, x) => a + x.att, 0), have.length * days), grade: gradeOf(exactPct(o, max), failN > 0, G) };
             }).filter(Boolean).sort((a, b) => b.o - a.o || a.st.name.localeCompare(b.st.name));
             rows.forEach(r => r.rank = 1 + rows.filter(x => x.o > r.o).length);
             const th = 'border border-slate-300 px-2 py-1.5 bg-slate-100 text-[11px] uppercase', td = 'border border-slate-300 px-2 py-1 text-center';
@@ -1200,14 +1256,23 @@
                 : subs.map(s => `<th class="${th}">${esc(s.name)}<br><span class="font-normal">/${s.maxMarks}</span></th>`).join('');
             const body = rows.map(r => `<tr><td class="${td} font-bold">${r.rank}</td><td class="${td}">${esc(r.st.admissionNo)}</td><td class="${td} text-left font-medium">${esc(r.st.name)}</td>`
                 + (all ? r.per.map(x => `<td class="${td}">${x ? x.o : '-'}</td>`).join('')
-                    : subs.map(s => { const v = r.per[0].m[s.id]; const bad = Number(v ?? 0) < Number(s.passingMarks), g = v === undefined ? '' : gradeOf(pctOf(Number(v), Number(s.maxMarks)), bad, G).grade; return `<td class="${td} ${bad ? 'text-red-600 font-bold' : ''}">${v ?? '-'}${g ? `<span class="block text-[9px] font-semibold text-slate-500">${esc(g)}</span>` : ''}</td>`; }).join(''))
+                    : subs.map(s => { const v = r.per[0].m[s.id], ab = isAb(v), bad = ab || Number(v ?? 0) < Number(s.passingMarks);
+                        const g = (v === undefined || ab) ? '' : gradeOf(exactPct(Number(v), Number(s.maxMarks)), bad, G).grade;
+                        return `<td class="${td} ${bad ? 'text-red-600 font-bold' : ''}">${ab ? 'AB' : (v ?? '-')}${g ? `<span class="block text-[9px] font-semibold text-slate-500">${esc(g)}</span>` : ''}</td>`; }).join(''))
+                + `<td class="${td}">${all ? r.attPct + '%' : `${r.attDays}/${days}<span class="block text-[9px] text-slate-500">${r.attPct}%</span>`}</td>`
                 + `<td class="${td} font-bold">${r.o}/${r.max}</td><td class="${td}">${r.p}%</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td} font-semibold ${r.failN ? 'text-red-600' : 'text-emerald-700'}">${all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
-            const passed = rows.filter(r => r.failN === 0).length;
-            const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail)`;
+            const passed = rows.filter(r => r.failN === 0).length, failed = rows.length - passed;
+            const stat = (l, v, c) => `<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;color:#64748b">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`;
+            const overview = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-bottom:10px">`
+                + stat('Total Students', students.length, '#0f172a') + stat('Appeared', rows.length, '#0f172a') + stat('Passed', passed, '#047857') + stat('Failed', failed, '#dc2626')
+                + stat('Pass %', pctOf(passed, rows.length) + '%', '#047857') + stat('Fail %', pctOf(failed, rows.length) + '%', '#dc2626') + `</div>`;
+            const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail) &bull; AB = absent`;
+            const sign = (title, name) => `<div style="text-align:center"><div style="border-bottom:1px solid #94a3b8;height:34px;margin-bottom:4px"></div>${name ? `<div style="font-weight:700;font-size:12px">${esc(name)}</div>` : ''}<div style="font-size:11px;color:#475569">${esc(title)}</div></div>`;
             area.innerHTML = `<div class="text-center mb-3"><h2 class="text-lg font-bold uppercase font-serif">${esc(appState.madrasa.name)}</h2>
                 <p class="text-sm font-semibold">${all ? 'All Exams (Cumulative)' : esc(exams[0] ? exams[0].name : '')} &bull; ${esc(cls.name)}</p>
-                <p class="text-xs text-slate-500 mt-1">Appeared: ${rows.length} &bull; Passed: ${passed} &bull; Pass rate: ${pctOf(passed, rows.length)}% &bull; ${new Date().toLocaleDateString('en-GB')}</p></div>`
-                + (rows.length ? `<table class="min-w-full text-xs border-collapse"><thead><tr><th class="${th}">Pos</th><th class="${th}">${esc(admLabel())}</th><th class="${th} text-left">Name</th>${cols}<th class="${th}">Total</th><th class="${th}">%</th><th class="${th}">Grade</th><th class="${th}">${all ? 'Exams' : 'Result'}</th></tr></thead><tbody>${body}</tbody></table><p class="text-[10px] text-slate-500 mt-2">Grade key: ${key}</p>`
+                <p class="text-xs text-slate-500 mt-1">${new Date().toLocaleDateString('en-GB')}</p></div>` + overview
+                + (rows.length ? `<table class="min-w-full text-xs border-collapse"><thead><tr><th class="${th}">Pos</th><th class="${th}">${esc(admLabel())}</th><th class="${th} text-left">Name</th>${cols}<th class="${th}">Attendance</th><th class="${th}">Total</th><th class="${th}">%</th><th class="${th}">Grade</th><th class="${th}">${all ? 'Exams' : 'Result'}</th></tr></thead><tbody>${body}</tbody></table><p class="text-[10px] text-slate-500 mt-2">Grade key: ${key}</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:28px;padding:0 30px">${sign(cls.teacherTitle || 'Class Teacher', cls.teacherName)}${sign(appState.madrasa.headTitle || 'Principal', appState.madrasa.headName)}</div>`
                     : '<p class="text-sm text-slate-400 text-center py-6">No results entered for this selection yet.</p>');
         }
         function printClassReport() {
@@ -1231,14 +1296,14 @@
             const password = document.getElementById('login-password').value;
             try {
                 const { token: t } = await api('/login', { method: 'POST', body: { username, password } });
-                token = t; sessionStorage.setItem('rms_token', t);
+                token = t; localStorage.setItem('rms_token', t);
                 isAdminAuthenticated = true;
                 document.getElementById('login-password').value = '';
                 document.getElementById('admin-login-screen').classList.add('hidden');
                 document.getElementById('admin-dashboard').classList.remove('hidden');
                 switchAdminTab('overview');
                 await loadAdminState();
-                showToast("Welcome to the Madrasa Admin Panel", "success");
+                showToast("Welcome to the Admin Panel", "success");
             } catch (err) {
                 isAdminAuthenticated = false;
                 showToast(err.message, "error");
@@ -1246,7 +1311,7 @@
         }
 
         function handleAdminLogout() {
-            token = ''; sessionStorage.removeItem('rms_token');
+            token = ''; localStorage.removeItem('rms_token');
             isAdminAuthenticated = false; snapshot = null;
             closeSidebar();
             appState = emptyState();
@@ -1257,7 +1322,7 @@
         function switchAdminTab(tabId) {
             closeSidebar();
             const titles = {
-                overview: "Overview, Madrasa Branding & Announcements",
+                overview: "Overview, Institution Branding & Announcements",
                 academics: "Examination, Class & Subject Configuration",
                 students: "Student Registration & CSV Bulk Import",
                 marks: "Student Marks & Attendance Entry",
@@ -1293,6 +1358,9 @@
             document.getElementById('setting-madrasa-name').value = appState.madrasa.name;
             document.getElementById('setting-madrasa-subtitle').value = appState.madrasa.subtitle;
             document.getElementById('setting-madrasa-logo').value = appState.madrasa.logo || '';
+            document.getElementById('setting-head-title').value = appState.madrasa.headTitle || '';
+            document.getElementById('setting-head-name').value = appState.madrasa.headName || '';
+            document.getElementById('setting-bismillah').checked = appState.madrasa.bismillah !== false;
 
             renderAdminAnnouncements();
             renderAdminExams();
@@ -1311,8 +1379,11 @@
             appState.madrasa.name = document.getElementById('setting-madrasa-name').value.trim();
             appState.madrasa.subtitle = document.getElementById('setting-madrasa-subtitle').value.trim();
             appState.madrasa.logo = document.getElementById('setting-madrasa-logo').value.trim();
+            appState.madrasa.headTitle = document.getElementById('setting-head-title').value.trim();
+            appState.madrasa.headName = document.getElementById('setting-head-name').value.trim();
+            appState.madrasa.bismillah = document.getElementById('setting-bismillah').checked;
             saveState();
-            showToast("Madrasa profile & header updated!", "success");
+            showToast("Institution profile updated!", "success");
         }
 
         function renderAdminAnnouncements() {
@@ -1417,6 +1488,9 @@
                 return `
                     <tr>
                         <td class="py-2.5 px-3 font-semibold text-slate-800">${esc(cls.name)}</td>
+                        <td class="py-2.5 px-3"><div class="flex flex-col gap-1 w-full">
+                            <input value="${esc(cls.teacherTitle || '')}" maxlength="60" placeholder="Designation" onchange="updateClassTeacher('${cls.id}','teacherTitle',this.value)" class="px-2 py-1 border border-slate-300 rounded text-xs w-full">
+                            <input value="${esc(cls.teacherName || '')}" maxlength="80" placeholder="Name" onchange="updateClassTeacher('${cls.id}','teacherName',this.value)" class="px-2 py-1 border border-slate-300 rounded text-xs w-full"></div></td>
                         <td class="py-2.5 px-3 text-center">
                             <input type="number" value="${cls.totalWorkingDays}" min="1" max="365"
                                 onchange="updateClassWorkingDays('${cls.id}', this.value)"
@@ -1442,12 +1516,24 @@
             appState.classes.push({
                 id: 'CLS_' + Date.now(),
                 name,
-                totalWorkingDays: days
+                totalWorkingDays: days,
+                teacherTitle: document.getElementById('new-class-teacher-title').value.trim(),
+                teacherName: document.getElementById('new-class-teacher-name').value.trim()
             });
             document.getElementById('new-class-name').value = '';
+            document.getElementById('new-class-teacher-title').value = '';
+            document.getElementById('new-class-teacher-name').value = '';
             saveState();
             renderAllAdminData();
             showToast(`Class "${name}" added!`, "success");
+        }
+
+        function updateClassTeacher(classId, key, value) {
+            const cls = appState.classes.find(c => c.id === classId);
+            if (!cls) return;
+            cls[key] = value.trim();
+            saveState();
+            showToast(`Class teacher updated for ${cls.name}.`, "success");
         }
 
         function updateClassWorkingDays(classId, newDays) {
@@ -1642,7 +1728,7 @@
             const csv = [[admLabel(), 'Name', ...labels, 'ClassName'], sample(1), sample(2)].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
             const link = document.createElement("a");
             link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-            link.download = "madrasa_students_sample.csv";
+            link.download = "students_sample.csv";
             document.body.appendChild(link); link.click(); link.remove();
         }
 
@@ -1753,26 +1839,30 @@
 
             const tbody = document.getElementById('entry-subjects-tbody');
             if (subjects.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No subjects configured for this class. Add subjects in Tab 2 first.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">No subjects configured for this class. Add subjects in Tab 2 first.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = subjects.map(sub => {
                 const val = existingResult && existingResult.marks[sub.id] !== undefined ? existingResult.marks[sub.id] : '';
+                const ab = val === 'AB';
                 return `
                     <tr>
                         <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
                         <td class="py-3 px-4 text-center text-slate-500">${sub.maxMarks}</td>
                         <td class="py-3 px-4 text-center text-slate-500">${sub.passingMarks}</td>
                         <td class="py-3 px-4 text-center">
-                            <input type="number" required min="0" max="${sub.maxMarks}"
+                            <input type="number" ${ab ? 'disabled' : 'required'} min="0" max="${sub.maxMarks}"
                                 data-subject-id="${sub.id}"
                                 data-max="${sub.maxMarks}"
                                 data-pass="${sub.passingMarks}"
-                                value="${val}"
+                                value="${ab ? '' : val}"
                                 placeholder="0 - ${sub.maxMarks}"
                                 oninput="recalculateLiveEntry()"
                                 class="entry-mark-input w-full px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 cursor-pointer"><input type="checkbox" class="entry-absent w-5 h-5 accent-red-600" onchange="toggleAbsent(this)" ${ab ? 'checked' : ''}> AB</label>
                         </td>
                         <td class="py-3 px-4 text-center">
                             <span id="live-sub-status-${sub.id}" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">-</span>
@@ -1782,6 +1872,16 @@
             }).join('');
 
             recalculateLiveEntry();
+        }
+
+        function toggleAbsent(cb) {
+            const inp = cb.closest('tr').querySelector('.entry-mark-input');
+            inp.disabled = cb.checked; inp.required = !cb.checked;
+            if (cb.checked) inp.value = '';
+            recalculateLiveEntry();
+        }
+        function markAllAbsent() {
+            document.querySelectorAll('.entry-absent').forEach(cb => { cb.checked = true; toggleAbsent(cb); });
         }
 
         function recalculateLiveEntry() {
@@ -1801,22 +1901,27 @@
                 const subId = inp.getAttribute('data-subject-id');
                 const max = Number(inp.getAttribute('data-max'));
                 const pass = Number(inp.getAttribute('data-pass'));
-                const val = inp.value === '' ? 0 : Number(inp.value);
+                const abBox = inp.closest('tr').querySelector('.entry-absent'), ab = !!(abBox && abBox.checked);
+                const val = (ab || inp.value === '') ? 0 : Number(inp.value);
 
                 totalMax += max;
                 totalObtained += val;
 
                 const statusSpan = document.getElementById(`live-sub-status-${subId}`);
-                if (inp.value === '') {
+                if (ab) {
+                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700";
+                    statusSpan.textContent = "ABSENT";
+                    allPassed = false;
+                } else if (inp.value === '') {
                     statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-400";
                     statusSpan.textContent = "Pending";
                     allPassed = false;
                 } else if (val >= pass) {
                     statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
-                    statusSpan.textContent = "PASS \u2022 " + gradeOf(pctOf(val, max), false, appState.grades).grade;
+                    statusSpan.textContent = "PASS \u2022 " + gradeOf(exactPct(val, max), false, appState.grades).grade;
                 } else {
                     statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700";
-                    statusSpan.textContent = "FAIL \u2022 " + gradeOf(pctOf(val, max), true, appState.grades).grade;
+                    statusSpan.textContent = "FAIL \u2022 " + gradeOf(exactPct(val, max), true, appState.grades).grade;
                     allPassed = false;
                 }
             });
@@ -1847,7 +1952,7 @@
             const inputs = document.querySelectorAll('.entry-mark-input');
             inputs.forEach(inp => {
                 const subId = inp.getAttribute('data-subject-id');
-                marksObj[subId] = Number(inp.value);
+                marksObj[subId] = inp.closest('tr').querySelector('.entry-absent').checked ? 'AB' : Number(inp.value);
             });
 
             const existingIdx = appState.results.findIndex(r => r.examId === examId && r.studentId === studentId);
@@ -1885,7 +1990,7 @@
         window.addEventListener('DOMContentLoaded', async () => {
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
             if (!IS_ADMIN_ROUTE) { await loadPublicData(); return; }
-            document.title = 'Admin | Madrasa RMS';
+            document.title = 'Admin | Result Management System';
             switchView('admin');
             if (token) {
                 try {
@@ -1893,7 +1998,7 @@
                     await loadAdminState();
                     switchView('admin');
                     switchAdminTab('overview');
-                } catch (e) { token = ''; sessionStorage.removeItem('rms_token'); isAdminAuthenticated = false; switchView('admin'); }
+                } catch (e) { token = ''; localStorage.removeItem('rms_token'); isAdminAuthenticated = false; switchView('admin'); }
             }
         });
     </script>
