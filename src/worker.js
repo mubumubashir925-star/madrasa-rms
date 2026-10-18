@@ -52,16 +52,17 @@ async function changeAccount(env, body) {
 // ---------- validation + table mapping ----------
 const str = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.length > max) throw new Error('Invalid or missing text value'); return v.trim(); };
 const opt = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+const absent = v => v === 'AB';
 const num = (v, lo, hi) => { v = Number(v); if (!Number.isFinite(v) || v < lo || v > hi) throw new Error('Number out of range'); return v; };
 const TABLES = {
-  classes:  { cols: ['id', 'name', 'working_days'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), num(r.totalWorkingDays, 1, 366)] },
+  classes:  { cols: ['id', 'name', 'working_days', 'teacher_title', 'teacher_name'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), num(r.totalWorkingDays, 1, 366), opt(r.teacherTitle, 60), opt(r.teacherName, 80)] },
   exams:    { cols: ['id', 'name', 'is_public'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), r.isPublic ? 1 : 0] },
   subjects: { cols: ['id', 'class_id', 'name', 'max_marks', 'pass_marks'], pk: ['id'], row: r => [str(r.id, 64), str(r.classId, 64), str(r.name), num(r.maxMarks, 1, 1000), num(r.passingMarks, 0, 1000)] },
   students: { cols: ['id', 'admission_no', 'name', 'father_name', 'class_id', 'extra'], pk: ['id'], row: r => [str(r.id, 64), str(r.admissionNo, 40).toUpperCase(), str(r.name), opt(r.fatherName), str(r.classId, 64),
     JSON.stringify(Object.fromEntries(Object.entries(r.extra || {}).slice(0, 20).map(([k, v]) => [k.slice(0, 40), String(v).slice(0, 200)])))] },
   results:  { cols: ['exam_id', 'student_id', 'attendance_days', 'marks'], pk: ['exam_id', 'student_id'],
     row: r => [str(r.examId, 64), str(r.studentId, 64), num(r.attendanceDays, 0, 366),
-      JSON.stringify(Object.fromEntries(Object.entries(r.marks || {}).map(([k, v]) => [k, num(v, 0, 1000)])))] },
+      JSON.stringify(Object.fromEntries(Object.entries(r.marks || {}).map(([k, v]) => [k, absent(v) ? 'AB' : num(v, 0, 1000)])))] },
 };
 // D1 allows max 100 bound params per statement -> chunk rows
 const upserts = (db, t, rows) => {
@@ -86,26 +87,28 @@ const deletes = (db, t, keys) => {
 
 // ---------- handlers ----------
 const DEF = {
-  portal: { enabled: false, message: 'Results are not published yet. Please check back soon, in sha Allah.', showPosition: true },
-  grades: { scale: [{ min: 85, grade: 'A+', title: 'Mumtaz' }, { min: 70, grade: 'A', title: 'Jayyid Jiddan' }, { min: 55, grade: 'B', title: 'Jayyid' }, { min: 0, grade: 'C', title: 'Maqbool' }], fail: { grade: 'F', title: 'Rasib' } },
+  portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true },
+  grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
   fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }],
 };
 const settings = async db => {
   const { results } = await db.prepare('SELECT key,value FROM settings').all();
   const m = Object.fromEntries(results.map(r => [r.key, JSON.parse(r.value)]));
-  return { madrasa: m.madrasa || { name: 'Madrasa', subtitle: '', logo: '' }, announcements: m.announcements || [],
+  return { madrasa: m.madrasa || { name: 'Your Institution', subtitle: 'Online Result Portal', logo: '', headTitle: 'Principal', headName: '', bismillah: false }, announcements: m.announcements || [],
     portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields };
 };
 const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
 const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
-const sumMarks = (m, subs) => subs.reduce((a, s) => a + Number(m?.[s.id] || 0), 0);
+const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0), 0);
+const exact = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, never the rounded one
+const subPassed = (m, x) => !absent(m?.[x.id]) && (Number(m?.[x.id]) || 0) >= x.passingMarks;
 
 async function adminState(db) {
   const [ex, cl, su, st, re] = await db.batch(['exams', 'classes', 'subjects', 'students', 'results'].map(t => db.prepare(`SELECT * FROM ${t}`)));
   return {
     ...(await settings(db)),
     exams: ex.results.map(r => ({ id: r.id, name: r.name, isPublic: !!r.is_public })),
-    classes: cl.results.map(r => ({ id: r.id, name: r.name, totalWorkingDays: r.working_days })),
+    classes: cl.results.map(r => ({ id: r.id, name: r.name, totalWorkingDays: r.working_days, teacherTitle: r.teacher_title || '', teacherName: r.teacher_name || '' })),
     subjects: su.results.map(r => ({ id: r.id, classId: r.class_id, name: r.name, maxMarks: r.max_marks, passingMarks: r.pass_marks })),
     students: st.results.map(r => ({ id: r.id, admissionNo: r.admission_no, name: r.name, fatherName: r.father_name, classId: r.class_id, extra: JSON.parse(r.extra || '{}') })),
     results: re.results.map(r => ({ examId: r.exam_id, studentId: r.student_id, attendanceDays: r.attendance_days, marks: JSON.parse(r.marks) })),
@@ -132,7 +135,7 @@ async function sync(db, body) {
       const logo = (m.logo || '').trim();
       if (logo && !/^https?:\/\//i.test(logo)) throw new Error('Logo must be an http(s) URL');
       stmts.push(db.prepare("INSERT INTO settings VALUES ('madrasa', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
-        .bind(JSON.stringify({ name: str(m.name), subtitle: str(m.subtitle, 300), logo })));
+        .bind(JSON.stringify({ name: str(m.name), subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true })));
     }
     if (a) {
       if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements');
@@ -153,7 +156,7 @@ async function publicResult(db, url) {
   const st = await db.prepare('SELECT * FROM students WHERE admission_no=?').bind(adm).first();
   if (!st) return fail(`No student found with ${set.fields[0]?.label || 'Admission No'}: ${adm}`, 404);
   const [cl, su, mine, mates] = await db.batch([
-    db.prepare('SELECT name,working_days FROM classes WHERE id=?').bind(st.class_id),
+    db.prepare('SELECT name,working_days,teacher_title,teacher_name FROM classes WHERE id=?').bind(st.class_id),
     db.prepare('SELECT id,name,max_marks,pass_marks FROM subjects WHERE class_id=? ORDER BY rowid').bind(st.class_id),
     db.prepare('SELECT r.exam_id, r.attendance_days, r.marks, e.name FROM results r JOIN exams e ON e.id=r.exam_id WHERE r.student_id=? AND e.is_public=1 ORDER BY e.rowid').bind(st.id),
     db.prepare('SELECT r.student_id, r.marks FROM results r JOIN students s ON s.id=r.student_id WHERE r.exam_id=? AND s.class_id=?').bind(examId, st.class_id),
@@ -162,18 +165,21 @@ async function publicResult(db, url) {
   const cur = mine.results.find(r => r.exam_id === examId);
   if (!cur) return fail(`Result not yet uploaded for ${st.name} (${adm}) in the selected exam.`, 404);
   const maxPer = subs.reduce((a, x) => a + x.maxMarks, 0), marks = JSON.parse(cur.marks);
-  const obtained = sumMarks(marks, subs), passed = subs.length > 0 && subs.every(x => Number(marks[x.id] || 0) >= x.passingMarks);
-  const percentage = pctOf(obtained, maxPer);
+  const obtained = sumMarks(marks, subs), passed = subs.length > 0 && subs.every(x => subPassed(marks, x));
+  const percentage = pctOf(obtained, maxPer), G = set.grades;
   const totals = mates.results.map(r => sumMarks(JSON.parse(r.marks), subs));
-  const exams = mine.results.map(r => { const o = sumMarks(JSON.parse(r.marks), subs); return { name: r.name, obtained: o, max: maxPer, percentage: pctOf(o, maxPer), grade: gradeOf(pctOf(o, maxPer), false, set.grades) }; });
-  const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.length * maxPer, extra = JSON.parse(st.extra || '{}');
+  const exams = mine.results.map(r => {
+    const m = JSON.parse(r.marks), o = sumMarks(m, subs), ok = subs.length > 0 && subs.every(x => subPassed(m, x));
+    return { name: r.name, obtained: o, max: maxPer, percentage: pctOf(o, maxPer), passed: ok, grade: gradeOf(exact(o, maxPer), !ok, G) };
+  });
+  const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.length * maxPer, failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200 }, subjects: subs,
+    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '' }, subjects: subs,
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
-    result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(subs.map(x => { const o = Number(marks[x.id] || 0); return [x.id, gradeOf(pctOf(o, x.maxMarks), o < x.passingMarks, set.grades)]; })) },
-    summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(percentage, !passed, set.grades) },
+    result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(subs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
+    summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
     position: set.portal.showPosition ? { rank: 1 + totals.filter(t => t > obtained).length, of: totals.length } : null,
-    exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), grade: gradeOf(pctOf(oObt, oMax), false, set.grades) },
+    exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
 }
 
