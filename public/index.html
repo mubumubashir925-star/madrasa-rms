@@ -322,6 +322,25 @@
             </div>
         </div>
 
+        <!-- Edit student modal -->
+        <div id="student-edit-modal" class="hidden fixed inset-0 z-[80] bg-slate-950/70 overflow-y-auto p-4 no-print">
+            <form onsubmit="saveStudentEdit(event)" class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-4 p-5 space-y-3.5">
+                <div class="flex items-center justify-between"><h3 class="font-bold text-slate-800"><i class="fas fa-user-edit text-sky-600 mr-1.5"></i> Edit Student</h3>
+                    <button type="button" onclick="closeStudentEdit()" aria-label="Close" class="text-slate-400 hover:text-slate-700 text-2xl px-2">&times;</button></div>
+                <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1"><span id="edit-adm-label">Admission No</span> <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit-adm-no" required maxlength="40" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm uppercase"></div>
+                <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Full Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit-name" required maxlength="200" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm"></div>
+                <div id="edit-extra-fields" class="space-y-3.5"></div>
+                <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Class</label>
+                    <select id="edit-class" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeStudentEdit()" class="flex-1 bg-slate-100 text-slate-700 font-semibold py-2.5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm"><i class="fas fa-save mr-1"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+
         <!-- Authenticated Admin Dashboard -->
         <div id="admin-dashboard" class="hidden flex-grow flex flex-row">
             <!-- Sidebar -->
@@ -1688,6 +1707,9 @@
                         <td class="py-3 px-4 text-slate-600 text-xs space-y-0.5">${appState.fields.filter(f => f.id !== 'admissionNo').map(f => fieldVal(s, f.id) ? `<div><span class="text-slate-400">${esc(f.label)}:</span> ${esc(fieldVal(s, f.id))}</div>` : '').join('') || '-'}</td>
                         <td class="py-3 px-4"><span class="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium">${esc(cls ? cls.name : 'Unassigned')}</span></td>
                         <td class="py-3 px-4 text-right space-x-2">
+                            <button onclick="openStudentEdit('${s.id}')" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-800 px-2.5 py-1 rounded font-semibold">
+                                <i class="fas fa-pen mr-1"></i>Edit
+                            </button>
                             <button onclick="jumpToStudentMarks('${s.id}', '${s.classId}')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded font-semibold">
                                 <i class="fas fa-edit mr-1"></i>Enter Marks
                             </button>
@@ -1700,7 +1722,48 @@
             }).join('');
         }
 
+        let editingStudentId = null;
+        function openStudentEdit(id) {
+            const st = appState.students.find(x => x.id === id); if (!st) return;
+            editingStudentId = id;
+            document.getElementById('edit-adm-label').textContent = admLabel();
+            document.getElementById('edit-adm-no').value = st.admissionNo;
+            document.getElementById('edit-name').value = st.name;
+            document.getElementById('edit-class').innerHTML = appState.classes.map(c => `<option value="${esc(c.id)}" ${c.id === st.classId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+            document.getElementById('edit-extra-fields').innerHTML = appState.fields.filter(f => f.id !== 'admissionNo').map(f =>
+                `<div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">${esc(f.label)}</label><input type="text" id="edit-f-${esc(f.id)}" value="${esc(fieldVal(st, f.id))}" maxlength="200" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm"></div>`).join('');
+            document.getElementById('student-edit-modal').classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+        function closeStudentEdit() {
+            document.getElementById('student-edit-modal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            editingStudentId = null;
+        }
+        function saveStudentEdit(e) {
+            e.preventDefault();
+            const st = appState.students.find(x => x.id === editingStudentId); if (!st) return;
+            const admissionNo = document.getElementById('edit-adm-no').value.trim().toUpperCase();
+            const name = document.getElementById('edit-name').value.trim();
+            const classId = document.getElementById('edit-class').value;
+            if (appState.students.some(x => x.id !== st.id && x.admissionNo.toUpperCase() === admissionNo)) { showToast(`${admLabel()} ${admissionNo} already belongs to another student.`, 'error'); return; }
+            if (classId !== st.classId && appState.results.some(r => r.studentId === st.id) &&
+                !confirm('This student already has marks. Marks were entered for the old class subjects and will not count in the new class. Continue?')) return;
+            const extra = { ...(st.extra || {}) };
+            appState.fields.filter(f => f.id !== 'admissionNo').forEach(f => {
+                const v = (document.getElementById('edit-f-' + f.id)?.value || '').trim();
+                if (f.id === 'fatherName') st.fatherName = v; else if (v) extra[f.id] = v; else delete extra[f.id];
+            });
+            Object.assign(st, { admissionNo, name, classId, extra });
+            saveState();
+            renderAllAdminData();
+            closeStudentEdit();
+            showToast(`${name} updated.`, 'success');
+        }
+
         function deleteStudent(studentId) {
+            const st = appState.students.find(s => s.id === studentId);
+            if (st && !confirm(`Delete ${st.name} and all their results? This cannot be undone.`)) return;
             appState.students = appState.students.filter(s => s.id !== studentId);
             appState.results = appState.results.filter(r => r.studentId !== studentId);
             saveState();
