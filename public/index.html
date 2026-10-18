@@ -66,6 +66,31 @@
             body.print-class #print-root thead { display: table-header-group; }
         }
 
+        /* Searchable select (replaces native dropdowns) */
+        .cs-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; padding-right: 2.25rem !important; position: relative; min-height: 42px; max-width: 100%; min-width: 9rem; }
+        .cs-btn .cs-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .cs-btn svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; pointer-events: none; color: #64748b; }
+        .cs-btn.cs-placeholder .cs-label { color: #94a3b8; }
+        .cs-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(2,6,23,.55); display: flex; align-items: flex-end; justify-content: center; }
+        .cs-panel { background: #fff; width: 100%; max-width: 28rem; max-height: 75vh; max-height: 75dvh; border-radius: 18px 18px 0 0; display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,.25); padding-bottom: env(safe-area-inset-bottom, 0px); }
+        @media (min-width: 640px) { .cs-overlay { align-items: center; } .cs-panel { border-radius: 16px; max-height: 70vh; } }
+        .cs-head { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        .cs-search { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 16px; outline: none; }
+        .cs-search:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,.2); }
+        .cs-close { width: 42px; border-radius: 10px; background: #f1f5f9; font-size: 22px; color: #475569; }
+        .cs-list { overflow-y: auto; padding: 6px; -webkit-overflow-scrolling: touch; }
+        .cs-opt { display: block; width: 100%; text-align: left; padding: 12px 14px; border-radius: 10px; font-size: 15px; color: #1e293b; }
+        .cs-opt:hover, .cs-opt:focus { background: #ecfdf5; outline: none; }
+        .cs-opt.sel { background: #d1fae5; font-weight: 700; color: #065f46; }
+        .cs-empty { padding: 18px; text-align: center; color: #94a3b8; font-size: 14px; }
+        /* Sub-tabs + subject chips */
+        .subtabs { display: flex; gap: 4px; padding: 4px; background: #e2e8f0; border-radius: 14px; overflow-x: auto; }
+        .subtab-btn { flex: 1 0 auto; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 13px; color: #475569; white-space: nowrap; }
+        .subtab-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+        .subcount { font-weight: 500; opacity: .7; margin-left: 4px; }
+        .chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 999px; font-size: 13px; font-weight: 600; background: #fff; cursor: pointer; color: #334155; }
+        .chip:has(input:checked) { background: #065f46; border-color: #065f46; color: #fff; }
+        .chip input { accent-color: #fbbf24; width: 16px; height: 16px; }
         /* Mobile-first helpers */
         html { -webkit-tap-highlight-color: transparent; }
         body { padding-bottom: env(safe-area-inset-bottom); }
@@ -341,6 +366,19 @@
             </form>
         </div>
 
+        <!-- Generic edit dialog (exams, classes, subjects, announcements) -->
+        <div id="ge-modal" class="hidden fixed inset-0 z-[80] bg-slate-950/70 overflow-y-auto p-4 no-print">
+            <form onsubmit="submitEdit(event)" class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-4 p-5 space-y-3.5">
+                <div class="flex items-center justify-between"><h3 id="ge-title" class="font-bold text-slate-800"></h3>
+                    <button type="button" onclick="closeEdit()" aria-label="Close" class="text-slate-400 hover:text-slate-700 text-2xl px-2">&times;</button></div>
+                <div id="ge-fields" class="space-y-3.5"></div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeEdit()" class="flex-1 bg-slate-100 text-slate-700 font-semibold py-2.5 rounded-lg text-sm">Cancel</button>
+                    <button type="submit" class="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">Save Changes</button>
+                </div>
+            </form>
+        </div>
+
         <!-- Authenticated Admin Dashboard -->
         <div id="admin-dashboard" class="hidden flex-grow flex flex-row">
             <!-- Sidebar -->
@@ -498,10 +536,10 @@
 
                     <!-- TAB 2: EXAMS, CLASSES & SUBJECTS -->
                     <div id="admin-tab-academics" class="admin-tab-content hidden space-y-6">
-                        
+                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="acad" data-sub="exams" onclick="showSub('acad','exams')">Exams<span class=subcount id=cnt-exams></span></button><button type="button" class="subtab-btn" data-group="acad" data-sub="classes" onclick="showSub('acad','classes')">Classes<span class=subcount id=cnt-classes></span></button><button type="button" class="subtab-btn" data-group="acad" data-sub="subjects" onclick="showSub('acad','subjects')">Subjects<span class=subcount id=cnt-subjects></span></button></div>
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             <!-- Exam Management (5 cols) -->
-                            <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div data-group="acad" data-sub="exams" class="subpanel lg:col-span-12 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div class="px-5 py-4 bg-slate-50 border-b border-slate-200">
                                     <h3 class="font-bold text-slate-800"><i class="fas fa-calendar-alt text-emerald-700 mr-1.5"></i> 1. Examination Management</h3>
                                     <p class="text-xs text-slate-500">Create exams and toggle public visibility</p>
@@ -530,7 +568,7 @@
                             </div>
 
                             <!-- Class & Working Days Management (7 cols) -->
-                            <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div data-group="acad" data-sub="classes" class="subpanel lg:col-span-12 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div class="px-5 py-4 bg-slate-50 border-b border-slate-200">
                                     <h3 class="font-bold text-slate-800"><i class="fas fa-layer-group text-emerald-700 mr-1.5"></i> 2. Class & Working Days Configuration</h3>
                                     <p class="text-xs text-slate-500">Configure classes and total working days for attendance calculation</p>
@@ -560,6 +598,7 @@
                                         </div>
                                     </form>
 
+                                    <input type="search" id="class-search" oninput="renderAdminClasses()" placeholder="Search classes or teachers..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
                                     <div class="overflow-x-auto">
                                         <table class="w-full text-left border-collapse text-sm rtable">
                                             <thead>
@@ -581,13 +620,13 @@
                         </div>
 
                         <!-- Subject Configuration (Full Width) -->
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div data-group="acad" data-sub="subjects" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                             <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div>
                                     <h3 class="font-bold text-slate-800"><i class="fas fa-book text-emerald-700 mr-1.5"></i> 3. Subject Configuration (Passing & Max Marks)</h3>
                                     <p class="text-xs text-slate-500">Assign subjects to classes with custom maximum and minimum passing marks</p>
                                 </div>
-                                <select id="subject-filter-class" onchange="renderAdminSubjects()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-medium bg-white">
+                                <select id="subject-filter-class" onchange="syncSubjectClass();renderAdminSubjects()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-medium bg-white">
                                     <!-- Class Filter -->
                                 </select>
                             </div>
@@ -638,10 +677,11 @@
 
                     <!-- TAB 3: STUDENT MANAGEMENT & CSV BULK IMPORT -->
                     <div id="admin-tab-students" class="admin-tab-content hidden space-y-6">
+                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="stu" data-sub="dir" onclick="showSub('stu','dir')">Students<span class=subcount id=cnt-students></span></button><button type="button" class="subtab-btn" data-group="stu" data-sub="add" onclick="showSub('stu','add')">Add Student</button><button type="button" class="subtab-btn" data-group="stu" data-sub="csv" onclick="showSub('stu','csv')">CSV Import</button></div>
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             
                             <!-- Individual Student Registration (5 cols) -->
-                            <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div data-group="stu" data-sub="add" class="subpanel lg:col-span-12 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div class="px-5 py-4 bg-slate-50 border-b border-slate-200">
                                     <h3 class="font-bold text-slate-800"><i class="fas fa-user-plus text-emerald-700 mr-1.5"></i> Register Student</h3>
                                 </div>
@@ -668,7 +708,7 @@
                             </div>
 
                             <!-- CSV Bulk Import (7 cols) -->
-                            <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                            <div data-group="stu" data-sub="csv" class="subpanel lg:col-span-12 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                                 <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                                     <div>
                                         <h3 class="font-bold text-slate-800"><i class="fas fa-file-csv text-amber-600 mr-1.5"></i> Bulk Import Students via CSV</h3>
@@ -699,7 +739,7 @@
                         </div>
 
                         <!-- Student Directory Table -->
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div data-group="stu" data-sub="dir" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                             <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
                                 <h3 class="font-bold text-slate-800">Registered Student Directory</h3>
                                 <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
@@ -740,7 +780,9 @@
                     </div>
 
                     <div id="admin-tab-setup" class="admin-tab-content hidden space-y-6">
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
+                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="setup" data-sub="portal" onclick="showSub('setup','portal')">Public Portal</button><button type="button" class="subtab-btn" data-group="setup" data-sub="grading" onclick="showSub('setup','grading')">Grading</button><button type="button" class="subtab-btn" data-group="setup" data-sub="fields" onclick="showSub('setup','fields')">Student Fields</button><button type="button" class="subtab-btn" data-group="setup" data-sub="account" onclick="showSub('setup','account')">Admin Login</button></div>
+                        
+                        <div data-group="setup" data-sub="portal" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
                             <div class="flex items-start justify-between gap-4">
                                 <div><h3 class="font-bold text-slate-800"><i class="fas fa-globe text-emerald-700 mr-1.5"></i> Public Portal</h3>
                                 <p class="text-xs text-slate-500 mt-0.5">While switched off, visitors only see your announcement message.</p></div>
@@ -755,7 +797,7 @@
                             <p class="text-xs text-slate-500">Public link: <b id="portal-link"></b> &bull; Admin login lives only at <b>/admin</b> (never shown to the public).</p>
                         </div>
 
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
+                        <div data-group="setup" data-sub="grading" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
                             <div><h3 class="font-bold text-slate-800"><i class="fas fa-award text-amber-600 mr-1.5"></i> Grading Criteria</h3>
                             <p class="text-xs text-slate-500 mt-0.5">A student gets the highest grade whose minimum % they reach. Failing any subject gives the Fail grade. The all-exams grade uses overall percentage.</p></div>
                             <div class="grid grid-cols-[4rem_4rem_minmax(0,1fr)_1.75rem] gap-2 text-[11px] font-bold uppercase text-slate-500"><span>Min %</span><span>Grade</span><span>Title / remark</span><span></span></div>
@@ -766,14 +808,14 @@
                             <button onclick="saveGrades()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save grading</button>
                         </div>
 
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
+                        <div data-group="setup" data-sub="fields" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
                             <div><h3 class="font-bold text-slate-800"><i class="fas fa-id-card text-sky-600 mr-1.5"></i> Student Details Fields</h3>
                             <p class="text-xs text-slate-500 mt-0.5">Rename, remove or add the details you collect (e.g. Date of Birth, Mother&rsquo;s Name, Phone). Tick &ldquo;On marksheet&rdquo; to print it on the result. Name and the ID field are always kept.</p></div>
                             <div id="field-rows" class="space-y-2"></div>
                             <div class="flex gap-2"><input id="new-field-label" maxlength="40" placeholder="New field, e.g. Date of Birth" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white flex-1"><button type="button" onclick="addFieldRow()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-semibold">Add</button></div>
                             <button onclick="saveFields()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save fields</button>
                         </div>
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
+                        <div data-group="setup" data-sub="account" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
                             <div><h3 class="font-bold text-slate-800"><i class="fas fa-user-shield text-red-600 mr-1.5"></i> Admin Login</h3>
                             <p class="text-xs text-slate-500 mt-0.5">Change your admin username and/or password. Leave a field blank to keep it. Other logged-in sessions are signed out.</p></div>
                             <input type="password" id="acc-current" autocomplete="current-password" placeholder="Current password (required)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
@@ -832,6 +874,14 @@
                                     </div>
                                 </div>
 
+                                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 md:p-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h5 class="font-bold text-sm text-slate-800"><i class="fas fa-list-check text-emerald-700 mr-1"></i> Subjects to enter</h5>
+                                        <div class="flex gap-3 text-xs font-semibold text-emerald-800"><button type="button" onclick="setEntrySubjects(true)">All</button><button type="button" onclick="setEntrySubjects(false)">None</button></div>
+                                    </div>
+                                    <div id="entry-subject-checks" class="flex flex-wrap gap-2"></div>
+                                    <p class="text-[11px] text-slate-400 mt-2">Only ticked subjects are shown below. Marks of unticked subjects stay unchanged.</p>
+                                </div>
                                 <div class="flex justify-end -mb-3"><button type="button" onclick="markAllAbsent()" class="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg"><i class="fas fa-user-slash mr-1"></i> Mark absent in all subjects</button></div>
                                 <!-- Subject Marks Table -->
                                 <div class="overflow-x-auto">
@@ -870,6 +920,7 @@
                                         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
                                             <i class="fas fa-check-circle"></i> Save Result
                                         </button>
+                                        <button type="submit" data-next="1" class="w-full mt-2 bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2">Save &amp; Next student <i class="fas fa-arrow-right"></i></button>
                                     </div>
                                 </div>
                             </form>
@@ -1081,6 +1132,147 @@
                 document.getElementById('result-display-container').classList.add('hidden');
                 showToast(err.message, err.status === 404 ? 'info' : 'error');
             } finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
+        }
+
+        // ================= SEARCHABLE SELECT (replaces every native dropdown) =================
+        function enhanceSelect(sel) {
+            if (sel._cs) return;
+            const btn = document.createElement('button');
+            btn.type = 'button'; btn.className = sel.className + ' cs-btn';
+            btn.innerHTML = '<span class="cs-label"></span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg>';
+            sel.style.display = 'none'; sel.removeAttribute('required');
+            sel.insertAdjacentElement('afterend', btn); sel._cs = btn;
+            const proto = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+            const sync = () => { const o = sel.options[sel.selectedIndex]; btn.querySelector('.cs-label').textContent = o ? o.text : ''; btn.classList.toggle('cs-placeholder', !o || o.value === ''); };
+            Object.defineProperty(sel, 'value', { get() { return proto.get.call(this); }, set(v) { proto.set.call(this, v); sync(); }, configurable: true });
+            new MutationObserver(sync).observe(sel, { childList: true, subtree: true });
+            sel.addEventListener('change', sync);
+            btn.addEventListener('click', () => openSelect(sel));
+            sync();
+        }
+        function closeSelect() { document.querySelectorAll('.cs-overlay').forEach(o => o.remove()); document.body.classList.remove('cs-open'); }
+        function openSelect(sel) {
+            closeSelect();
+            const opts = [...sel.options].map(o => ({ v: o.value, t: o.text, s: o.dataset.search || '' }));
+            const ov = document.createElement('div'); ov.className = 'cs-overlay';
+            ov.innerHTML = '<div class="cs-panel" role="dialog"><div class="cs-head"><input class="cs-search" type="search" placeholder="Type to search..." autocomplete="off"><button type="button" class="cs-close" aria-label="Close">&times;</button></div><div class="cs-list"></div></div>';
+            document.body.appendChild(ov);
+            const list = ov.querySelector('.cs-list'), inp = ov.querySelector('.cs-search');
+            const render = q => {
+                q = q.trim().toLowerCase();
+                const m = opts.filter(o => !q || (o.t + ' ' + o.s).toLowerCase().includes(q));
+                list.innerHTML = m.length ? m.map(o => `<button type="button" class="cs-opt${o.v === sel.value ? ' sel' : ''}" data-v="${esc(o.v)}">${esc(o.t)}</button>`).join('') : '<div class="cs-empty">No match found</div>';
+            };
+            const choose = v => { closeSelect(); if (sel.value !== v) { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); } };
+            render('');
+            list.addEventListener('click', e => { const b = e.target.closest('.cs-opt'); if (b) choose(b.dataset.v); });
+            inp.addEventListener('input', () => render(inp.value));
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const f = list.querySelector('.cs-opt'); if (f) choose(f.dataset.v); } if (e.key === 'Escape') closeSelect(); });
+            ov.addEventListener('click', e => { if (e.target === ov) closeSelect(); });
+            ov.querySelector('.cs-close').addEventListener('click', closeSelect);
+            const cur = list.querySelector('.cs-opt.sel'); if (cur) cur.scrollIntoView({ block: 'center' });
+            if (opts.length > 7) setTimeout(() => inp.focus(), 30); // avoid popping the keyboard for short lists
+        }
+
+        // ================= SUB-TABS =================
+        const subState = { acad: 'exams', stu: 'dir', setup: 'portal' };
+        function showSub(group, id) {
+            subState[group] = id;
+            document.querySelectorAll(`.subpanel[data-group="${group}"]`).forEach(p => p.classList.toggle('hidden', p.dataset.sub !== id));
+            document.querySelectorAll(`.subtab-btn[data-group="${group}"]`).forEach(b => b.classList.toggle('active', b.dataset.sub === id));
+        }
+        function updateCounts() {
+            const set = (id, n) => { const e = document.getElementById(id); if (e) e.textContent = `(${n})`; };
+            set('cnt-exams', appState.exams.length); set('cnt-classes', appState.classes.length);
+            set('cnt-subjects', appState.subjects.length); set('cnt-students', appState.students.length);
+        }
+
+        // ================= GENERIC EDIT DIALOG =================
+        let geFields = [], geSave = null;
+        function openEdit(title, fields, onSave) {
+            document.getElementById('ge-title').textContent = title;
+            document.getElementById('ge-fields').innerHTML = fields.map((f, i) => f.type === 'checkbox'
+                ? `<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="ge-f-${i}" ${f.value ? 'checked' : ''} class="w-5 h-5 accent-emerald-700"> ${esc(f.label)}</label>`
+                : `<div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">${esc(f.label)}</label><input id="ge-f-${i}" type="${f.type || 'text'}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} maxlength="200" value="${esc(f.value ?? '')}" ${f.required ? 'required' : ''} class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm"></div>`).join('');
+            geFields = fields; geSave = onSave;
+            document.getElementById('ge-modal').classList.remove('hidden'); document.body.classList.add('overflow-hidden');
+        }
+        function closeEdit() { document.getElementById('ge-modal').classList.add('hidden'); document.body.classList.remove('overflow-hidden'); }
+        function submitEdit(e) {
+            e.preventDefault();
+            const vals = geFields.map((f, i) => { const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : el.value.trim(); });
+            const err = geSave(vals);
+            if (typeof err === 'string') { showToast(err, 'error'); return; }
+            saveState(); renderAllAdminData(); closeEdit(); showToast('Changes saved.', 'success');
+        }
+        function editExam(id) {
+            const ex = appState.exams.find(x => x.id === id); if (!ex) return;
+            openEdit('Edit Exam', [{ label: 'Exam title', value: ex.name, required: true }, { label: 'Visible on the public portal', type: 'checkbox', value: ex.isPublic }],
+                v => { if (!v[0]) return 'Exam title is required.'; ex.name = v[0]; ex.isPublic = v[1]; });
+        }
+        function editClass(id) {
+            const c = appState.classes.find(x => x.id === id); if (!c) return;
+            openEdit('Edit Class', [{ label: 'Class name', value: c.name, required: true }, { label: 'Total working days', type: 'number', min: 1, max: 365, value: c.totalWorkingDays, required: true },
+                { label: 'Teacher designation', value: c.teacherTitle || '' }, { label: 'Teacher name', value: c.teacherName || '' }],
+                v => { if (!v[0]) return 'Class name is required.'; if (!(v[1] >= 1 && v[1] <= 365)) return 'Working days must be 1 to 365.'; Object.assign(c, { name: v[0], totalWorkingDays: v[1], teacherTitle: v[2], teacherName: v[3] }); });
+        }
+        function editSubject(id) {
+            const sub = appState.subjects.find(x => x.id === id); if (!sub) return;
+            const cls = appState.classes.find(c => c.id === sub.classId);
+            openEdit('Edit Subject' + (cls ? ' (' + cls.name + ')' : ''), [{ label: 'Subject name', value: sub.name, required: true }, { label: 'Maximum marks', type: 'number', min: 1, max: 1000, value: sub.maxMarks, required: true }, { label: 'Passing marks', type: 'number', min: 0, max: 1000, value: sub.passingMarks, required: true }],
+                v => { if (!v[0]) return 'Subject name is required.'; if (v[2] > v[1]) return 'Passing marks cannot exceed maximum marks.';
+                    if (appState.results.some(r => Number(r.marks[id]) > v[1])) return 'Some students already have marks above this maximum.';
+                    Object.assign(sub, { name: v[0], maxMarks: v[1], passingMarks: v[2] }); });
+        }
+        function editAnnouncement(idx) {
+            openEdit('Edit Announcement', [{ label: 'Announcement text', value: appState.announcements[idx], required: true }], v => { if (!v[0]) return 'Text is required.'; appState.announcements[idx] = v[0]; });
+        }
+
+        // ================= MARKS ENTRY: subject checklist =================
+        let entrySel = {}, entryDraft = {};
+        function renderEntryChips(subjects, chosen) {
+            document.getElementById('entry-subject-checks').innerHTML = subjects.length
+                ? subjects.map(s => `<label class="chip"><input type="checkbox" value="${esc(s.id)}" ${chosen.includes(s.id) ? 'checked' : ''} onchange="onEntrySubjectsChange()"> ${esc(s.name)}</label>`).join('')
+                : '<span class="text-xs text-slate-400">No subjects for this class.</span>';
+        }
+        function onEntrySubjectsChange() {
+            const classId = document.getElementById('entry-class-select').value, examId = document.getElementById('entry-exam-select').value, studentId = document.getElementById('entry-student-select').value;
+            document.querySelectorAll('.entry-mark-input').forEach(inp => { entryDraft[inp.dataset.subjectId] = { val: inp.value, ab: inp.closest('tr').querySelector('.entry-absent').checked }; });
+            const subjects = appState.subjects.filter(s => s.classId === classId);
+            entrySel[classId] = [...document.querySelectorAll('#entry-subject-checks input:checked')].map(i => i.value);
+            renderEntryRows(subjects.filter(s => entrySel[classId].includes(s.id)), appState.results.find(r => r.examId === examId && r.studentId === studentId), subjects.length);
+        }
+        function setEntrySubjects(all) { document.querySelectorAll('#entry-subject-checks input').forEach(i => i.checked = all); onEntrySubjectsChange(); }
+        function renderEntryRows(subjects, existingResult, totalSubjects) {
+            const tbody = document.getElementById('entry-subjects-tbody');
+            if (!subjects.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">${totalSubjects ? 'Tick at least one subject above to enter marks.' : 'No subjects configured for this class. Add subjects first (Exams, Classes & Subjects).'}</td></tr>`;
+                recalculateLiveEntry(); return;
+            }
+            tbody.innerHTML = subjects.map(sub => {
+                const d = entryDraft[sub.id], stored = existingResult && existingResult.marks[sub.id] !== undefined ? existingResult.marks[sub.id] : '';
+                const ab = d ? d.ab : stored === 'AB', val = d ? d.val : (stored === 'AB' ? '' : stored);
+                return `
+                    <tr>
+                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
+                        <td class="py-3 px-4 text-center text-slate-500">${sub.maxMarks}</td>
+                        <td class="py-3 px-4 text-center text-slate-500">${sub.passingMarks}</td>
+                        <td class="py-3 px-4 text-center">
+                            <input type="number" ${ab ? 'disabled' : 'required'} min="0" max="${sub.maxMarks}" data-subject-id="${sub.id}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}"
+                                value="${esc(val)}" placeholder="0 - ${sub.maxMarks}" oninput="recalculateLiveEntry()"
+                                class="entry-mark-input w-full px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 cursor-pointer"><input type="checkbox" class="entry-absent w-5 h-5 accent-red-600" onchange="toggleAbsent(this)" ${ab ? 'checked' : ''}> AB</label>
+                        </td>
+                        <td class="py-3 px-4 text-center"><span id="live-sub-status-${sub.id}" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">-</span></td>
+                    </tr>`;
+            }).join('');
+            recalculateLiveEntry();
+        }
+        function syncSubjectClass() {
+            const f = document.getElementById('subject-filter-class').value, t = document.getElementById('new-subject-class');
+            if (f && f !== 'ALL' && [...t.options].some(o => o.value === f)) t.value = f;
         }
 
         // ================= HELPERS =================
@@ -1381,6 +1573,7 @@
             document.getElementById('setting-head-name').value = appState.madrasa.headName || '';
             document.getElementById('setting-bismillah').checked = appState.madrasa.bismillah !== false;
 
+            updateCounts();
             renderAdminAnnouncements();
             renderAdminExams();
             renderAdminClasses();
@@ -1414,6 +1607,7 @@
             container.innerHTML = appState.announcements.map((text, idx) => `
                 <div class="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
                     <span class="text-slate-700 font-medium">${esc(text)}</span>
+                    <button onclick="editAnnouncement(${idx})" class="text-sky-600 hover:text-sky-800 px-2 py-1 shrink-0" aria-label="Edit"><i class="fas fa-pen"></i></button>
                     <button onclick="deleteAnnouncement(${idx})" class="text-red-500 hover:text-red-700 px-2 py-1 shrink-0">
                         <i class="fas fa-trash-alt"></i>
                     </button>
@@ -1455,6 +1649,7 @@
                         <button onclick="toggleExamVisibility('${ex.id}')" class="px-2.5 py-1 rounded text-xs font-semibold border ${ex.isPublic ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-300 text-slate-600'}">
                             ${ex.isPublic ? 'Public' : 'Hidden'}
                         </button>
+                        <button onclick="editExam('${ex.id}')" class="text-sky-600 hover:text-sky-800 p-1" aria-label="Edit"><i class="fas fa-pen"></i></button>
                         <button onclick="deleteExam('${ex.id}')" class="text-slate-400 hover:text-red-600 p-1">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -1489,6 +1684,8 @@
         }
 
         function deleteExam(examId) {
+            const ex = appState.exams.find(e => e.id === examId);
+            if (ex && !confirm(`Delete exam "${ex.name}" and all its results?`)) return;
             if (appState.exams.length <= 1) {
                 showToast("At least one examination must remain in the system.", "error");
                 return;
@@ -1501,30 +1698,23 @@
         }
 
         function renderAdminClasses() {
+            const q = (document.getElementById('class-search')?.value || '').toLowerCase();
+            const list = appState.classes.filter(c => !q || (c.name + ' ' + (c.teacherName || '') + ' ' + (c.teacherTitle || '')).toLowerCase().includes(q));
             const tbody = document.getElementById('admin-classes-tbody');
-            tbody.innerHTML = appState.classes.map(cls => {
+            if (!list.length) { tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400 text-xs">${appState.classes.length ? 'No class matches your search.' : 'No classes yet. Add one above.'}</td></tr>`; return; }
+            tbody.innerHTML = list.map(cls => {
                 const subCount = appState.subjects.filter(s => s.classId === cls.id).length;
                 return `
                     <tr>
                         <td class="py-2.5 px-3 font-semibold text-slate-800">${esc(cls.name)}</td>
-                        <td class="py-2.5 px-3"><div class="flex flex-col gap-1 w-full">
-                            <input value="${esc(cls.teacherTitle || '')}" maxlength="60" placeholder="Designation" onchange="updateClassTeacher('${cls.id}','teacherTitle',this.value)" class="px-2 py-1 border border-slate-300 rounded text-xs w-full">
-                            <input value="${esc(cls.teacherName || '')}" maxlength="80" placeholder="Name" onchange="updateClassTeacher('${cls.id}','teacherName',this.value)" class="px-2 py-1 border border-slate-300 rounded text-xs w-full"></div></td>
-                        <td class="py-2.5 px-3 text-center">
-                            <input type="number" value="${cls.totalWorkingDays}" min="1" max="365"
-                                onchange="updateClassWorkingDays('${cls.id}', this.value)"
-                                class="w-20 px-2 py-1 border border-slate-300 rounded text-center text-xs font-bold">
+                        <td class="py-2.5 px-3 text-xs text-slate-600">${cls.teacherName ? `<b>${esc(cls.teacherName)}</b><span class="block text-slate-400">${esc(cls.teacherTitle || '')}</span>` : esc(cls.teacherTitle || '-')}</td>
+                        <td class="py-2.5 px-3 text-center text-xs font-bold">${cls.totalWorkingDays}</td>
+                        <td class="py-2.5 px-3 text-center"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-semibold">${subCount} Subjects</span></td>
+                        <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                            <button onclick="editClass('${cls.id}')" class="text-sky-600 hover:text-sky-800 mr-3" aria-label="Edit"><i class="fas fa-pen"></i></button>
+                            <button onclick="deleteClass('${cls.id}')" class="text-slate-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
                         </td>
-                        <td class="py-2.5 px-3 text-center">
-                            <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-semibold">${subCount} Subjects</span>
-                        </td>
-                        <td class="py-2.5 px-3 text-right">
-                            <button onclick="deleteClass('${cls.id}')" class="text-slate-400 hover:text-red-600">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                    </tr>`;
             }).join('');
         }
 
@@ -1565,6 +1755,8 @@
         }
 
         function deleteClass(classId) {
+            const cl = appState.classes.find(c => c.id === classId);
+            if (cl && !confirm(`Delete class "${cl.name}" and its subjects?`)) return;
             if (appState.classes.length <= 1) {
                 showToast("Cannot delete the only class.", "error");
                 return;
@@ -1577,21 +1769,13 @@
         }
 
         function populateClassDropdowns() {
-            const optionsHtml = appState.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-            const filterOptionsHtml = `<option value="ALL">All Classes</option>` + optionsHtml;
-
-            document.getElementById('new-subject-class').innerHTML = optionsHtml;
-            document.getElementById('std-class').innerHTML = optionsHtml;
-            
-            const subFilter = document.getElementById('subject-filter-class');
-            const currentSubFilter = subFilter.value;
-            subFilter.innerHTML = filterOptionsHtml;
-            if (currentSubFilter) subFilter.value = currentSubFilter;
-
-            const stdFilter = document.getElementById('student-list-filter-class');
-            const currentStdFilter = stdFilter.value;
-            stdFilter.innerHTML = filterOptionsHtml;
-            if (currentStdFilter) stdFilter.value = currentStdFilter;
+            const opts = appState.classes.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+            const withAll = `<option value="ALL">All Classes</option>` + opts;
+            const first = appState.classes[0] ? appState.classes[0].id : '';
+            const fill = (id, html, fallback) => { const el = document.getElementById(id), cur = el.value; el.innerHTML = html; el.value = [...el.options].some(o => o.value === cur) ? cur : fallback; };
+            fill('std-class', opts, first); fill('student-list-filter-class', withAll, 'ALL');
+            fill('subject-filter-class', withAll, first || 'ALL'); fill('new-subject-class', opts, first);
+            syncSubjectClass();
         }
 
         function renderAdminSubjects() {
@@ -1615,6 +1799,7 @@
                         <td class="py-2.5 px-4 text-center font-medium">${sub.maxMarks}</td>
                         <td class="py-2.5 px-4 text-center text-emerald-700 font-semibold">${sub.passingMarks}</td>
                         <td class="py-2.5 px-4 text-right">
+                            <button onclick="editSubject('${sub.id}')" class="text-sky-600 hover:text-sky-800 mr-3" aria-label="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="deleteSubject('${sub.id}')" class="text-slate-400 hover:text-red-600">
                                 <i class="fas fa-times"></i>
                             </button>
@@ -1627,6 +1812,7 @@
         function createSubject(e) {
             e.preventDefault();
             const classId = document.getElementById('new-subject-class').value;
+            if (!classId) { showToast('Create a class first.', 'error'); return; }
             const name = document.getElementById('new-subject-name').value.trim();
             const maxMarks = Number(document.getElementById('new-subject-max').value);
             const passingMarks = Number(document.getElementById('new-subject-pass').value);
@@ -1651,6 +1837,8 @@
         }
 
         function deleteSubject(subId) {
+            const sb = appState.subjects.find(x => x.id === subId);
+            if (sb && !confirm(`Remove subject "${sb.name}"? Its marks will no longer count.`)) return;
             appState.subjects = appState.subjects.filter(s => s.id !== subId);
             saveState();
             renderAdminSubjects();
@@ -1664,6 +1852,7 @@
             const admissionNo = document.getElementById('std-adm-no').value.trim().toUpperCase();
             const name = document.getElementById('std-name').value.trim();
             const classId = document.getElementById('std-class').value;
+            if (!classId) { showToast('Create a class first.', 'error'); return; }
             if (appState.students.some(s => s.admissionNo.toUpperCase() === admissionNo)) {
                 showToast(`${admLabel()} ${admissionNo} already exists!`, "error");
                 return;
@@ -1846,25 +2035,23 @@
         }
 
         function initMarksEntrySelectors() {
-            const examSel = document.getElementById('entry-exam-select');
-            const classSel = document.getElementById('entry-class-select');
-
-            examSel.innerHTML = appState.exams.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
-            classSel.innerHTML = appState.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-
+            const examSel = document.getElementById('entry-exam-select'), classSel = document.getElementById('entry-class-select');
+            const ev = examSel.value, cv = classSel.value;
+            examSel.innerHTML = appState.exams.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
+            classSel.innerHTML = appState.classes.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+            if ([...examSel.options].some(o => o.value === ev)) examSel.value = ev;
+            if ([...classSel.options].some(o => o.value === cv)) classSel.value = cv;
             populateEntryStudentDropdown();
         }
 
         function populateEntryStudentDropdown() {
             const classId = document.getElementById('entry-class-select').value;
-            const studentSel = document.getElementById('entry-student-select');
-            const studentsInClass = appState.students.filter(s => s.classId === classId);
-
-            if (studentsInClass.length === 0) {
-                studentSel.innerHTML = `<option value="">No students in this class</option>`;
-            } else {
-                studentSel.innerHTML = studentsInClass.map(s => `<option value="${s.id}">${esc(s.admissionNo)} — ${esc(s.name)}</option>`).join('');
-            }
+            const studentSel = document.getElementById('entry-student-select'), prev = studentSel.value;
+            const list = appState.students.filter(s => s.classId === classId).sort((a, b) => a.name.localeCompare(b.name));
+            studentSel.innerHTML = list.length
+                ? list.map(s => `<option value="${esc(s.id)}" data-search="${esc(s.admissionNo)}">${esc(s.name)}</option>`).join('')
+                : `<option value="">No students in this class</option>`;
+            if ([...studentSel.options].some(o => o.value === prev)) studentSel.value = prev;
             loadMarksEntrySheet();
         }
 
@@ -1900,41 +2087,10 @@
             }
             document.getElementById('entry-days-present').max = cls.totalWorkingDays;
 
-            const tbody = document.getElementById('entry-subjects-tbody');
-            if (subjects.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">No subjects configured for this class. Add subjects in Tab 2 first.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = subjects.map(sub => {
-                const val = existingResult && existingResult.marks[sub.id] !== undefined ? existingResult.marks[sub.id] : '';
-                const ab = val === 'AB';
-                return `
-                    <tr>
-                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
-                        <td class="py-3 px-4 text-center text-slate-500">${sub.maxMarks}</td>
-                        <td class="py-3 px-4 text-center text-slate-500">${sub.passingMarks}</td>
-                        <td class="py-3 px-4 text-center">
-                            <input type="number" ${ab ? 'disabled' : 'required'} min="0" max="${sub.maxMarks}"
-                                data-subject-id="${sub.id}"
-                                data-max="${sub.maxMarks}"
-                                data-pass="${sub.passingMarks}"
-                                value="${ab ? '' : val}"
-                                placeholder="0 - ${sub.maxMarks}"
-                                oninput="recalculateLiveEntry()"
-                                class="entry-mark-input w-full px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
-                        </td>
-                        <td class="py-3 px-4 text-center">
-                            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 cursor-pointer"><input type="checkbox" class="entry-absent w-5 h-5 accent-red-600" onchange="toggleAbsent(this)" ${ab ? 'checked' : ''}> AB</label>
-                        </td>
-                        <td class="py-3 px-4 text-center">
-                            <span id="live-sub-status-${sub.id}" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">-</span>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            recalculateLiveEntry();
+            entryDraft = {};
+            const chosen = (entrySel[classId] || subjects.map(s => s.id)).filter(id => subjects.some(s => s.id === id));
+            renderEntryChips(subjects, chosen);
+            renderEntryRows(subjects.filter(s => chosen.includes(s.id)), existingResult, subjects.length);
         }
 
         function toggleAbsent(cb) {
@@ -2013,6 +2169,7 @@
 
             const marksObj = {};
             const inputs = document.querySelectorAll('.entry-mark-input');
+            if (!inputs.length) { showToast('Tick at least one subject to save.', 'error'); return; }
             inputs.forEach(inp => {
                 const subId = inp.getAttribute('data-subject-id');
                 marksObj[subId] = inp.closest('tr').querySelector('.entry-absent').checked ? 'AB' : Number(inp.value);
@@ -2021,7 +2178,7 @@
             const existingIdx = appState.results.findIndex(r => r.examId === examId && r.studentId === studentId);
             if (existingIdx > -1) {
                 appState.results[existingIdx].attendanceDays = attendanceDays;
-                appState.results[existingIdx].marks = marksObj;
+                appState.results[existingIdx].marks = { ...appState.results[existingIdx].marks, ...marksObj };
             } else {
                 appState.results.push({
                     examId,
@@ -2036,6 +2193,11 @@
             document.getElementById('entry-existing-badge').classList.remove('hidden');
             const student = appState.students.find(s => s.id === studentId);
             showToast(`Result saved for ${student.name} (${student.admissionNo})!`, "success");
+            if (e.submitter && e.submitter.dataset.next) {
+                const sel = document.getElementById('entry-student-select'), ids = [...sel.options].map(o => o.value), i = ids.indexOf(studentId);
+                if (i > -1 && i < ids.length - 1) { sel.value = ids[i + 1]; loadMarksEntrySheet(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+                else showToast('That was the last student in this class.', 'info');
+            }
         }
 
         function labelTables() {
@@ -2052,6 +2214,8 @@
         // Initialize Application on Load
         window.addEventListener('DOMContentLoaded', async () => {
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+            document.querySelectorAll('select').forEach(enhanceSelect);
+            ['acad', 'stu', 'setup'].forEach(g => showSub(g, subState[g]));
             if (!IS_ADMIN_ROUTE) { await loadPublicData(); return; }
             document.title = 'Admin | Result Management System';
             switchView('admin');
