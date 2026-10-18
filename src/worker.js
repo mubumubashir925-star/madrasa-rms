@@ -164,21 +164,24 @@ async function publicResult(db, url) {
   const c = cl.results[0], subs = su.results.map(x => ({ id: x.id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks }));
   const cur = mine.results.find(r => r.exam_id === examId);
   if (!cur) return fail(`Result not yet uploaded for ${st.name} (${adm}) in the selected exam.`, 404);
-  const maxPer = subs.reduce((a, x) => a + x.maxMarks, 0), marks = JSON.parse(cur.marks);
-  const obtained = sumMarks(marks, subs), passed = subs.length > 0 && subs.every(x => subPassed(marks, x));
-  const percentage = pctOf(obtained, maxPer), G = set.grades;
-  const totals = mates.results.map(r => sumMarks(JSON.parse(r.marks), subs));
+  // A subject applies to a student only if marks were entered for it (ticked in the entry screen); unticked subjects are skipped everywhere.
+  const take = m => subs.filter(x => m?.[x.id] !== undefined);
+  const maxOf = l => l.reduce((a, x) => a + x.maxMarks, 0);
+  const marks = JSON.parse(cur.marks), mySubs = take(marks), maxPer = maxOf(mySubs);
+  const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(x => subPassed(marks, x));
+  const percentage = pctOf(obtained, maxPer), G = set.grades, myPct = exact(obtained, maxPer);
+  const pcts = mates.results.map(r => { const m = JSON.parse(r.marks), l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
   const exams = mine.results.map(r => {
-    const m = JSON.parse(r.marks), o = sumMarks(m, subs), ok = subs.length > 0 && subs.every(x => subPassed(m, x));
-    return { name: r.name, obtained: o, max: maxPer, percentage: pctOf(o, maxPer), passed: ok, grade: gradeOf(exact(o, maxPer), !ok, G) };
+    const m = JSON.parse(r.marks), l = take(m), o = sumMarks(m, l), mx = maxOf(l), ok = l.length > 0 && l.every(x => subPassed(m, x));
+    return { name: r.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exact(o, mx), !ok, G) };
   });
-  const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.length * maxPer, failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
+  const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '' }, subjects: subs,
+    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '' }, subjects: mySubs,
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
-    result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(subs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
+    result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
-    position: set.portal.showPosition ? { rank: 1 + totals.filter(t => t > obtained).length, of: totals.length } : null,
+    position: set.portal.showPosition ? { rank: 1 + pcts.filter(t => t > myPct + 1e-9).length, of: pcts.length } : null,
     exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
 }
