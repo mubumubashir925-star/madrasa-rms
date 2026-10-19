@@ -716,100 +716,78 @@
                         </div>
                     </div>
 
-                    <div id="admin-tab-marks" class="admin-tab-content hidden space-y-6">
-                        <!-- Selector Bar -->
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-                            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <i class="fas fa-calculator text-emerald-700"></i> Select Student for Marks & Attendance Entry
-                            </h3>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">1. Select Examination</label>
+                    <div id="admin-tab-marks" class="admin-tab-content hidden space-y-3">
+                        <!-- Selector card: exam | class, subjects (collapsed), student -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div class="order-1">
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label>
                                     <select id="entry-exam-select" onchange="loadMarksEntrySheet()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">2. Select Class</label>
+                                <div class="order-2">
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label>
                                     <select id="entry-class-select" onchange="populateEntryStudentDropdown()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
-                                    <div class="mt-3">
-                                        <div class="flex items-center justify-between mb-1.5"><span class="text-xs font-bold uppercase text-slate-600">Subjects of this class</span>
-                                            <span class="flex gap-3 text-xs font-semibold text-emerald-800"><button type="button" onclick="setClassSubjects(true)">All</button><button type="button" onclick="setClassSubjects(false)">None</button></span></div>
-                                        <div id="entry-subject-checks" class="flex flex-wrap gap-2"></div>
-                                        <p class="text-[11px] text-slate-400 mt-1.5">Unticked subjects are skipped for every student of this class (marksheet, totals, grade and PDFs). Marks are kept, so ticking again brings them back.</p>
-                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">3. Select Student</label>
+                                <details class="order-3 md:order-4 col-span-2 md:col-span-3 bg-slate-50 border border-slate-200 rounded-xl group">
+                                    <summary class="flex items-center justify-between gap-2 px-3 py-2.5 cursor-pointer text-xs font-bold uppercase text-slate-600 select-none">
+                                        <span><i class="fas fa-list-check text-emerald-700 mr-1"></i> Subjects of this class <span id="entry-subject-count" class="ml-1 text-emerald-700 normal-case font-semibold"></span></span>
+                                        <span class="hidden sm:inline text-slate-400 normal-case font-medium">tap to change</span>
+                                    </summary>
+                                    <div class="px-3 pb-3">
+                                        <div class="flex justify-end gap-4 text-xs font-semibold text-emerald-800 mb-2"><button type="button" onclick="setClassSubjects(true)">Tick all</button><button type="button" onclick="setClassSubjects(false)">Untick all</button></div>
+                                        <div id="entry-subject-checks" class="flex flex-wrap gap-2"></div>
+                                        <p class="text-[11px] text-slate-400 mt-2">Unticked subjects are skipped for every student of this class (marksheet, totals, grade and PDFs). Marks are kept, so ticking again brings them back.</p>
+                                    </div>
+                                </details>
+                                <div class="order-4 md:order-3 col-span-2 md:col-span-1">
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Student</label>
                                     <div class="flex gap-2 items-stretch"><select id="entry-student-select" onchange="loadMarksEntrySheet()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select><button type="button" onclick="stepStudent(-1)" aria-label="Previous student" class="px-3.5 rounded-xl bg-slate-100 border border-slate-300 font-bold text-slate-600 text-lg">&lsaquo;</button><button type="button" onclick="stepStudent(1)" aria-label="Next student" class="px-3.5 rounded-xl bg-slate-100 border border-slate-300 font-bold text-slate-600 text-lg">&rsaquo;</button></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Marksheet Entry Form & Live Calculation -->
+                        <!-- Marksheet entry -->
                         <div id="marks-entry-workspace" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div class="px-4 md:px-6 py-4 bg-emerald-900 text-white flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                                <div>
-                                    <h4 id="entry-sheet-student-title" class="font-bold text-base">Student Marksheet</h4>
-                                    <p id="entry-sheet-subtitle" class="text-xs text-emerald-200">Enter subject marks and days present</p>
+                            <div class="px-4 py-2.5 bg-emerald-900 text-white flex items-center justify-between gap-2">
+                                <div class="min-w-0">
+                                    <h4 id="entry-sheet-student-title" class="font-bold text-sm truncate">Student Marksheet</h4>
+                                    <p id="entry-sheet-subtitle" class="text-[11px] text-emerald-200 truncate">Enter subject marks and days present</p>
                                 </div>
-                                <span id="entry-existing-badge" class="hidden bg-amber-500 text-slate-950 text-xs font-bold px-3 py-1 rounded-full">
-                                    Editing Existing Record
-                                </span>
+                                <span id="entry-existing-badge" class="hidden shrink-0 bg-amber-500 text-slate-950 text-[10px] font-bold px-2.5 py-1 rounded-full">Editing</span>
                             </div>
 
-                            <form onsubmit="saveStudentResult(event)" class="p-4 md:p-6 space-y-6">
-                                <!-- Attendance Input Box -->
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div>
-                                        <h5 class="font-bold text-sm text-slate-800"><i class="fas fa-user-clock text-emerald-700 mr-1"></i> Student Attendance Record</h5>
-                                        <p class="text-xs text-slate-500">Total configured working days for this class: <strong id="entry-total-working-days" class="text-slate-800">200</strong> days</p>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <label class="text-xs font-bold uppercase text-slate-600">Days Present:</label>
-                                        <input type="number" id="entry-days-present" required min="0" max="365" oninput="recalculateLiveEntry()" class="w-28 px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
-                                        <span id="entry-live-att-perc" class="text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1.5 rounded-lg">0%</span>
-                                    </div>
+                            <form onsubmit="saveStudentResult(event)" class="p-3 md:p-5 space-y-3">
+                                <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                    <label for="entry-days-present" class="text-[11px] font-bold uppercase text-slate-600">Present</label>
+                                    <input type="number" id="entry-days-present" required min="0" max="365" oninput="recalculateLiveEntry()" class="w-16 px-2 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
+                                    <span class="text-xs text-slate-500">of <strong id="entry-total-working-days" class="text-slate-800">200</strong></span>
+                                    <span id="entry-live-att-perc" class="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-1.5 rounded-lg">0%</span>
+                                    <button type="button" onclick="markAllAbsent()" class="ml-auto text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg"><i class="fas fa-user-slash mr-1 hidden sm:inline-block"></i>All absent</button>
                                 </div>
 
-                                
-                                <div class="flex justify-end -mb-3"><button type="button" onclick="markAllAbsent()" class="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-lg"><i class="fas fa-user-slash mr-1"></i> Mark absent in all subjects</button></div>
-                                <!-- Subject Marks Table -->
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse text-sm rtable">
+                                    <table class="w-full text-left border-collapse text-sm">
                                         <thead>
-                                            <tr class="bg-slate-100 text-xs uppercase text-slate-600 border-y border-slate-200">
-                                                <th class="py-3 px-4">Subject Name</th>
-                                                <th class="py-3 px-4 text-center">Max Marks</th>
-                                                <th class="py-3 px-4 text-center">Passing Marks</th>
-                                                <th class="py-3 px-4 text-center w-44">Marks Obtained</th>
-                                                <th class="py-3 px-4 text-center">Absent</th>
-                                                <th class="py-3 px-4 text-center">Live Status</th>
+                                            <tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200">
+                                                <th class="py-2 px-2 sm:px-4">Subject</th>
+                                                <th class="py-2 px-1.5 text-center w-20">Marks</th>
+                                                <th class="py-2 px-1.5 text-center w-14">Absent</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="entry-subjects-tbody" class="divide-y divide-slate-200">
-                                            <!-- Dynamic Subject Inputs -->
-                                        </tbody>
+                                        <tbody id="entry-subjects-tbody" class="divide-y divide-slate-100"></tbody>
                                     </table>
                                 </div>
 
-                                <!-- Automatic Calculation Summary Bar -->
-                                <div class="bg-slate-900 text-white p-4 md:p-5 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-4 items-center sticky bottom-3 z-10 shadow-2xl md:static md:shadow-none">
-                                    <div>
-                                        <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Total Marks</span>
-                                        <span id="live-total-marks" class="text-xl font-bold">0 / 0</span>
+                                <!-- Live summary + save buttons (stays at the bottom of the screen while scrolling) -->
+                                <div class="bg-slate-900 text-white p-3 rounded-xl sticky bottom-3 z-10 shadow-2xl">
+                                    <div class="flex items-center justify-between gap-3 mb-2.5">
+                                        <div><span class="text-[10px] uppercase tracking-wider text-slate-400 block">Total</span><span id="live-total-marks" class="text-base font-bold">0 / 0</span></div>
+                                        <div><span class="text-[10px] uppercase tracking-wider text-slate-400 block">Percentage</span><span id="live-percentage" class="text-base font-bold text-amber-400">0.0%</span></div>
+                                        <span id="live-pass-fail" class="px-2.5 py-1 rounded text-[11px] font-bold uppercase bg-slate-700">-</span>
                                     </div>
-                                    <div>
-                                        <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Percentage</span>
-                                        <span id="live-percentage" class="text-xl font-bold text-amber-400">0.0%</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Overall Result</span>
-                                        <span id="live-pass-fail" class="inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-slate-700">-</span>
-                                    </div>
-                                    <div class="text-right col-span-2 sm:col-span-1">
-                                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
-                                            <i class="fas fa-check-circle"></i> Save Result
-                                        </button>
-                                        <button type="submit" data-next="1" class="w-full mt-2 bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2">Save &amp; Next student <i class="fas fa-arrow-right"></i></button>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-1.5"><i class="fas fa-check-circle"></i> Save</button>
+                                        <button type="submit" data-next="1" class="bg-white/10 hover:bg-white/20 text-white font-semibold py-2.5 rounded-xl text-sm flex items-center justify-center gap-1.5">Save &amp; Next <i class="fas fa-arrow-right"></i></button>
                                     </div>
                                 </div>
                             </form>
@@ -1261,6 +1239,11 @@
             document.getElementById('entry-subject-checks').innerHTML = subjects.length
                 ? subjects.map(x => `<label class="chip"><input type="checkbox" ${isActive(x) ? 'checked' : ''} onchange="toggleClassSubject('${x.id}', this.checked)"> ${esc(x.name)}</label>`).join('')
                 : '<span class="text-xs text-slate-400">No subjects for this class yet.</span>';
+            updateSubjectCount();
+        }
+        function updateSubjectCount() {
+            const classId = document.getElementById('entry-class-select').value, all = appState.subjects.filter(x => x.classId === classId), on = all.filter(isActive).length;
+            const el = document.getElementById('entry-subject-count'); if (el) el.textContent = all.length ? `${on}/${all.length} on` : '';
         }
         function refreshEntryRows() {
             const classId = document.getElementById('entry-class-select').value, examId = document.getElementById('entry-exam-select').value, studentId = document.getElementById('entry-student-select').value;
@@ -1270,7 +1253,7 @@
         function toggleClassSubject(id, on) {
             const sub = appState.subjects.find(x => x.id === id); if (!sub) return;
             document.querySelectorAll('.entry-mark-input').forEach(inp => { entryDraft[inp.dataset.subjectId] = { val: inp.value, ab: inp.closest('tr').querySelector('.entry-absent').checked }; });
-            sub.active = on; saveState(); refreshEntryRows(); renderAdminSubjects(); renderClassReport();
+            sub.active = on; saveState(); updateSubjectCount(); refreshEntryRows(); renderAdminSubjects(); renderClassReport();
             showToast(`${sub.name} ${on ? 'is back in' : 'is now skipped for'} this class.`, 'info');
         }
         function setClassSubjects(on) {
@@ -1281,7 +1264,7 @@
         function renderEntryRows(subjects, existingResult, totalSubjects) {
             const tbody = document.getElementById('entry-subjects-tbody');
             if (!subjects.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">${totalSubjects ? 'All subjects of this class are switched off. Tick at least one under the class selector.' : 'No subjects configured for this class. Add subjects first (Exams, Classes & Subjects).'}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center text-slate-400">${totalSubjects ? 'All subjects of this class are switched off. Tick at least one under the class selector.' : 'No subjects configured for this class. Add subjects first (Exams, Classes & Subjects).'}</td></tr>`;
                 recalculateLiveEntry(); return;
             }
             tbody.innerHTML = subjects.map(sub => {
@@ -1289,18 +1272,19 @@
                 const ab = d ? d.ab : stored === 'AB', val = d ? d.val : (stored === 'AB' ? '' : stored);
                 return `
                     <tr>
-                        <td class="py-3 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
-                        <td class="py-3 px-4 text-center text-slate-500">${sub.maxMarks}</td>
-                        <td class="py-3 px-4 text-center text-slate-500">${sub.passingMarks}</td>
-                        <td class="py-3 px-4 text-center">
+                        <td class="py-2.5 px-2 sm:px-4">
+                            <div class="font-semibold text-slate-800 text-sm leading-tight">${esc(sub.name)}</div>
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11px] text-slate-400"><span>Max ${sub.maxMarks} &bull; Pass ${sub.passingMarks}</span>
+                                <span id="live-sub-status-${sub.id}" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">-</span></div>
+                        </td>
+                        <td class="py-2.5 px-1.5 text-center">
                             <input type="number" ${ab ? 'disabled' : 'required'} min="0" max="${sub.maxMarks}" data-subject-id="${sub.id}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}"
-                                value="${esc(val)}" placeholder="0 - ${sub.maxMarks}" oninput="recalculateLiveEntry()" onkeydown="entryEnter(event, this)" enterkeyhint="next"
-                                class="entry-mark-input w-full px-3 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
+                                value="${esc(val)}" placeholder="0-${sub.maxMarks}" oninput="recalculateLiveEntry()" onkeydown="entryEnter(event, this)" enterkeyhint="next"
+                                class="entry-mark-input w-full px-2 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
                         </td>
-                        <td class="py-3 px-4 text-center">
-                            <label class="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 cursor-pointer"><input type="checkbox" class="entry-absent w-5 h-5 accent-red-600" onchange="toggleAbsent(this)" ${ab ? 'checked' : ''}> AB</label>
+                        <td class="py-2.5 px-1.5 text-center">
+                            <label class="inline-flex flex-col items-center gap-0.5 text-[10px] font-bold text-red-700 cursor-pointer"><input type="checkbox" class="entry-absent w-5 h-5 accent-red-600" onchange="toggleAbsent(this)" ${ab ? 'checked' : ''}>AB</label>
                         </td>
-                        <td class="py-3 px-4 text-center"><span id="live-sub-status-${sub.id}" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">-</span></td>
                     </tr>`;
             }).join('');
             recalculateLiveEntry();
@@ -2022,7 +2006,7 @@
             const totalDays = cls ? Number(cls.totalWorkingDays) : 200;
             const daysPresent = Number(document.getElementById('entry-days-present').value || 0);
             const attPerc = totalDays > 0 ? Math.min(100, ((daysPresent / totalDays) * 100)).toFixed(1) : 0;
-            document.getElementById('entry-live-att-perc').textContent = `${attPerc}% Attendance`;
+            document.getElementById('entry-live-att-perc').textContent = `${attPerc}%`;
 
             const inputs = document.querySelectorAll('.entry-mark-input');
             let totalMax = 0;
@@ -2041,19 +2025,19 @@
 
                 const statusSpan = document.getElementById(`live-sub-status-${subId}`);
                 if (ab) {
-                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700";
-                    statusSpan.textContent = "ABSENT";
+                    statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700";
+                    statusSpan.textContent = "AB";
                     allPassed = false;
                 } else if (inp.value === '') {
-                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-400";
-                    statusSpan.textContent = "Pending";
+                    statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400";
+                    statusSpan.textContent = "\u2013";
                     allPassed = false;
                 } else if (val >= pass) {
-                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
-                    statusSpan.textContent = "PASS \u2022 " + gradeOf(exactPct(val, max), false, appState.grades).grade;
+                    statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800";
+                    statusSpan.textContent = "\u2713 " + gradeOf(exactPct(val, max), false, appState.grades).grade;
                 } else {
-                    statusSpan.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700";
-                    statusSpan.textContent = "FAIL \u2022 " + gradeOf(exactPct(val, max), true, appState.grades).grade;
+                    statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700";
+                    statusSpan.textContent = "\u2717 " + gradeOf(exactPct(val, max), true, appState.grades).grade;
                     allPassed = false;
                 }
             });
