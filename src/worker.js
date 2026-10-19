@@ -201,8 +201,22 @@ async function servePage(req, env, url) {
     .transform(new Response(res.body, { status: res.status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } }));
 }
 
-export default {
-  async fetch(req, env) {
+// Self-healing database: if an update needs a column the database doesn't have yet, add it automatically and retry once.
+const MIGRATIONS = [
+  ['students', 'extra', "TEXT NOT NULL DEFAULT '{}'"],
+  ['classes', 'teacher_title', "TEXT NOT NULL DEFAULT ''"],
+  ['classes', 'teacher_name', "TEXT NOT NULL DEFAULT ''"],
+  ['subjects', 'active', 'INTEGER NOT NULL DEFAULT 1'],
+];
+const schemaErr = e => /no such column|has no column named/i.test(String(e && e.message));
+async function ensureSchema(db) {
+  for (const [t, c, def] of MIGRATIONS) {
+    const { results } = await db.prepare(`PRAGMA table_info(${t})`).all();
+    if (!results.some(r => r.name === c)) await db.prepare(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`).run();
+  }
+}
+
+async function handle(req, env) {
     const p = new URL(req.url).pathname;
     if (p === '/admin' || p === '/admin/') return env.ASSETS.fetch(new Request(new URL('/', req.url), req)); // admin lives at /admin, never linked publicly
     if (p === '/' || p === '/index.html') return servePage(req, env, new URL(req.url));
@@ -232,8 +246,19 @@ export default {
       }
       return fail('Not found', 404);
     } catch (e) {
+      if (schemaErr(e)) throw e;
       const dup = /UNIQUE/i.test(e.message);
       return fail(dup ? 'Duplicate admission number' : e.message, dup ? 409 : 400);
+    }
+}
+
+export default {
+  async fetch(req, env) {
+    const copy = req.clone();
+    try { return await handle(req, env); }
+    catch (e) {
+      if (!schemaErr(e)) return fail(e.message, 500);
+      try { await ensureSchema(env.DB); return await handle(copy, env); } catch (e2) { return fail(e2.message, 500); }
     }
   },
 };
