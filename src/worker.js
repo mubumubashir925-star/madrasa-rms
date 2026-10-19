@@ -57,7 +57,7 @@ const num = (v, lo, hi) => { v = Number(v); if (!Number.isFinite(v) || v < lo ||
 const TABLES = {
   classes:  { cols: ['id', 'name', 'working_days', 'teacher_title', 'teacher_name'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), num(r.totalWorkingDays, 1, 366), opt(r.teacherTitle, 60), opt(r.teacherName, 80)] },
   exams:    { cols: ['id', 'name', 'is_public'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), r.isPublic ? 1 : 0] },
-  subjects: { cols: ['id', 'class_id', 'name', 'max_marks', 'pass_marks'], pk: ['id'], row: r => [str(r.id, 64), str(r.classId, 64), str(r.name), num(r.maxMarks, 1, 1000), num(r.passingMarks, 0, 1000)] },
+  subjects: { cols: ['id', 'class_id', 'name', 'max_marks', 'pass_marks', 'active'], pk: ['id'], row: r => [str(r.id, 64), str(r.classId, 64), str(r.name), num(r.maxMarks, 1, 1000), num(r.passingMarks, 0, 1000), r.active === false ? 0 : 1] },
   students: { cols: ['id', 'admission_no', 'name', 'father_name', 'class_id', 'extra'], pk: ['id'], row: r => [str(r.id, 64), str(r.admissionNo, 40).toUpperCase(), str(r.name), opt(r.fatherName), str(r.classId, 64),
     JSON.stringify(Object.fromEntries(Object.entries(r.extra || {}).slice(0, 20).map(([k, v]) => [k.slice(0, 40), String(v).slice(0, 200)])))] },
   results:  { cols: ['exam_id', 'student_id', 'attendance_days', 'marks'], pk: ['exam_id', 'student_id'],
@@ -109,7 +109,7 @@ async function adminState(db) {
     ...(await settings(db)),
     exams: ex.results.map(r => ({ id: r.id, name: r.name, isPublic: !!r.is_public })),
     classes: cl.results.map(r => ({ id: r.id, name: r.name, totalWorkingDays: r.working_days, teacherTitle: r.teacher_title || '', teacherName: r.teacher_name || '' })),
-    subjects: su.results.map(r => ({ id: r.id, classId: r.class_id, name: r.name, maxMarks: r.max_marks, passingMarks: r.pass_marks })),
+    subjects: su.results.map(r => ({ id: r.id, classId: r.class_id, name: r.name, maxMarks: r.max_marks, passingMarks: r.pass_marks, active: r.active !== 0 })),
     students: st.results.map(r => ({ id: r.id, admissionNo: r.admission_no, name: r.name, fatherName: r.father_name, classId: r.class_id, extra: JSON.parse(r.extra || '{}') })),
     results: re.results.map(r => ({ examId: r.exam_id, studentId: r.student_id, attendanceDays: r.attendance_days, marks: JSON.parse(r.marks) })),
   };
@@ -135,7 +135,7 @@ async function sync(db, body) {
       const logo = (m.logo || '').trim();
       if (logo && !/^https?:\/\//i.test(logo)) throw new Error('Logo must be an http(s) URL');
       stmts.push(db.prepare("INSERT INTO settings VALUES ('madrasa', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
-        .bind(JSON.stringify({ name: str(m.name), subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true })));
+        .bind(JSON.stringify({ name: str(m.name), subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true })));
     }
     if (a) {
       if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements');
@@ -157,15 +157,15 @@ async function publicResult(db, url) {
   if (!st) return fail(`No student found with ${set.fields[0]?.label || 'Admission No'}: ${adm}`, 404);
   const [cl, su, mine, mates] = await db.batch([
     db.prepare('SELECT name,working_days,teacher_title,teacher_name FROM classes WHERE id=?').bind(st.class_id),
-    db.prepare('SELECT id,name,max_marks,pass_marks FROM subjects WHERE class_id=? ORDER BY rowid').bind(st.class_id),
+    db.prepare('SELECT * FROM subjects WHERE class_id=? ORDER BY rowid').bind(st.class_id),
     db.prepare('SELECT r.exam_id, r.attendance_days, r.marks, e.name FROM results r JOIN exams e ON e.id=r.exam_id WHERE r.student_id=? AND e.is_public=1 ORDER BY e.rowid').bind(st.id),
     db.prepare('SELECT r.student_id, r.marks FROM results r JOIN students s ON s.id=r.student_id WHERE r.exam_id=? AND s.class_id=?').bind(examId, st.class_id),
   ]);
-  const c = cl.results[0], subs = su.results.map(x => ({ id: x.id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks }));
+  const c = cl.results[0], subs = su.results.map(x => ({ id: x.id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks, active: x.active !== 0 }));
   const cur = mine.results.find(r => r.exam_id === examId);
   if (!cur) return fail(`Result not yet uploaded for ${st.name} (${adm}) in the selected exam.`, 404);
-  // A subject applies to a student only if marks were entered for it (ticked in the entry screen); unticked subjects are skipped everywhere.
-  const take = m => subs.filter(x => m?.[x.id] !== undefined);
+  // A subject counts only if it is switched on for the class (ticked in the marks screen) and marks exist for it; hidden subjects are skipped everywhere.
+  const take = m => subs.filter(x => x.active && m?.[x.id] !== undefined);
   const maxOf = l => l.reduce((a, x) => a + x.maxMarks, 0);
   const marks = JSON.parse(cur.marks), mySubs = take(marks), maxPer = maxOf(mySubs);
   const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(x => subPassed(marks, x));
@@ -186,10 +186,26 @@ async function publicResult(db, url) {
   });
 }
 
+// Chat apps (WhatsApp, Telegram...) read the page's meta tags without running JavaScript, so the Worker fills them in from the institution profile.
+async function servePage(req, env, url) {
+  const res = await env.ASSETS.fetch(req);
+  if (!res.ok || !(res.headers.get('content-type') || '').includes('text/html')) return res;
+  let m; try { m = (await settings(env.DB)).madrasa; } catch { return res; }
+  const name = m.name || 'Results', desc = m.shareText || `Check your exam results online - ${name}`;
+  const img = /^https?:\/\//i.test(m.logo || '') ? m.logo : url.origin + '/icons/icon-512.png';
+  const meta = v => ({ element(e) { e.setAttribute('content', v); } });
+  return new HTMLRewriter()
+    .on('title', { element(e) { e.setInnerContent(name); } })
+    .on('meta[name="description"]', meta(desc)).on('meta[property="og:title"]', meta(name)).on('meta[property="og:description"]', meta(desc))
+    .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(url.origin + '/')).on('meta[property="og:site_name"]', meta(name))
+    .transform(new Response(res.body, { status: res.status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } }));
+}
+
 export default {
   async fetch(req, env) {
     const p = new URL(req.url).pathname;
     if (p === '/admin' || p === '/admin/') return env.ASSETS.fetch(new Request(new URL('/', req.url), req)); // admin lives at /admin, never linked publicly
+    if (p === '/' || p === '/index.html') return servePage(req, env, new URL(req.url));
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
       if (p === '/api/public' && req.method === 'GET') {
