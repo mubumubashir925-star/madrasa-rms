@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#064e3b">
+    <meta name="tenant" content="">
+    <meta name="route" content="">
     <meta name="description" content="Check your exam results online">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Online Results">
@@ -19,7 +21,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Results">
-    <title>Result Management System</title>
+    <title>Result Publisher</title>
     <!-- Tailwind CSS (compiled; run `npm run css` after editing classes) -->
     <link rel="stylesheet" href="/styles.css">
     <!-- Font Awesome Icons -->
@@ -168,7 +170,51 @@
     <div id="toast-container" style="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom, 0px));width:min(92vw,26rem);z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
 
     <!-- ================= PUBLIC PORTAL VIEW ================= -->
-    <div id="public-view" class="flex-grow flex flex-col">
+    <!-- Landing / not-found page -->
+    <div id="landing-view" class="hidden flex-grow min-h-dvh flex items-center justify-center p-5 bg-islamic-pattern">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-800 text-white flex items-center justify-center text-2xl mb-4"><i class="fas fa-school"></i></div>
+            <h1 id="landing-title" class="text-xl font-bold text-slate-800">Result Publisher</h1>
+            <p id="landing-text" class="text-sm text-slate-500 mt-1 mb-5">Enter your institution&rsquo;s address to open its results portal.</p>
+            <form onsubmit="goToInstitution(event)" class="flex gap-2">
+                <input id="landing-code" type="text" autocomplete="off" autocapitalize="none" placeholder="e.g. al-noor-school" class="w-full px-3.5 py-3 border border-slate-300 rounded-xl text-sm flex-1 min-w-0">
+                <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 rounded-xl">Open</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Super admin (platform owner) -->
+    <div id="super-view" class="hidden flex-grow min-h-dvh bg-slate-100">
+        <div id="super-login" class="min-h-dvh flex items-center justify-center p-4 bg-islamic-pattern">
+            <form onsubmit="superLogin(event)" class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+                <div class="text-center"><div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-950 text-amber-400 flex items-center justify-center text-xl mb-3"><i class="fas fa-user-shield"></i></div>
+                    <h1 class="text-lg font-bold text-slate-800">Platform Admin</h1><p class="text-xs text-slate-500">Owner access only</p></div>
+                <input id="super-user" type="text" autocomplete="username" required placeholder="Username" class="w-full px-3.5 py-3 border border-slate-300 rounded-xl text-sm">
+                <input id="super-pass" type="password" autocomplete="current-password" required placeholder="Password" class="w-full px-3.5 py-3 border border-slate-300 rounded-xl text-sm">
+                <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl">Log in</button>
+            </form>
+        </div>
+        <div id="super-console" class="hidden">
+            <header class="sticky top-0 z-20 bg-emerald-950 text-white px-4 py-3 flex items-center justify-between gap-3" style="min-height:56px">
+                <div class="min-w-0"><div class="font-bold leading-tight">Platform Admin</div><div class="text-[11px] text-emerald-300">Manage institutions</div></div>
+                <div class="flex gap-2 shrink-0"><button type="button" onclick="superAccount()" class="px-3 py-2 rounded-lg bg-white/10 text-xs font-semibold">My login</button><button type="button" onclick="superLogout()" class="px-3 py-2 rounded-lg bg-white/10 text-xs font-semibold">Logout</button></div>
+            </header>
+            <main class="p-3 md:p-6 max-w-3xl mx-auto space-y-3" style="padding-bottom:110px">
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-white rounded-xl border border-slate-200 p-3 text-center"><div class="text-[10px] uppercase font-bold text-slate-400">Institutions</div><div id="st-total" class="text-xl font-bold text-slate-800">0</div></div>
+                    <div class="bg-white rounded-xl border border-slate-200 p-3 text-center"><div class="text-[10px] uppercase font-bold text-slate-400">Active</div><div id="st-active" class="text-xl font-bold text-emerald-700">0</div></div>
+                    <div class="bg-white rounded-xl border border-slate-200 p-3 text-center"><div class="text-[10px] uppercase font-bold text-slate-400">Students</div><div id="st-students" class="text-xl font-bold text-slate-800">0</div></div>
+                </div>
+                <div class="list-tools" style="top:56px;background:#f1f5f9">
+                    <select id="tenant-filter" onchange="resetLimit('tenants')" class="px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium bg-white"><option value="all">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="expired">Expired</option></select>
+                    <input type="search" id="tenant-search" oninput="resetLimit('tenants')" placeholder="Search institutions..." class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
+                </div>
+                <div id="tenant-list" class="space-y-2"></div>
+            </main>
+        </div>
+    </div>
+
+    <div id="public-view" class="hidden flex-grow flex flex-col">
         <!-- Top Announcement Bar -->
         <div id="announcement-bar" class="bg-amber-500 text-slate-950 py-2 px-4 overflow-hidden relative flex items-center shadow-sm">
             <span class="bg-amber-600 text-white text-xs font-bold px-2 py-1 rounded uppercase tracking-wider z-10 flex items-center gap-1 shadow-sm mr-3 shrink-0">
@@ -405,7 +451,7 @@
                 <div id="ge-fields" class="space-y-3.5"></div>
                 <div class="flex gap-2 pt-1">
                     <button type="button" onclick="closeEdit()" class="flex-1 bg-slate-100 text-slate-700 font-semibold py-2.5 rounded-lg text-sm">Cancel</button>
-                    <button type="submit" class="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">Save</button>
+                    <button type="submit" id="ge-save" class="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">Save</button>
                 </div>
                 <button type="submit" id="ge-again" data-again="1" class="hidden w-full bg-sky-50 text-sky-800 font-semibold py-2.5 rounded-lg text-sm">Save &amp; add another</button>
             </form>
@@ -477,6 +523,7 @@
                 </header>
 
                 <div class="p-4 md:p-6 max-w-7xl w-full mx-auto space-y-6">
+                    <div id="plan-banner" class="hidden bg-amber-50 border border-amber-300 text-amber-900 text-sm rounded-xl px-4 py-3"></div>
 
                     <!-- TAB 1: OVERVIEW, MADRASA SETTINGS & ANNOUNCEMENTS -->
                     <div id="admin-tab-overview" class="admin-tab-content space-y-6">
@@ -689,7 +736,7 @@
                                 <button onclick="savePortal()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm">Save</button>
                                 <button onclick="shareLink()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-5 py-2.5 rounded-lg text-sm"><i class="fas fa-share-alt mr-1"></i> Share public link</button>
                             </div>
-                            <p class="text-xs text-slate-500">Public link: <b id="portal-link"></b> &bull; Admin login lives only at <b>/admin</b> (never shown to the public).</p>
+                            <p class="text-xs text-slate-500">Public link: <b id="portal-link"></b> &bull; Admin login lives only at <b id="admin-link"></b> (never shown to the public).</p>
                         </div>
 
                         <div data-group="setup" data-sub="grading" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-3">
@@ -807,9 +854,25 @@
     <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
     <script>
         // ================= STATE + API LAYER =================
-        const IS_ADMIN_ROUTE = location.pathname.replace(/\/+$/, '') === '/admin' || new URLSearchParams(location.search).get('view') === 'admin';
+        // The server fills in <meta name="tenant"> and <meta name="route"> for every address:
+        //   /            -> landing page (or the "main address" institution)   /<name>        -> that institution's public portal
+        //   /<name>/admin -> its admin login                                   /super         -> platform owner console
+        const META = n => (document.querySelector(`meta[name="${n}"]`) || {}).content || '';
+        const QS = new URLSearchParams(location.search), PATH_SEG = location.pathname.split('/').filter(Boolean);
+        let TENANT = META('tenant'), ROUTE = META('route');
+        if (!ROUTE) { // opened without the server (plain file / test): work it out from the address
+            if (PATH_SEG[0] === 'super' || QS.get('view') === 'super') ROUTE = 'super';
+            else if (PATH_SEG[0] && PATH_SEG[0] !== 'admin') { TENANT = PATH_SEG[0]; ROUTE = PATH_SEG[1] === 'admin' ? 'admin' : 'public'; }
+            else { TENANT = QS.get('t') || ''; ROUTE = TENANT ? (QS.get('view') === 'admin' ? 'admin' : 'public') : 'landing'; }
+        }
+        const IS_ADMIN_ROUTE = ROUTE === 'admin';
+        const ROOT_MODE = !!TENANT && PATH_SEG[0] !== TENANT;          // the main-address institution lives at "/" and "/admin"
+        const pubPath = () => (ROOT_MODE ? '/' : '/' + TENANT);
+        const adminPath = () => (ROOT_MODE ? '/admin' : '/' + TENANT + '/admin');
+        const TOKEN_KEY = ROUTE === 'super' ? 'rms_super_token' : 'rms_token_' + (TENANT || 'main');
+        const API_T = '/t/' + TENANT;
         let isAdminAuthenticated = false;
-        let token = localStorage.getItem('rms_token') || '';
+        let token = localStorage.getItem(TOKEN_KEY) || '';
         let appState = emptyState();
         let snapshot = null;
         let syncChain = Promise.resolve();
@@ -836,8 +899,8 @@
         }
 
         async function loadPublicData() {
-            try { appState = { ...emptyState(), ...(await api('/public')) }; renderPublicPortal(); }
-            catch (e) { showToast('Could not load data. Check your connection.', 'error'); }
+            try { appState = { ...emptyState(), ...(await api(API_T + '/public')) }; renderPublicPortal(); }
+            catch (e) { if (e.status === 404) showLanding(true); else showToast('Could not load data. Check your connection.', 'error'); }
         }
 
         async function loadAdminState() {
@@ -845,6 +908,7 @@
             snapshot = clone(appState);
             renderPublicPortal();
             renderAllAdminData();
+            renderPlanBanner();
         }
 
         const rowKey = (t, r) => t === 'results' ? r.examId + '|' + r.studentId : r.id;
@@ -883,7 +947,7 @@
         }
 
         function handleSessionExpired() {
-            token = ''; localStorage.removeItem('rms_token');
+            token = ''; localStorage.removeItem(TOKEN_KEY);
             isAdminAuthenticated = false; snapshot = null;
             switchView('admin');
             showToast('Session expired. Please log in again.', 'error');
@@ -927,7 +991,7 @@
         }
 
         function switchView(view) {
-            if (view === 'public') { location.href = '/'; return; }
+            if (view === 'public') { location.href = pubPath(); return; }
             if (!IS_ADMIN_ROUTE) return; // public visitors can never reach the admin screens
             document.getElementById('public-view').classList.add('hidden');
             document.getElementById('admin-view').classList.remove('hidden');
@@ -999,7 +1063,7 @@
             const btn = e.target.querySelector('button[type=submit]');
             btn.disabled = true; btn.classList.add('opacity-60');
             try {
-                const data = await api(`/result?exam=${encodeURIComponent(examId)}&adm=${encodeURIComponent(adm)}`);
+                const data = await api(`${API_T}/result?exam=${encodeURIComponent(examId)}&adm=${encodeURIComponent(adm)}`);
                 displayMarksheet(data);
             } catch (err) {
                 document.getElementById('result-display-container').classList.add('hidden');
@@ -1009,7 +1073,7 @@
 
         // ================= CARD LISTS (tap a card to expand: details, edit, delete) =================
         const openCards = new Set(), listLimit = {}, PAGE = 40;
-        const RENDER = { exams: () => renderAdminExams(), classes: () => renderAdminClasses(), subjects: () => renderAdminSubjects(), students: () => renderAdminStudents() };
+        const RENDER = { tenants: () => renderTenants(), exams: () => renderAdminExams(), classes: () => renderAdminClasses(), subjects: () => renderAdminSubjects(), students: () => renderAdminStudents() };
         function resetLimit(n) { listLimit[n] = PAGE; RENDER[n](); }
         function showMore(n) { listLimit[n] = (listLimit[n] || PAGE) + PAGE; RENDER[n](); }
         const moreBtn = (n, rest) => rest > 0 ? `<button type="button" class="more-btn" onclick="showMore('${n}')">Show more (${rest} more)</button>` : '';
@@ -1081,7 +1145,7 @@
         let currentAdminTab = 'overview';
         const classOptions = () => appState.classes.map(c => ({ v: c.id, t: c.name }));
         const FABS = { exams: ['Add exam', () => addExam()], classes: ['Add class', () => addClass()], subjects: ['Add subject', () => addSubject()], dir: ['Add student', () => addStudent()] };
-        function currentFab() { return currentAdminTab === 'academics' ? FABS[subState.acad] : currentAdminTab === 'students' ? FABS[subState.stu] : null; }
+        function currentFab() { if (ROUTE === 'super') return superConsoleOpen ? ['Add institution', () => addTenant()] : null; return currentAdminTab === 'academics' ? FABS[subState.acad] : currentAdminTab === 'students' ? FABS[subState.stu] : null; }
         function updateFab() {
             const f = currentFab(), b = document.getElementById('fab'); if (!b) return;
             b.classList.toggle('show', !!f);
@@ -1196,21 +1260,25 @@
             document.getElementById('ge-fields').innerHTML = fields.map((f, i) => {
                 if (f.type === 'checkbox') return `<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="ge-f-${i}" ${f.value ? 'checked' : ''} class="w-5 h-5 accent-emerald-700"> ${esc(f.label)}</label>`;
                 if (f.type === 'select') return `<div>${lbl(f.label)}<select id="ge-f-${i}" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm bg-white">${f.options.map(o => `<option value="${esc(o.v)}" ${o.v === f.value ? 'selected' : ''}>${esc(o.t)}</option>`).join('')}</select></div>`;
+                if (f.type === 'textarea') return `<div>${lbl(f.label)}<textarea id="ge-f-${i}" rows="9" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm font-mono">${esc(f.value ?? '')}</textarea></div>`;
                 return `<div>${lbl(f.label)}<input id="ge-f-${i}" type="${f.type || 'text'}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} maxlength="200" value="${esc(f.value ?? '')}" ${f.required ? 'required' : ''} class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm"></div>`;
             }).join('');
             document.querySelectorAll('#ge-fields select').forEach(enhanceSelect);
             geFields = fields; geSave = onSave; geOpts = opts;
+            document.getElementById('ge-save').textContent = opts.saveLabel || 'Save';
             document.getElementById('ge-again').classList.toggle('hidden', !opts.again);
             document.getElementById('ge-modal').classList.remove('hidden'); document.body.classList.add('overflow-hidden');
         }
         function closeEdit() { document.getElementById('ge-modal').classList.add('hidden'); document.body.classList.remove('overflow-hidden'); }
-        function submitEdit(e) {
+        async function submitEdit(e) {
             e.preventDefault();
-            const vals = geFields.map((f, i) => { const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : f.type === 'select' ? el.value : el.value.trim(); });
-            const err = geSave(vals);
+            const wantAgain = !!(e.submitter && e.submitter.dataset.again);
+            const vals = geFields.map((f, i) => { const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : (f.type === 'select' || f.type === 'textarea') ? el.value : el.value.trim(); });
+            let err = geSave(vals); if (err && typeof err.then === 'function') err = await err;
             if (typeof err === 'string') { showToast(err, 'error'); return; }
-            const again = e.submitter && e.submitter.dataset.again ? geOpts.again : null, msg = geOpts.msg || 'Changes saved.';
-            saveState(); renderAllAdminData(); closeEdit(); showToast(msg, 'success');
+            const again = wantAgain ? geOpts.again : null, msg = geOpts.msg || 'Changes saved.', custom = !!geOpts.custom;
+            if (!custom) { saveState(); renderAllAdminData(); }
+            closeEdit(); if (!custom) showToast(msg, 'success');
             if (again) again();
         }
         function editExam(id) {
@@ -1296,6 +1364,156 @@
         }
         function syncSubjectClass() {}
 
+        // ================= LANDING / NOT FOUND =================
+        function showLanding(notFound) {
+            ['public-view', 'admin-view', 'super-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById('landing-view').classList.remove('hidden');
+            if (notFound) {
+                document.getElementById('landing-title').textContent = 'Institution not found';
+                document.getElementById('landing-text').textContent = 'Please check the address you were given, or enter the correct one below.';
+                document.title = 'Not found';
+            }
+        }
+        function goToInstitution(e) {
+            e.preventDefault();
+            const v = document.getElementById('landing-code').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+            if (v) location.href = '/' + v;
+        }
+        function renderPlanBanner() {
+            const b = document.getElementById('plan-banner'); if (!b) return;
+            const pu = appState.institution && appState.institution.paidUntil;
+            const days = pu ? Math.ceil((new Date(pu + 'T23:59:59') - new Date()) / 86400000) : null;
+            if (days === null || days > 14) { b.classList.add('hidden'); return; }
+            b.textContent = `Your subscription ends on ${pu} (${Math.max(days, 0)} day${days === 1 ? '' : 's'} left). Please contact support to renew.`;
+            b.classList.remove('hidden');
+        }
+
+        // ================= SUPER ADMIN (platform owner) =================
+        let superTenants = [], superDefault = '', superConsoleOpen = false;
+        const slugify = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+        const genPass = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o = ''; for (const n of crypto.getRandomValues(new Uint32Array(10))) o += c[n % c.length]; return o; };
+        const TSTATE = { active: ['Active', 'text-emerald-600'], suspended: ['Suspended', 'text-red-600'], expired: ['Expired', 'text-amber-600'] };
+        async function sapi(path, opts) {
+            try { return await api('/super' + path, opts); }
+            catch (e) { if (e.status === 401) { showSuperLogin(); showToast('Session expired. Please log in again.', 'error'); } throw e; }
+        }
+        function showSuperLogin() { superConsoleOpen = false; document.getElementById('super-login').classList.remove('hidden'); document.getElementById('super-console').classList.add('hidden'); updateFab(); }
+        function showSuperConsole() { superConsoleOpen = true; document.getElementById('super-login').classList.add('hidden'); document.getElementById('super-console').classList.remove('hidden'); updateFab(); }
+        async function initSuper() {
+            ['public-view', 'admin-view', 'landing-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById('super-view').classList.remove('hidden'); document.title = 'Platform Admin';
+            if (token) { try { await loadTenants(); showSuperConsole(); return; } catch (e) { token = ''; localStorage.removeItem(TOKEN_KEY); } }
+            showSuperLogin();
+        }
+        async function superLogin(e) {
+            e.preventDefault();
+            try {
+                const r = await api('/super/login', { method: 'POST', body: { username: document.getElementById('super-user').value.trim(), password: document.getElementById('super-pass').value } });
+                token = r.token; localStorage.setItem(TOKEN_KEY, token); document.getElementById('super-pass').value = '';
+                await loadTenants(); showSuperConsole();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+        function superLogout() { token = ''; localStorage.removeItem(TOKEN_KEY); showSuperLogin(); }
+        async function loadTenants() { const r = await sapi('/tenants'); superTenants = r.tenants; superDefault = r.defaultSlug || ''; renderTenants(); }
+        function renderTenants() {
+            document.getElementById('st-total').textContent = superTenants.length;
+            document.getElementById('st-active').textContent = superTenants.filter(t => t.state === 'active').length;
+            document.getElementById('st-students').textContent = superTenants.reduce((a, t) => a + t.students, 0);
+            const q = qOf('tenant-search'), f = document.getElementById('tenant-filter').value || 'all', el = document.getElementById('tenant-list'), lim = listLimit.tenants || PAGE;
+            const list = superTenants.filter(t => (f === 'all' || t.state === f) && (!q || (t.name + ' ' + t.slug + ' ' + t.contact + ' ' + t.adminUser).toLowerCase().includes(q)));
+            if (!list.length) { el.innerHTML = emptyMsg(superTenants.length ? 'No institution matches.' : 'No institutions yet. Tap the + button to add your first customer.'); return; }
+            const o = location.origin;
+            el.innerHTML = list.slice(0, lim).map(t => {
+                const [label, color] = TSTATE[t.state] || TSTATE.active, main = t.slug === superDefault;
+                return cardHTML('tenant:' + t.id, t.name, `<span class="${color} font-semibold">&#9679; ${label}</span> &bull; /${esc(t.slug)} &bull; ${t.students} students${main ? ' &bull; <b>Main address</b>' : ''}`,
+                    [['Public page', esc(o + '/' + t.slug)], ['Admin page', esc(o + '/' + t.slug + '/admin')], ['Admin username', esc(t.adminUser)], ['Plan', esc(t.plan)], ['Paid until', esc(t.paidUntil || 'No expiry')],
+                     ['Student limit', t.maxStudents || 'Unlimited'], ['Students / classes', `${t.students} / ${t.classes}`], ['Contact', esc(t.contact || '-')], ['Notes', esc(t.notes || '-')], ['Created', esc(t.createdAt || '-')]],
+                    [{ on: `openTenant(${t.id})`, cls: 'abtn-ok', icon: 'fa-up-right-from-square', label: 'Open' }, { on: `loginAs(${t.id})`, cls: 'abtn-ok', icon: 'fa-right-to-bracket', label: 'Login as admin' },
+                     { on: `editTenant(${t.id})`, cls: 'abtn-edit', icon: 'fa-pen', label: 'Edit' }, { on: `resetTenantPw(${t.id})`, cls: 'abtn-edit', icon: 'fa-key', label: 'Reset password' },
+                     { on: `toggleTenant(${t.id})`, cls: 'abtn-gray', icon: 'fa-pause', label: t.status === 'active' ? 'Suspend' : 'Activate' }, { on: `makeDefault(${t.id})`, cls: 'abtn-gray', icon: 'fa-house', label: main ? 'Remove main address' : 'Make main address' },
+                     { on: `deleteTenant(${t.id})`, cls: 'abtn-del', icon: 'fa-trash', label: 'Delete' }]);
+            }).join('') + moreBtn('tenants', list.length - lim);
+        }
+        const tenantById = id => superTenants.find(t => t.id === id);
+        function inviteText(name, slug, user, pass) {
+            const o = location.origin;
+            return `${name} - Online Results Portal\n\nPublic page (share with students and parents):\n${o}/${slug}\n\nAdmin login (staff only):\n${o}/${slug}/admin\nUsername: ${user}\nPassword: ${pass}\n\nPlease change the password after your first login (Setup > Admin Login).`;
+        }
+        async function shareOrCopy(text) {
+            try { if (navigator.share) { await navigator.share({ text }); return; } await navigator.clipboard.writeText(text); showToast('Copied to clipboard.', 'success'); }
+            catch (e) { if (e.name !== 'AbortError') window.prompt('Copy this message:', text); }
+        }
+        function showInvite(name, slug, user, pass) {
+            openEdit('Share with the institution', [{ label: 'Message (copy it or share it on WhatsApp)', type: 'textarea', value: inviteText(name, slug, user, pass) }], v => { shareOrCopy(v[0]); }, { custom: true, saveLabel: 'Copy / Share' });
+        }
+        function addTenant() {
+            openEdit('Add Institution', [
+                { label: 'Institution name', value: '', required: true }, { label: 'Web address (letters, numbers, hyphens)', value: '', required: true },
+                { label: 'Admin username', value: 'admin', required: true }, { label: 'Admin password', value: genPass(), required: true },
+                { label: 'Plan name', value: 'standard' }, { label: 'Paid until (optional)', type: 'date', value: '' },
+                { label: 'Student limit (0 = unlimited)', type: 'number', min: 0, max: 100000, value: 500 }, { label: 'Contact (phone / email)', value: '' }, { label: 'Notes', value: '' }],
+                async v => {
+                    try {
+                        const r = await sapi('/tenants', { method: 'POST', body: { name: v[0], slug: v[1], adminUser: v[2], adminPassword: v[3], plan: v[4], paidUntil: v[5], maxStudents: v[6], contact: v[7], notes: v[8] } });
+                        await loadTenants(); setTimeout(() => showInvite(r.tenant.name, r.tenant.slug, v[2], v[3]), 200);
+                    } catch (err) { return err.message; }
+                }, { custom: true, saveLabel: 'Create institution' });
+            const n = document.getElementById('ge-f-0'), a = document.getElementById('ge-f-1'); let touched = false;
+            a.addEventListener('input', () => touched = true); n.addEventListener('input', () => { if (!touched) a.value = slugify(n.value); });
+        }
+        function editTenant(id) {
+            const t = tenantById(id); if (!t) return;
+            openEdit('Edit Institution', [
+                { label: 'Institution name', value: t.name, required: true }, { label: 'Web address (changing it changes the link!)', value: t.slug, required: true },
+                { label: 'Status', type: 'select', options: [{ v: 'active', t: 'Active' }, { v: 'suspended', t: 'Suspended' }], value: t.status },
+                { label: 'Plan name', value: t.plan }, { label: 'Paid until (empty = no expiry)', type: 'date', value: t.paidUntil },
+                { label: 'Student limit (0 = unlimited)', type: 'number', min: 0, max: 100000, value: t.maxStudents }, { label: 'Contact', value: t.contact }, { label: 'Notes', value: t.notes }],
+                async v => {
+                    try { await sapi('/tenants/' + id, { method: 'PUT', body: { name: v[0], slug: v[1], status: v[2], plan: v[3], paidUntil: v[4], maxStudents: v[5], contact: v[6], notes: v[7] } }); await loadTenants(); showToast('Institution updated.', 'success'); }
+                    catch (err) { return err.message; }
+                }, { custom: true });
+        }
+        function resetTenantPw(id) {
+            const t = tenantById(id); if (!t) return;
+            openEdit('Reset admin login', [{ label: 'Admin username', value: t.adminUser, required: true }, { label: 'New password', value: genPass(), required: true }],
+                async v => {
+                    try { await sapi(`/tenants/${id}/reset`, { method: 'POST', body: { username: v[0], password: v[1] } }); await loadTenants(); setTimeout(() => showInvite(t.name, t.slug, v[0], v[1]), 200); }
+                    catch (err) { return err.message; }
+                }, { custom: true, saveLabel: 'Set new password' });
+        }
+        async function toggleTenant(id) {
+            const t = tenantById(id); if (!t) return;
+            const status = t.status === 'active' ? 'suspended' : 'active';
+            if (status === 'suspended' && !confirm(`Suspend ${t.name}? Their public page and admin login will stop working until you activate it again.`)) return;
+            try { await sapi('/tenants/' + id, { method: 'PUT', body: { name: t.name, slug: t.slug, status, plan: t.plan, paidUntil: t.paidUntil, maxStudents: t.maxStudents, contact: t.contact, notes: t.notes } }); await loadTenants(); showToast(`${t.name} is now ${status}.`, 'success'); }
+            catch (err) { showToast(err.message, 'error'); }
+        }
+        async function makeDefault(id) {
+            const t = tenantById(id); if (!t) return;
+            try { await sapi('/default', { method: 'POST', body: { slug: t.slug === superDefault ? '' : t.slug } }); await loadTenants(); showToast(t.slug === superDefault ? 'Main address now shows the landing page.' : `${t.name} now opens at the main address.`, 'success'); }
+            catch (err) { showToast(err.message, 'error'); }
+        }
+        function openTenant(id) { const t = tenantById(id); if (t) window.open('/' + t.slug, '_blank'); }
+        async function loginAs(id) {
+            const t = tenantById(id); if (!t) return;
+            const w = window.open('', '_blank'); // opened first so the browser does not block it
+            try { const r = await sapi(`/tenants/${id}/impersonate`, { method: 'POST' }); localStorage.setItem('rms_token_' + t.slug, r.token); if (w) w.location = '/' + t.slug + '/admin'; else location.href = '/' + t.slug + '/admin'; }
+            catch (err) { if (w) w.close(); showToast(err.message, 'error'); }
+        }
+        function deleteTenant(id) {
+            const t = tenantById(id); if (!t) return;
+            openEdit('Delete institution', [{ label: `Type "${t.slug}" to confirm. ALL its data will be deleted permanently.`, value: '' }],
+                async v => { try { await sapi('/tenants/' + id, { method: 'DELETE', body: { confirm: v[0] } }); await loadTenants(); showToast('Institution deleted.', 'success'); } catch (err) { return err.message; } },
+                { custom: true, saveLabel: 'Delete forever' });
+        }
+        function superAccount() {
+            openEdit('My platform login', [{ label: 'Current password', type: 'password', value: '', required: true }, { label: 'New username (optional)', value: '' }, { label: 'New password (optional, 8+ characters)', type: 'password', value: '' }],
+                async v => {
+                    try { const r = await sapi('/account', { method: 'POST', body: { current: v[0], username: v[1], password: v[2] } }); token = r.token; localStorage.setItem(TOKEN_KEY, token); showToast('Login updated.', 'success'); }
+                    catch (err) { return err.message; }
+                }, { custom: true, saveLabel: 'Update login' });
+        }
+
         // ================= HELPERS =================
         const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0), 0);
         const exactPct = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, not the rounded one
@@ -1337,7 +1555,7 @@
         let logoTaps = 0, logoTimer;
         function logoTap() { logoTaps++; clearTimeout(logoTimer); logoTimer = setTimeout(() => logoTaps = 0, 1500); if (logoTaps >= 5) { logoTaps = 0; openStaffLogin(); } }
         function openStaffLogin() {
-            if (token) { location.href = '/admin'; return; }
+            if (token) { location.href = adminPath(); return; }
             document.getElementById('staff-modal').classList.remove('hidden');
             setTimeout(() => document.getElementById('staff-user').focus(), 50);
         }
@@ -1345,14 +1563,14 @@
         async function staffLogin(e) {
             e.preventDefault();
             try {
-                const r = await api('/login', { method: 'POST', body: { username: document.getElementById('staff-user').value.trim(), password: document.getElementById('staff-pass').value } });
-                localStorage.setItem('rms_token', r.token);
-                location.href = '/admin';
+                const r = await api('/login', { method: 'POST', body: { slug: TENANT, username: document.getElementById('staff-user').value.trim(), password: document.getElementById('staff-pass').value } });
+                localStorage.setItem(TOKEN_KEY, r.token);
+                location.href = adminPath();
             } catch (err) { showToast(err.message, 'error'); }
         }
 
         async function shareLink() {
-            const url = location.origin + '/';
+            const url = location.origin + pubPath();
             try {
                 if (navigator.share) { await navigator.share({ title: appState.madrasa.name, text: appState.madrasa.shareText || ('Check your exam results online - ' + appState.madrasa.name), url }); return; }
                 await navigator.clipboard.writeText(url);
@@ -1429,7 +1647,8 @@
             document.getElementById('portal-badge').textContent = p.enabled ? 'Public: ON' : 'Public: OFF';
             document.getElementById('portal-message').value = p.message || '';
             document.getElementById('portal-show-pos').checked = p.showPosition !== false;
-            document.getElementById('portal-link').textContent = location.origin + '/';
+            document.getElementById('portal-link').textContent = location.origin + pubPath();
+            document.getElementById('admin-link').textContent = location.origin + adminPath();
             document.getElementById('grade-rows').innerHTML = [...appState.grades.scale].sort((a, b) => b.min - a.min).map(gradeRowHTML).join('');
             document.getElementById('fail-grade').value = appState.grades.fail.grade;
             document.getElementById('fail-title').value = appState.grades.fail.title || '';
@@ -1470,7 +1689,7 @@
             if (body.password !== v('acc-confirm')) { showToast('New passwords do not match.', 'error'); return; }
             try {
                 const r = await api('/admin/account', { method: 'POST', body });
-                token = r.token; localStorage.setItem('rms_token', token);
+                token = r.token; localStorage.setItem(TOKEN_KEY, token);
                 ['acc-current', 'acc-username', 'acc-new', 'acc-confirm'].forEach(id => document.getElementById(id).value = '');
                 showToast('Login updated. Use the new details next time.', 'success');
             } catch (err) { showToast(err.message, 'error'); }
@@ -1551,8 +1770,8 @@
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
             try {
-                const { token: t } = await api('/login', { method: 'POST', body: { username, password } });
-                token = t; localStorage.setItem('rms_token', t);
+                const { token: t } = await api('/login', { method: 'POST', body: { slug: TENANT, username, password } });
+                token = t; localStorage.setItem(TOKEN_KEY, t);
                 isAdminAuthenticated = true;
                 document.getElementById('login-password').value = '';
                 document.getElementById('admin-login-screen').classList.add('hidden');
@@ -1567,7 +1786,7 @@
         }
 
         function handleAdminLogout() {
-            token = ''; localStorage.removeItem('rms_token');
+            token = ''; localStorage.removeItem(TOKEN_KEY);
             isAdminAuthenticated = false; snapshot = null;
             closeSidebar();
             appState = emptyState();
@@ -2148,22 +2367,24 @@
 
         // Initialize Application on Load
         window.addEventListener('DOMContentLoaded', async () => {
+            ['ge-modal', 'student-edit-modal', 'fab'].forEach(id => { const el = document.getElementById(id); if (el) document.body.appendChild(el); }); // dialogs must work on every screen
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
             document.querySelectorAll('select').forEach(enhanceSelect);
             ['acad', 'stu', 'setup'].forEach(g => showSub(g, subState[g]));
             [['stat-students', () => { switchAdminTab('students'); showSub('stu', 'dir'); }], ['stat-classes', () => { switchAdminTab('academics'); showSub('acad', 'classes'); }],
              ['stat-exams', () => { switchAdminTab('academics'); showSub('acad', 'exams'); }], ['stat-results', () => switchAdminTab('marks')]].forEach(([id, fn]) => {
                 const c = document.getElementById(id)?.closest('.rounded-xl'); if (c) { c.style.cursor = 'pointer'; c.addEventListener('click', fn); } });
-            if (!IS_ADMIN_ROUTE) { await loadPublicData(); return; }
-            document.title = 'Admin | Result Management System';
-            switchView('admin');
+            if (ROUTE === 'landing' || ROUTE === 'notfound') { showLanding(ROUTE === 'notfound'); return; }
+            if (ROUTE === 'super') { await initSuper(); return; }
+            if (!IS_ADMIN_ROUTE) { document.getElementById('public-view').classList.remove('hidden'); await loadPublicData(); return; }
+                        switchView('admin');
             if (token) {
                 try {
                     isAdminAuthenticated = true;
                     await loadAdminState();
                     switchView('admin');
                     switchAdminTab('overview');
-                } catch (e) { token = ''; localStorage.removeItem('rms_token'); isAdminAuthenticated = false; switchView('admin'); }
+                } catch (e) { token = ''; localStorage.removeItem(TOKEN_KEY); isAdminAuthenticated = false; switchView('admin'); }
             }
         });
     </script>
