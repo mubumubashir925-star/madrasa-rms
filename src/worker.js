@@ -133,7 +133,8 @@ async function sync(db, body) {
     }
     if (m) {
       const logo = (m.logo || '').trim();
-      if (logo && !/^https?:\/\//i.test(logo)) throw new Error('Logo must be an http(s) URL');
+      const okLogo = /^https?:\/\//i.test(logo) || /^\/(?!\/)[\w./-]*$/.test(logo) || /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(logo);
+      if (logo && (!okLogo || logo.length > 200000)) throw new Error('Logo must be an image link, a /path, or an uploaded image under 150 KB');
       stmts.push(db.prepare("INSERT INTO settings VALUES ('madrasa', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
         .bind(JSON.stringify({ name: str(m.name), subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true })));
     }
@@ -192,7 +193,7 @@ async function servePage(req, env, url) {
   if (!res.ok || !(res.headers.get('content-type') || '').includes('text/html')) return res;
   let m; try { m = (await settings(env.DB)).madrasa; } catch { return res; }
   const name = m.name || 'Results', desc = m.shareText || `Check your exam results online - ${name}`;
-  const img = /^https?:\/\//i.test(m.logo || '') ? m.logo : url.origin + '/icons/icon-512.png';
+  const lg = m.logo || '', img = /^https?:\/\//i.test(lg) ? lg : lg.startsWith('data:') ? url.origin + '/logo' : /^\/(?!\/)/.test(lg) ? url.origin + lg : url.origin + '/icons/icon-512.png';
   const meta = v => ({ element(e) { e.setAttribute('content', v); } });
   return new HTMLRewriter()
     .on('title', { element(e) { e.setInnerContent(name); } })
@@ -219,6 +220,11 @@ async function ensureSchema(db) {
 async function handle(req, env) {
     const p = new URL(req.url).pathname;
     if (p === '/admin' || p === '/admin/') return env.ASSETS.fetch(new Request(new URL('/', req.url), req)); // admin lives at /admin, never linked publicly
+    if (p === '/logo') { // uploaded logo, served as a real image so WhatsApp/Telegram previews can use it
+      const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec((await settings(env.DB)).madrasa.logo || '');
+      if (!m) return new Response('Not found', { status: 404 });
+      return new Response(Uint8Array.from(atob(m[2]), c => c.charCodeAt(0)), { headers: { 'Content-Type': m[1], 'Cache-Control': 'public, max-age=300' } });
+    }
     if (p === '/' || p === '/index.html') return servePage(req, env, new URL(req.url));
     if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
