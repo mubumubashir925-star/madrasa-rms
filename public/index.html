@@ -530,7 +530,12 @@
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Logo Image URL (Optional)</label>
                                         <input type="url" id="setting-madrasa-logo" placeholder="https://example.com/logo.png" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
-                                        <p class="text-[11px] text-slate-400 mt-1">Leave blank to use the default school emblem.</p>
+                                        <p class="text-[11px] text-slate-400 mt-1">Leave blank to use the default school emblem. Google Drive share links will not work - use the Upload button instead.</p>
+                                        <div class="flex items-center gap-3 mt-2">
+                                            <div id="logo-preview" class="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-slate-300 shrink-0"><i class="fas fa-school"></i></div>
+                                            <label class="abtn abtn-ok cursor-pointer">Upload logo<input type="file" id="setting-logo-file" accept="image/*" class="hidden" onchange="handleLogoFile(this)"></label>
+                                            <button type="button" class="abtn abtn-gray" onclick="clearLogo()">Remove</button>
+                                        </div>
                                     </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Head&rsquo;s Designation</label>
@@ -945,7 +950,7 @@
             const logoContainer = document.getElementById('public-logo-container');
             logoContainer.innerHTML = `<i class="fas fa-school text-emerald-800"></i>`;
             const logoUrl = (appState.madrasa.logo || '').trim();
-            if (/^https?:\/\//i.test(logoUrl)) {
+            if (/^(https?:\/\/|data:image\/|\/(?!\/))/i.test(logoUrl)) {
                 const img = new Image();
                 img.alt = 'Logo'; img.className = 'w-full h-full object-cover';
                 img.onload = () => { logoContainer.innerHTML = ''; logoContainer.appendChild(img); };
@@ -1301,6 +1306,34 @@
         const admLabel = () => (appState.fields.find(f => f.id === 'admissionNo') || {}).label || 'Admission No';
         const fieldVal = (s, id) => id === 'fatherName' ? (s.fatherName || '') : ((s.extra || {})[id] || '');
 
+        // ---- logo upload (stored in the database; works everywhere, unlike Drive links) ----
+        let pendingLogo = null; // null = unchanged, '' = removed, 'data:...' = newly uploaded
+        function setLogoPreview(url) { document.getElementById('logo-preview').innerHTML = url ? `<img src="${esc(url)}" class="w-full h-full object-cover" alt="">` : '<i class="fas fa-school"></i>'; }
+        function normalizeLogoUrl(u) {
+            u = (u || '').trim();
+            const m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
+            return m ? 'https://lh3.googleusercontent.com/d/' + m[1] : u;
+        }
+        function handleLogoFile(inp) {
+            const f = inp.files[0]; inp.value = '';
+            if (!f) return;
+            if (!f.type.startsWith('image/')) { showToast('Please choose an image file.', 'error'); return; }
+            const url = URL.createObjectURL(f), img = new Image();
+            img.onload = () => {
+                const r = Math.min(1, 256 / Math.max(img.width, img.height, 1)), c = document.createElement('canvas');
+                c.width = Math.max(1, Math.round(img.width * r)); c.height = Math.max(1, Math.round(img.height * r));
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                let out = c.toDataURL('image/png'); if (out.length > 150000) out = c.toDataURL('image/jpeg', 0.85);
+                URL.revokeObjectURL(url);
+                if (out.length > 190000) { showToast('That image is too large. Try a smaller one.', 'error'); return; }
+                pendingLogo = out; document.getElementById('setting-madrasa-logo').value = ''; document.getElementById('setting-madrasa-logo').placeholder = 'Using the uploaded image';
+                setLogoPreview(out); showToast('Logo ready. Tap "Save Profile Changes" to apply it.', 'info');
+            };
+            img.onerror = () => showToast('Could not read that image.', 'error');
+            img.src = url;
+        }
+        function clearLogo() { pendingLogo = ''; document.getElementById('setting-madrasa-logo').value = ''; setLogoPreview(''); }
+
         let logoTaps = 0, logoTimer;
         function logoTap() { logoTaps++; clearTimeout(logoTimer); logoTimer = setTimeout(() => logoTaps = 0, 1500); if (logoTaps >= 5) { logoTaps = 0; openStaffLogin(); } }
         function openStaffLogin() {
@@ -1581,7 +1614,11 @@
             // Settings inputs
             document.getElementById('setting-madrasa-name').value = appState.madrasa.name;
             document.getElementById('setting-madrasa-subtitle').value = appState.madrasa.subtitle;
-            document.getElementById('setting-madrasa-logo').value = appState.madrasa.logo || '';
+            pendingLogo = null;
+            const lg = appState.madrasa.logo || '';
+            document.getElementById('setting-madrasa-logo').value = lg.startsWith('data:') ? '' : lg;
+            document.getElementById('setting-madrasa-logo').placeholder = lg.startsWith('data:') ? 'Using the uploaded image' : 'https://example.com/logo.png';
+            setLogoPreview(lg);
             document.getElementById('setting-share-text').value = appState.madrasa.shareText || '';
             document.getElementById('setting-head-title').value = appState.madrasa.headTitle || '';
             document.getElementById('setting-head-name').value = appState.madrasa.headName || '';
@@ -1604,7 +1641,8 @@
             e.preventDefault();
             appState.madrasa.name = document.getElementById('setting-madrasa-name').value.trim();
             appState.madrasa.subtitle = document.getElementById('setting-madrasa-subtitle').value.trim();
-            appState.madrasa.logo = document.getElementById('setting-madrasa-logo').value.trim();
+            appState.madrasa.logo = pendingLogo !== null ? pendingLogo : normalizeLogoUrl(document.getElementById('setting-madrasa-logo').value);
+            pendingLogo = null;
             appState.madrasa.shareText = document.getElementById('setting-share-text').value.trim();
             appState.madrasa.headTitle = document.getElementById('setting-head-title').value.trim();
             appState.madrasa.headName = document.getElementById('setting-head-name').value.trim();
