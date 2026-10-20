@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#064e3b">
     <meta name="tenant" content="">
     <meta name="route" content="">
+    <meta name="blocked" content="">
     <meta name="description" content="Check your exam results online">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Online Results">
@@ -57,6 +58,65 @@
             animation-play-state: paused;
         }
 
+
+        /* ===== Marksheet (public): modern layout with institution watermark + hologram seal ===== */
+        .ms-sheet { position: relative; background: #fff; border: 2px solid #064e3b; border-radius: 10px; padding: 6px; box-shadow: 0 25px 50px -12px rgba(2,44,34,.35); overflow: hidden;
+            background-image: radial-gradient(circle at 1px 1px, rgba(6,78,59,.05) 1px, transparent 1.4px); background-size: 12px 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .ms-wm { position: absolute; inset: 0; z-index: 0; pointer-events: none; background-repeat: repeat; background-position: center; overflow: hidden; }
+        .ms-wm img { position: absolute; left: 50%; top: 50%; width: 55%; max-width: 360px; max-height: 60%; object-fit: contain; transform: translate(-50%, -50%); opacity: .07; filter: grayscale(1); }
+        .ms-frame { position: relative; z-index: 1; border: 1px solid #c9a24a; border-radius: 6px; padding: 18px 14px 14px; }
+        .ms-frame::before { content: ""; position: absolute; inset: 3px; border: 1px solid rgba(201,162,74,.45); border-radius: 4px; pointer-events: none; }
+        .ms-micro { overflow: hidden; white-space: nowrap; font: 700 5px/1 Georgia, serif; letter-spacing: .7px; color: rgba(6,78,59,.55); text-transform: uppercase; user-select: none; }
+        .ms-head { display: flex; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 10px 0 6px; }
+        .ms-logo { width: 64px; height: 64px; object-fit: contain; flex: none; }
+        .ms-inst { font-family: Georgia, 'Amiri', serif; font-size: 22px; line-height: 1.2; font-weight: 700; color: #022c22; text-transform: uppercase; letter-spacing: .06em; margin: 0; }
+        .ms-addr { font-size: 11px; color: #64748b; margin: 3px 0 0; }
+        .ms-titlebar { display: flex; align-items: center; gap: 12px; margin: 8px 0 14px; }
+        .ms-rule { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, #c9a24a); }
+        .ms-rule:last-child { background: linear-gradient(270deg, transparent, #c9a24a); }
+        .ms-titlebar > div { text-align: center; }
+        .ms-doc { font-size: 10px; letter-spacing: .32em; text-transform: uppercase; color: #94a3b8; margin: 0; font-weight: 700; }
+        .ms-exam { display: inline-block; margin: 4px 0 0; padding: 3px 16px; border-radius: 999px; background: linear-gradient(135deg, #064e3b, #047857); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+        .ms-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding: 12px 14px; margin-bottom: 12px; background: rgba(248,250,252,.72); border: 1px solid #e2e8f0; border-left: 4px solid #064e3b; border-radius: 10px; font-size: 13px; }
+        .ms-k { margin: 0; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+        .ms-v { margin: 1px 0 0; font-weight: 700; color: #0f172a; word-break: break-word; }
+        .ms-stats { display: grid; gap: 8px; margin-bottom: 12px; }
+        .ms-tile { border-radius: 10px; padding: 8px 6px; text-align: center; border: 1px solid; }
+        .ms-tl { margin: 0; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; opacity: .75; }
+        .ms-tv { margin: 1px 0 0; font-size: 17px; line-height: 1.15; font-weight: 800; }
+        .ms-ts { margin: 0; font-size: 10px; opacity: .8; }
+        .ms-tile.ok { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+        .ms-tile.bad { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+        .ms-tile.gold { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
+        .ms-tile.sky { background: #f0f9ff; border-color: #7dd3fc; color: #0c4a6e; }
+        .ms-tablewrap { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+        .ms-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        .ms-table thead th { background: linear-gradient(135deg, #022c22, #064e3b); color: #fff; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 12px; border-bottom: 2px solid #c9a24a; }
+        .ms-table tbody td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; background: rgba(255,255,255,.55); }
+        .ms-table tbody tr:nth-child(even) td { background: rgba(240,253,244,.55); }
+        .ms-table tfoot td { padding: 10px 12px; background: rgba(241,245,249,.9); border-top: 2px solid #064e3b; font-weight: 800; color: #0f172a; }
+        .ms-table .c { text-align: center; }
+        .ms-sub { font-weight: 700; color: #1e293b; }
+        .ms-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+        .ms-pill.pass { background: #d1fae5; color: #065f46; } .ms-pill.fail { background: #fee2e2; color: #b91c1c; } .ms-pill.abs { background: #fef3c7; color: #92400e; }
+        .ms-mini { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+        .ms-box { background: rgba(255,255,255,.7); border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 12px; }
+        .ms-box h4 { margin: 0 0 2px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #94a3b8; }
+        .ms-box .big { margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; }
+        .ms-box small { font-size: 11px; color: #64748b; font-weight: 500; }
+        .ms-bar { height: 6px; background: #e2e8f0; border-radius: 99px; margin-top: 5px; overflow: hidden; } .ms-bar > div { height: 100%; background: #059669; border-radius: 99px; }
+        .ms-overall h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+        .ms-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 14px; margin-top: 8px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; }
+        .ms-sig-line { border-bottom: 1px solid #94a3b8; height: 36px; margin-bottom: 4px; }
+        .ms-sign-name { margin: 0; font-weight: 800; color: #1e293b; font-size: 12px; } .ms-sign-title { margin: 0; font-weight: 600; color: #475569; }
+        .ms-seal { position: relative; width: 96px; height: 96px; border-radius: 50%; overflow: hidden; flex: none; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+        .ms-seal svg { width: 100%; height: 100%; display: block; }
+        .ms-seal::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,.8) 48%, transparent 64%); background-size: 260% 100%; background-position: 130% 0; animation: msShine 3.4s ease-in-out infinite; mix-blend-mode: soft-light; }
+        @keyframes msShine { 0% { background-position: 130% 0; } 60%, 100% { background-position: -80% 0; } }
+        .ms-note { margin: 8px 0 0; text-align: center; font-size: 10px; color: #94a3b8; }
+        @media (min-width: 640px) { .ms-frame { padding: 22px 28px 16px; } .ms-details { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ms-logo { width: 76px; height: 76px; } .ms-inst { font-size: 26px; } }
+        @media (max-width: 420px) { .ms-seal { width: 74px; height: 74px; } .ms-foot { gap: 8px; } .ms-head { flex-direction: column; gap: 6px; } }
+
         /* Print: A4 marksheet + landscape class sheet */
         #print-root { display: none; }
         @page { size: A4 portrait; margin: 10mm; }
@@ -64,8 +124,12 @@
         @media print {
             body * { visibility: hidden; }
             #printable-result, #printable-result * { visibility: visible; }
-            #printable-result { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; border-radius: 0 !important; padding: 6mm !important; font-size: 12px; line-height: 1.35; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            #printable-result th, #printable-result td { padding: 5px 8px !important; }
+            #printable-result { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; border-radius: 0 !important; font-size: 12px; line-height: 1.35; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #printable-result * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #printable-result .ms-frame { padding: 14px 20px 10px; }
+            #printable-result .ms-details { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 12px; }
+            #printable-result .ms-table thead th, #printable-result .ms-table tbody td, #printable-result .ms-table tfoot td { padding: 6px 10px; }
+            #printable-result .ms-seal { width: 92px; height: 92px; animation: none; } #printable-result .ms-seal::after { animation: none; background-position: 40% 0; }
             .no-print { display: none !important; }
             body.print-class > *:not(#print-root) { display: none !important; }
             body.print-class #print-root, body.print-class #print-root * { visibility: visible; }
@@ -183,6 +247,16 @@
         </div>
     </div>
 
+    <!-- Suspended / expired institution: nothing else on the page is usable -->
+    <div id="blocked-view" class="hidden flex-grow min-h-dvh flex items-center justify-center p-5 bg-islamic-pattern">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 text-center">
+            <div class="w-16 h-16 mx-auto rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-2xl mb-4"><i class="fas fa-ban"></i></div>
+            <h1 id="blocked-title" class="text-xl font-bold text-slate-800">Account suspended</h1>
+            <p id="blocked-name" class="text-sm font-semibold text-slate-500 mt-1"></p>
+            <p id="blocked-msg" class="text-sm text-slate-600 mt-3"></p>
+        </div>
+    </div>
+
     <!-- Super admin (platform owner) -->
     <div id="super-view" class="hidden flex-grow min-h-dvh bg-slate-100">
         <div id="super-login" class="min-h-dvh flex items-center justify-center p-4 bg-islamic-pattern">
@@ -235,7 +309,6 @@
                         <i class="fas fa-school text-emerald-800"></i>
                     </div>
                     <div>
-                        <p id="public-bismillah" class="text-amber-400 font-serif text-lg tracking-wider">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
                         <h1 id="public-madrasa-name" class="text-xl md:text-3xl font-bold tracking-tight font-serif">Institution Name</h1>
                         <p id="public-madrasa-subtitle" class="text-emerald-200 text-xs md:text-sm">Online Result Portal</p>
                     </div>
@@ -310,59 +383,65 @@
                 </div>
 
                 <!-- Printable Marksheet Card -->
-                <div id="printable-result" class="bg-white rounded-xl shadow-2xl p-4 sm:p-6 md:p-10 certificate-border">
-                    <div class="border-b-2 border-emerald-800 pb-4 mb-4 text-center">
-                        <p id="res-bismillah" class="text-amber-600 font-serif text-base mb-1">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</p>
-                        <h2 id="res-madrasa-name" class="text-xl sm:text-2xl md:text-3xl font-bold text-emerald-950 font-serif uppercase tracking-wide"></h2>
-                        <p id="res-madrasa-address" class="text-slate-500 text-xs mt-1"></p>
-                        <div id="res-exam-title" class="mt-2 inline-block bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-1 rounded-full text-sm font-bold"></div>
-                        <p class="text-[11px] uppercase tracking-widest text-slate-400 mt-2">Statement of Marks</p>
-                    </div>
-                    <div id="res-details" class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 mb-4 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 text-sm"></div>
-                    <div id="res-stats" class="grid gap-2 sm:gap-3 mb-4"></div>
-                    <div id="res-marks-cards" class="md:hidden print:hidden space-y-2 mb-4"></div>
-                    <div class="hidden md:block print:block overflow-x-auto mb-4">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-emerald-900 text-white text-xs uppercase tracking-wider">
-                                    <th class="py-2.5 px-4 hidden sm:table-cell">#</th>
-                                    <th class="py-2.5 px-4">Subject</th>
-                                    <th class="py-2.5 px-4 text-center">Max</th>
-                                    <th class="py-2.5 px-4 text-center hidden sm:table-cell">Pass</th>
-                                    <th class="py-2.5 px-4 text-center">Obtained</th>
-                                    <th class="py-2.5 px-4 text-center">Grade</th>
-                                    <th class="py-2.5 px-4 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="res-marks-tbody" class="divide-y divide-slate-200 text-sm"></tbody>
-                            <tfoot id="res-tfoot"></tfoot>
-                        </table>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <div class="border border-slate-200 rounded-xl p-3">
-                            <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Percentage</h4>
-                            <p class="text-xl sm:text-2xl font-bold text-slate-800" id="res-summary-perc"></p>
+                <div id="printable-result" class="ms-sheet">
+                    <div id="res-watermark" class="ms-wm" aria-hidden="true"></div>
+                    <div class="ms-frame">
+                        <div class="ms-micro" id="res-micro-top" aria-hidden="true"></div>
+                        <div class="ms-head">
+                            <img id="res-logo" class="ms-logo hidden" alt="">
+                            <div>
+                                <h2 id="res-madrasa-name" class="ms-inst"></h2>
+                                <p id="res-madrasa-address" class="ms-addr"></p>
+                            </div>
                         </div>
-                        <div class="border border-slate-200 rounded-xl p-3">
-                            <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Attendance</h4>
-                            <p class="text-xl sm:text-2xl font-bold text-slate-800"><span id="res-attendance-perc"></span> <span class="text-[11px] text-slate-500 font-medium" id="res-attendance-days"></span></p>
-                            <div class="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden"><div id="res-attendance-bar" class="bg-emerald-600 h-full rounded-full" style="width:0%"></div></div>
-                        </div>
-                    </div>
-                    <div id="res-overall" class="hidden mb-4">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Overall Performance &mdash; All Exams</h4>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-xs sm:text-sm">
-                                <thead><tr class="bg-slate-100 text-xs uppercase text-slate-600"><th class="py-2 px-1.5 sm:px-3">Exam</th><th class="py-2 px-1.5 sm:px-3 text-center">Marks</th><th class="py-2 px-1.5 sm:px-3 text-center">%</th><th class="py-2 px-1.5 sm:px-3 text-center">Result</th><th class="py-2 px-1.5 sm:px-3 text-center">Grade</th></tr></thead>
-                                <tbody id="res-overall-body" class="divide-y divide-slate-200"></tbody>
+                        <div class="ms-titlebar"><span class="ms-rule"></span><div><p class="ms-doc">Statement of Marks</p><span id="res-exam-title" class="ms-exam"></span></div><span class="ms-rule"></span></div>
+                        <div id="res-details" class="ms-details"></div>
+                        <div id="res-stats" class="ms-stats"></div>
+                        <div id="res-marks-cards" class="md:hidden print:hidden space-y-2 mb-4"></div>
+                        <div class="hidden md:block print:block ms-tablewrap">
+                            <table class="ms-table">
+                                <thead>
+                                    <tr>
+                                        <th class="hidden sm:table-cell">#</th>
+                                        <th>Subject</th>
+                                        <th class="c">Max</th>
+                                        <th class="c">Obtained</th>
+                                        <th class="c">Grade</th>
+                                        <th class="c">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="res-marks-tbody"></tbody>
+                                <tfoot id="res-tfoot"></tfoot>
                             </table>
                         </div>
+                        <div class="ms-mini">
+                            <div class="ms-box">
+                                <h4>Percentage</h4>
+                                <p class="big" id="res-summary-perc"></p>
+                            </div>
+                            <div class="ms-box">
+                                <h4>Attendance</h4>
+                                <p class="big"><span id="res-attendance-perc"></span> <small id="res-attendance-days"></small></p>
+                                <div class="ms-bar"><div id="res-attendance-bar" style="width:0%"></div></div>
+                            </div>
+                        </div>
+                        <div id="res-overall" class="ms-overall hidden mb-4">
+                            <h4>Overall Performance &mdash; All Exams</h4>
+                            <div class="ms-tablewrap" style="margin-bottom:0">
+                                <table class="ms-table" style="font-size:12px">
+                                    <thead><tr><th>Exam</th><th class="c">Marks</th><th class="c">%</th><th class="c">Result</th><th class="c">Grade</th></tr></thead>
+                                    <tbody id="res-overall-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="ms-foot">
+                            <div><div class="ms-sig-line"></div><div id="res-sign-left"></div></div>
+                            <div id="res-seal" class="ms-seal" title="Security hologram"></div>
+                            <div><div class="ms-sig-line"></div><div id="res-sign-right"></div></div>
+                        </div>
+                        <p class="ms-note">Date of issue: <span id="res-issue-date"></span> &bull; Computer generated result.</p>
+                        <div class="ms-micro" id="res-micro-bottom" aria-hidden="true" style="margin-top:8px"></div>
                     </div>
-                    <div class="grid grid-cols-2 gap-6 pt-8 mt-2 border-t border-slate-200 text-xs text-slate-500 text-center">
-                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><div id="res-sign-left"></div></div>
-                        <div><div class="border-b border-slate-400 h-8 mb-1"></div><div id="res-sign-right"></div></div>
-                    </div>
-                    <p class="text-[11px] text-slate-400 text-center mt-3">Date of issue: <span id="res-issue-date"></span> &bull; Computer generated result.</p>
                 </div>
             </div>
         </main>
@@ -594,7 +673,6 @@
                                     <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Share message</label>
                                         <input type="text" id="setting-share-text" maxlength="200" placeholder="e.g., Check your exam results online" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
                                         <p class="text-[11px] text-slate-400 mt-1">Shown under your institution name and logo when the link is shared on WhatsApp, Telegram etc.</p></div>
-                                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="setting-bismillah" class="w-4 h-4 accent-emerald-700"> Show Bismillah (Arabic calligraphy) at the top of pages and results</label>
                                     <div class="pt-2">
                                         <button type="submit" class="bg-emerald-800 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow transition">
                                             <i class="fas fa-save mr-1"></i> Save Profile Changes
@@ -879,7 +957,7 @@
         const TABLES = ['exams', 'classes', 'subjects', 'students', 'results'];
 
         function emptyState() {
-            return { madrasa: { name: 'Institution', subtitle: '', logo: '', headTitle: 'Principal', headName: '', bismillah: false }, announcements: [],
+            return { madrasa: { name: 'Institution', subtitle: '', logo: '', headTitle: 'Principal', headName: '' }, announcements: [],
                 portal: { enabled: false, message: '', showPosition: true },
                 grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
                 fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], exams: [], classes: [], subjects: [], students: [], results: [] };
@@ -894,12 +972,12 @@
                 body: opts.body ? JSON.stringify(opts.body) : undefined
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) { const err = new Error(data.error || 'Request failed'); err.status = res.status; throw err; }
+            if (!res.ok) { if (data.blocked) showBlocked(data.error); const err = new Error(data.error || 'Request failed'); err.status = res.status; throw err; }
             return data;
         }
 
         async function loadPublicData() {
-            try { appState = { ...emptyState(), ...(await api(API_T + '/public')) }; renderPublicPortal(); }
+            try { const info = await api(API_T + '/public'); if (info.unavailable) { showBlocked(info.portal && info.portal.message, info.madrasa && info.madrasa.name); return; } appState = { ...emptyState(), ...info }; renderPublicPortal(); }
             catch (e) { if (e.status === 404) showLanding(true); else showToast('Could not load data. Check your connection.', 'error'); }
         }
 
@@ -1008,7 +1086,6 @@
             document.getElementById('public-madrasa-subtitle').textContent = appState.madrasa.subtitle;
             document.getElementById('footer-madrasa-name').textContent = appState.madrasa.name;
             if (!IS_ADMIN_ROUTE) document.title = appState.madrasa.name;
-            document.getElementById('public-bismillah').classList.toggle('hidden', appState.madrasa.bismillah === false);
             document.getElementById('footer-year').textContent = new Date().getFullYear();
 
             const logoContainer = document.getElementById('public-logo-container');
@@ -1365,6 +1442,16 @@
         function syncSubjectClass() {}
 
         // ================= LANDING / NOT FOUND =================
+        function showBlocked(msg, name) {
+            ['public-view', 'admin-view', 'super-view', 'landing-view'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            ['fab', 'ge-modal', 'student-edit-modal', 'staff-modal'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            const nm = name || (appState && appState.madrasa && appState.madrasa.name !== 'Institution' ? appState.madrasa.name : '');
+            document.getElementById('blocked-title').textContent = IS_ADMIN_ROUTE ? 'Admin access blocked' : 'Portal unavailable';
+            document.getElementById('blocked-name').textContent = nm;
+            document.getElementById('blocked-msg').textContent = msg || 'This account is suspended. Please contact support.';
+            document.getElementById('blocked-view').classList.remove('hidden');
+            document.title = nm || 'Unavailable';
+        }
         function showLanding(notFound) {
             ['public-view', 'admin-view', 'super-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById('landing-view').classList.remove('hidden');
@@ -1579,44 +1666,74 @@
         }
 
         // ================= MARKSHEET (public) =================
+        // Watermark (repeating institution name + faint logo), micro-text borders and the hologram seal
+        function msSecurity(inst, logo) {
+            const $ = id => document.getElementById(id), name = inst.toUpperCase().slice(0, 40);
+            const wm = `<svg xmlns='http://www.w3.org/2000/svg' width='430' height='270'><g transform='rotate(-28 215 135)' fill='#065f46' fill-opacity='.06' font-family='Georgia,serif' font-weight='700' text-anchor='middle'><text x='215' y='125' font-size='21' letter-spacing='3'>${esc(name)}</text><text x='215' y='152' font-size='11' letter-spacing='7'>OFFICIAL RESULT</text></g></svg>`;
+            const w = $('res-watermark');
+            w.style.backgroundImage = `url("data:image/svg+xml;utf8,${encodeURIComponent(wm)}")`;
+            w.innerHTML = logo ? `<img src="${esc(logo)}" alt="">` : '';
+            const micro = (name + ' \u2022 ').repeat(60);
+            $('res-micro-top').textContent = micro; $('res-micro-bottom').textContent = micro;
+            const initials = Array.from(inst.replace(/[^\p{L}\p{N}\s]/gu, '').trim().split(/\s+/).filter(Boolean).slice(0, 3).map(x => Array.from(x)[0]).join('')).slice(0, 3).join('').toUpperCase() || '\u2713';
+            let ring = '', base = name.slice(0, 24) + ' \u2022 VERIFIED RESULT \u2022 '; while (ring.length < 50) ring += base; ring = ring.slice(0, 50);
+            let rays = ''; for (let i = 0; i < 36; i++) { const a = i * Math.PI / 18; rays += `<line x1='${60 + 32 * Math.cos(a)}' y1='${60 + 32 * Math.sin(a)}' x2='${60 + 52 * Math.cos(a)}' y2='${60 + 52 * Math.sin(a)}'/>`; }
+            $('res-seal').innerHTML = `<svg viewBox="0 0 120 120" role="img" aria-label="Verified"><defs>
+                <linearGradient id="msHolo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbc2eb"/><stop offset=".2" stop-color="#a6c1ee"/><stop offset=".4" stop-color="#84fab0"/><stop offset=".6" stop-color="#fef9d7"/><stop offset=".8" stop-color="#f6b7d0"/><stop offset="1" stop-color="#8fd3f4"/></linearGradient>
+                <radialGradient id="msGlow"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity=".55"/></radialGradient>
+                <path id="msRing" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+                <circle cx="60" cy="60" r="58" fill="url(#msHolo)" stroke="#b8923a" stroke-width="1.6"/>
+                <g stroke="#fff" stroke-opacity=".55" stroke-width=".7">${rays}</g>
+                <circle cx="60" cy="60" r="53" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width=".8"/>
+                <circle cx="60" cy="60" r="31" fill="url(#msGlow)" stroke="#8a6d1f" stroke-width=".9"/>
+                <text font-family="Georgia,serif" font-size="7.4" font-weight="700" letter-spacing=".9" fill="#064e3b"><textPath href="#msRing">${esc(ring)}</textPath></text>
+                <text x="60" y="${initials.length > 2 ? 66 : 68}" text-anchor="middle" font-family="Georgia,serif" font-weight="800" font-size="${initials.length > 2 ? 18 : 23}" fill="#064e3b">${esc(initials)}</text>
+                <text x="60" y="80" text-anchor="middle" font-family="Georgia,serif" font-size="5.5" letter-spacing="1.2" fill="#8a6d1f">VERIFIED</text></svg>`;
+        }
+
         function displayMarksheet(d) {
             const { madrasa, exam, cls, subjects, details, result, summary, position, exams, overall } = d;
             const $ = id => document.getElementById(id);
-            $('res-madrasa-name').textContent = madrasa.name;
-            $('res-madrasa-address').textContent = madrasa.subtitle;
+            const inst = madrasa.name || 'Institution', logo = (madrasa.logo || '').trim();
+            $('res-madrasa-name').textContent = inst;
+            $('res-madrasa-address').textContent = madrasa.subtitle || '';
+            $('res-madrasa-address').classList.toggle('hidden', !madrasa.subtitle);
             $('res-exam-title').textContent = exam.name;
-            $('res-bismillah').classList.toggle('hidden', madrasa.bismillah === false);
-            const sig = (id, title, name) => { $(id).innerHTML = (name ? `<p class="font-bold text-slate-800 text-sm">${esc(name)}</p>` : '') + `<p class="${name ? '' : 'font-semibold text-slate-700'}">${esc(title)}</p>`; };
+            const lg = $('res-logo');
+            if (logo) { lg.src = logo; lg.classList.remove('hidden'); } else { lg.removeAttribute('src'); lg.classList.add('hidden'); }
+            msSecurity(inst, logo);
+            const sig = (id, title, name) => { $(id).innerHTML = (name ? `<p class="ms-sign-name">${esc(name)}</p>` : '') + `<p class="ms-sign-title">${esc(title)}</p>`; };
             sig('res-sign-left', cls.teacherTitle || 'Class Teacher', cls.teacherName);
             sig('res-sign-right', madrasa.headTitle || 'Principal', madrasa.headName);
             $('res-details').innerHTML = [...details, { label: 'Class', value: cls.name }].map(x =>
-                `<div><p class="text-[11px] uppercase tracking-wide text-slate-400">${esc(x.label)}</p><p class="font-semibold text-slate-900 break-words">${esc(x.value)}</p></div>`).join('');
+                `<div><p class="ms-k">${esc(x.label)}</p><p class="ms-v">${esc(x.value)}</p></div>`).join('');
 
-            const box = (cl, label, val, sub) => `<div class="rounded-xl border p-2.5 sm:p-3 text-center ${cl}"><p class="text-[10px] uppercase tracking-wider opacity-70">${label}</p><p class="text-base sm:text-lg font-bold leading-tight">${val}</p>${sub ? `<p class="text-[11px] opacity-80">${sub}</p>` : ''}</div>`;
+            const tile = (cl, label, val, sub) => `<div class="ms-tile ${cl}"><p class="ms-tl">${label}</p><p class="ms-tv">${val}</p>${sub ? `<p class="ms-ts">${sub}</p>` : ''}</div>`;
             const boxes = [
-                summary.passed ? box('bg-emerald-50 border-emerald-300 text-emerald-800', 'Result', 'PASSED') : box('bg-red-50 border-red-300 text-red-700', 'Result', 'FAILED'),
-                box('bg-amber-50 border-amber-300 text-amber-900', 'Grade', esc(summary.grade.grade), esc(summary.grade.title))
+                summary.passed ? tile('ok', 'Result', 'PASSED') : tile('bad', 'Result', 'FAILED'),
+                tile('gold', 'Grade', esc(summary.grade.grade), esc(summary.grade.title))
             ];
-            if (position) boxes.push(box('bg-sky-50 border-sky-300 text-sky-900', 'Class Position', ord(position.rank), `of ${position.of} students`));
+            if (position) boxes.push(tile('sky', 'Class Position', ord(position.rank), `of ${position.of} students`));
             $('res-stats').style.gridTemplateColumns = `repeat(${boxes.length}, minmax(0, 1fr))`;
             $('res-stats').innerHTML = boxes.join('');
 
-            let totalPass = 0;
+            // The server only says whether each subject was passed; pass marks themselves are never sent or shown.
+            const row = sub => { const ab = result.marks[sub.id] === 'AB'; return { ab, o: ab ? 0 : Number(result.marks[sub.id] ?? 0), ok: !ab && !!sub.passed, g: esc((result.grades[sub.id] || {}).grade || '-') }; };
             $('res-marks-tbody').innerHTML = subjects.map((sub, i) => {
-                const ab = result.marks[sub.id] === 'AB', o = ab ? 0 : Number(result.marks[sub.id] ?? 0), ok = !ab && o >= sub.passingMarks; totalPass += sub.passingMarks;
-                return `<tr><td class="py-2.5 px-4 font-mono text-slate-400 hidden sm:table-cell">${i + 1}</td><td class="py-2.5 px-4 font-semibold text-slate-800">${esc(sub.name)}</td>
-                    <td class="py-2.5 px-4 text-center text-slate-600">${sub.maxMarks}</td><td class="py-2.5 px-4 text-center text-slate-500 hidden sm:table-cell">${sub.passingMarks}</td>
-                    <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-slate-900' : 'text-red-600'}">${ab ? 'AB' : o}</td>
-                    <td class="py-2.5 px-4 text-center font-bold ${ok ? 'text-amber-700' : 'text-red-600'}">${esc((result.grades[sub.id] || {}).grade || '-')}</td>
-                    <td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
+                const { ab, o, ok, g } = row(sub);
+                return `<tr><td class="hidden sm:table-cell" style="color:#94a3b8;font-family:monospace">${i + 1}</td><td class="ms-sub">${esc(sub.name)}</td>
+                    <td class="c" style="color:#475569">${sub.maxMarks}</td>
+                    <td class="c" style="font-weight:800;color:${ok ? '#0f172a' : '#dc2626'}">${ab ? 'AB' : o}</td>
+                    <td class="c" style="font-weight:800;color:${ok ? '#b45309' : '#dc2626'}">${g}</td>
+                    <td class="c"><span class="ms-pill ${ab ? 'abs' : ok ? 'pass' : 'fail'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
             }).join('');
-            $('res-tfoot').innerHTML = `<tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300"><td colspan="2" class="py-3 px-4 text-right">Grand Total</td><td class="py-3 px-4 text-center">${summary.max}</td><td class="py-3 px-4 text-center text-slate-500 hidden sm:table-cell">${totalPass}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.obtained}</td><td class="py-3 px-4 text-center text-amber-700">${esc(summary.grade.grade)}</td><td class="py-3 px-4 text-center text-emerald-800">${summary.percentage}%</td></tr>`;
+            $('res-tfoot').innerHTML = `<tr><td colspan="2" style="text-align:right">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:#065f46">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:#065f46">${summary.percentage}%</td></tr>`;
             $('res-marks-cards').innerHTML = subjects.map(sub => {
-                const ab = result.marks[sub.id] === 'AB', o = ab ? 0 : Number(result.marks[sub.id] ?? 0), ok = !ab && o >= sub.passingMarks;
+                const { ab, o, ok, g } = row(sub);
                 return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
-                    <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks} &bull; Pass ${sub.passingMarks}</p></div>
+                    <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks}</p></div>
                     <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${ab ? 'AB' : o}</p>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">${esc((result.grades[sub.id] || {}).grade || '-')}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">${g}</span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></div></div>`;
             }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
 
@@ -1627,8 +1744,8 @@
             $('res-attendance-bar').style.width = att + '%';
 
             $('res-overall').classList.toggle('hidden', exams.length < 2);
-            $('res-overall-body').innerHTML = exams.map(x => `<tr><td class="py-2 px-1.5 sm:px-3">${esc(x.name)}</td><td class="py-2 px-1.5 sm:px-3 text-center">${x.obtained}/${x.max}</td><td class="py-2 px-1.5 sm:px-3 text-center">${x.percentage}%</td><td class="py-2 px-1.5 sm:px-3 text-center text-xs font-bold ${x.passed ? 'text-emerald-700' : 'text-red-600'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="py-2 px-1.5 sm:px-3 text-center font-bold">${esc(x.grade.grade)}</td></tr>`).join('')
-                + `<tr class="bg-slate-100 font-bold"><td class="py-2 px-1.5 sm:px-3">Overall</td><td class="py-2 px-1.5 sm:px-3 text-center">${overall.obtained}/${overall.max}</td><td class="py-2 px-1.5 sm:px-3 text-center">${overall.percentage}%</td><td class="py-2 px-1.5 sm:px-3 text-center text-xs ${overall.failedCount ? 'text-red-600' : 'text-emerald-700'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="py-2 px-1.5 sm:px-3 text-center">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr>`;
+            $('res-overall-body').innerHTML = exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? '#047857' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
+                + `<tr><td style="font-weight:800;background:rgba(241,245,249,.9)">Overall</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9)">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9)">${overall.percentage}%</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9);color:${overall.failedCount ? '#dc2626' : '#047857'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9)">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr>`;
             $('res-issue-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
             const container = $('result-display-container');
@@ -1841,7 +1958,6 @@
             document.getElementById('setting-share-text').value = appState.madrasa.shareText || '';
             document.getElementById('setting-head-title').value = appState.madrasa.headTitle || '';
             document.getElementById('setting-head-name').value = appState.madrasa.headName || '';
-            document.getElementById('setting-bismillah').checked = appState.madrasa.bismillah !== false;
 
             updateCounts();
             renderAdminAnnouncements();
@@ -1865,7 +1981,6 @@
             appState.madrasa.shareText = document.getElementById('setting-share-text').value.trim();
             appState.madrasa.headTitle = document.getElementById('setting-head-title').value.trim();
             appState.madrasa.headName = document.getElementById('setting-head-name').value.trim();
-            appState.madrasa.bismillah = document.getElementById('setting-bismillah').checked;
             saveState();
             showToast("Institution profile updated!", "success");
         }
@@ -2377,7 +2492,13 @@
             if (ROUTE === 'landing' || ROUTE === 'notfound') { showLanding(ROUTE === 'notfound'); return; }
             if (ROUTE === 'super') { await initSuper(); return; }
             if (!IS_ADMIN_ROUTE) { document.getElementById('public-view').classList.remove('hidden'); await loadPublicData(); return; }
-                        switchView('admin');
+            if (META('blocked')) { // suspended / expired: no login form; only a support session opened from the platform console gets in
+                let ok = false;
+                if (token) { try { await loadAdminState(); ok = true; } catch (e) {} }
+                if (!ok) { token = ''; localStorage.removeItem(TOKEN_KEY); showBlocked(META('blocked')); return; }
+                isAdminAuthenticated = true; switchView('admin'); switchAdminTab('overview'); return;
+            }
+            switchView('admin');
             if (token) {
                 try {
                     isAdminAuthenticated = true;
