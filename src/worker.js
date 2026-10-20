@@ -50,6 +50,18 @@ const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').r
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const tenantState = t => (t.status !== 'active' ? 'suspended' : (t.paid_until && t.paid_until < todayStr() ? 'expired' : 'active'));
 const blockedMsg = st => (st === 'expired' ? 'This subscription has expired. Please contact support to renew.' : 'This account is suspended. Please contact support.');
+const publicBlockedMsg = 'This results portal is currently unavailable. Please contact the institution.';
+const escH = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Full-page notice for suspended / expired institutions: the real app (public portal, admin login) is never sent.
+function blockedPage(name, title, msg) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escH(name)}</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#064e3b;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1e293b}
+.c{background:#fff;max-width:420px;width:100%;border-radius:20px;padding:32px 24px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.i{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:#fef3c7;color:#b45309;font-size:30px;line-height:64px;font-weight:700}
+h1{font-size:20px;margin:0 0 6px}h2{font-size:14px;font-weight:600;color:#64748b;margin:0 0 14px}p{margin:0;font-size:15px;line-height:1.6;color:#475569}</style></head>
+<body><div class="c"><div class="i">!</div><h1>${escH(title)}</h1><h2>${escH(name)}</h2><p>${escH(msg)}</p></div></body></html>`;
+  return new Response(html, { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
+}
 
 // ---------- database: schema + automatic upgrade from the old single-institution version ----------
 const SCHEMA = [
@@ -76,7 +88,7 @@ const COPY = {
 };
 const tableExists = async (db, n) => !!(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(n).first());
 const initialSettings = name => ({
-  madrasa: { name, subtitle: 'Online Result Portal', logo: '', headTitle: 'Principal', headName: '', shareText: '', bismillah: false },
+  madrasa: { name, subtitle: 'Online Result Portal', logo: '', headTitle: 'Principal', headName: '', shareText: '' },
   portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true },
 });
 let tenancyReady = false;
@@ -203,7 +215,7 @@ async function sync(db, t, body) {
       const okLogo = /^https?:\/\//i.test(logo) || /^\/(?!\/)[\w./-]*$/.test(logo) || /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(logo);
       if (logo && (!okLogo || logo.length > 200000)) throw new Error('Logo must be an image link, a /path, or an uploaded image under 150 KB');
       const name = str(m.name);
-      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true });
+      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200) });
       stmts.push(db.prepare('UPDATE tenants SET name=? WHERE id=?').bind(name, tid));
     }
     if (a) { if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements'); put('announcements', a.map(x => str(x, 500))); }
@@ -213,14 +225,14 @@ async function sync(db, t, body) {
 
 async function publicInfo(db, t) {
   const set = await settings(db, t.id), st = tenantState(t);
-  if (st !== 'active') return json({ madrasa: { ...set.madrasa, shareText: '' }, announcements: [], portal: { enabled: false, message: 'This portal is temporarily unavailable. Please contact the institution.', showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
+  if (st !== 'active') return json({ madrasa: { ...set.madrasa, shareText: '' }, announcements: [], portal: { enabled: false, message: publicBlockedMsg, showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
   const { results } = set.portal.enabled ? await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(t.id).all() : { results: [] };
   return json({ madrasa: set.madrasa, announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
 }
 
 async function publicResult(db, t, url) {
   const tid = t.id, state = tenantState(t);
-  if (state !== 'active') return fail('This portal is temporarily unavailable. Please contact the institution.', 403);
+  if (state !== 'active') return json({ error: publicBlockedMsg, blocked: true }, 403);
   const set = await settings(db, tid);
   if (!set.portal.enabled) return fail(set.portal.message || 'Results are not available yet.', 403);
   const examId = url.searchParams.get('exam') || '', adm = (url.searchParams.get('adm') || '').trim().toUpperCase();
@@ -251,7 +263,7 @@ async function publicResult(db, t, url) {
   });
   const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '' }, subjects: mySubs,
+    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
@@ -268,7 +280,7 @@ async function tenantAuth(req, env) {
   if (!t) return { status: 401, msg: 'Session expired. Please log in again.' };
   if (!c.imp) {
     if ((c.v || 0) !== t.admin_ver) return { status: 401, msg: 'Session expired. Please log in again.' };
-    const st = tenantState(t); if (st !== 'active') return { status: 403, msg: blockedMsg(st) };
+    const st = tenantState(t); if (st !== 'active') return { status: 403, msg: blockedMsg(st), blocked: true };
   }
   return { t, claims: c };
 }
@@ -395,7 +407,7 @@ async function api(req, env, url, p) {
     }
     if (p.startsWith('/api/super/')) { if (!(await superAuth(req, env))) return fail('Session expired. Please log in again.', 401); return await superApi(req, env, p, url); }
     if (p.startsWith('/api/admin/')) {
-      const a = await tenantAuth(req, env); if (a.status) return fail(a.msg, a.status);
+      const a = await tenantAuth(req, env); if (a.status) return json({ error: a.msg, ...(a.blocked ? { blocked: true } : {}) }, a.status);
       if (p === '/api/admin/state' && req.method === 'GET') return json({ ...(await adminState(db, a.t.id)), institution: { slug: a.t.slug, plan: a.t.plan, maxStudents: a.t.max_students, paidUntil: a.t.paid_until } });
       if (p === '/api/admin/account' && req.method === 'POST') return changeTenantAccount(env, a.t, await req.json());
       if (p === '/api/admin/sync' && req.method === 'POST') { await sync(db, a.t, await req.json()); return json({ ok: true }); }
@@ -411,12 +423,16 @@ async function api(req, env, url, p) {
 async function servePage(req, env, url, route, slug) {
   const res = await env.ASSETS.fetch(new Request(new URL('/', req.url), { method: 'GET' }));
   if (!res.ok || !(res.headers.get('content-type') || '').includes('text/html')) return res;
-  let name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route;
+  let name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route, blocked = '';
   if (slug) {
     const t = await tenantBySlug(env.DB, slug);
     if (!t) { r = 'notfound'; status = 404; slug = ''; }
     else {
-      const m = (await settings(env.DB, t.id)).madrasa, lg = m.logo || '';
+      const m = (await settings(env.DB, t.id)).madrasa, lg = m.logo || '', ts = tenantState(t);
+      if (ts !== 'active') {
+        if (r !== 'admin') return blockedPage(m.name || t.name, ts === 'expired' ? 'Portal unavailable' : 'Account suspended', publicBlockedMsg);
+        blocked = blockedMsg(ts); // admin address: page loads, but only a platform-owner support session can get past the notice
+      }
       name = m.name || t.name; desc = m.shareText || `Check your exam results online - ${name}`;
       img = /^https?:\/\//i.test(lg) ? lg : lg.startsWith('data:') ? `${url.origin}/${t.slug}/logo` : /^\/(?!\/)/.test(lg) ? url.origin + lg : img;
       ogUrl = url.origin + (url.pathname === '/' ? '/' : '/' + t.slug);
@@ -428,7 +444,7 @@ async function servePage(req, env, url, route, slug) {
     .on('title', { element(e) { e.setInnerContent(name); } })
     .on('meta[name="description"]', meta(desc)).on('meta[property="og:title"]', meta(name)).on('meta[property="og:description"]', meta(desc))
     .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(ogUrl)).on('meta[property="og:site_name"]', meta(name))
-    .on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
+    .on('meta[name="blocked"]', meta(blocked)).on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
     .on('link[rel="manifest"]', { element(e) { if (slug) e.setAttribute('href', `/${slug}/manifest.webmanifest`); } })
     .transform(new Response(res.body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } }));
 }
