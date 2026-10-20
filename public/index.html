@@ -70,15 +70,14 @@
         .ms-frame::before { content: ""; position: absolute; inset: 3px; border: 1px solid rgba(201,162,74,.45); border-radius: 4px; pointer-events: none; }
         .ms-micro { overflow: hidden; white-space: nowrap; font: 700 5px/1 Georgia, serif; letter-spacing: .7px; color: rgba(6,78,59,.55); text-transform: uppercase; user-select: none; }
         .ms-head { display: flex; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 10px 0 6px; }
-        .ms-logo { width: 64px; height: 64px; object-fit: contain; flex: none; }
+        .ms-logo { width: 78px; height: 78px; object-fit: contain; flex: none; }
         .ms-inst { font-family: Georgia, 'Amiri', serif; font-size: 22px; line-height: 1.2; font-weight: 700; color: #022c22; text-transform: uppercase; letter-spacing: .06em; margin: 0; }
-        .ms-addr { font-size: 11px; color: #64748b; margin: 3px 0 0; }
-        .ms-titlebar { display: flex; align-items: center; gap: 12px; margin: 8px 0 14px; }
+        .ms-addr { font-size: 14px; line-height: 1.35; color: #475569; font-weight: 500; margin: 4px 0 0; }
+        .ms-titlebar { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0 14px; }
         .ms-rule { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, #c9a24a); }
         .ms-rule:last-child { background: linear-gradient(270deg, transparent, #c9a24a); }
-        .ms-titlebar > div { text-align: center; }
-        .ms-doc { font-size: 10px; letter-spacing: .32em; text-transform: uppercase; color: #94a3b8; margin: 0; font-weight: 700; }
-        .ms-exam { display: inline-block; margin: 4px 0 0; padding: 3px 16px; border-radius: 999px; background: linear-gradient(135deg, #064e3b, #047857); color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+        .ms-titlebar > div { text-align: center; flex: none; max-width: 78%; }
+                .ms-exam { display: block; margin: 0; padding: 6px 20px; border-radius: 999px; background: linear-gradient(135deg, #064e3b, #047857); color: #fff; font-size: 14px; line-height: 1.3; font-weight: 700; letter-spacing: .03em; text-align: center; }
         .ms-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding: 12px 14px; margin-bottom: 12px; background: rgba(248,250,252,.72); border: 1px solid #e2e8f0; border-left: 4px solid #064e3b; border-radius: 10px; font-size: 13px; }
         .ms-k { margin: 0; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
         .ms-v { margin: 1px 0 0; font-weight: 700; color: #0f172a; word-break: break-word; }
@@ -117,8 +116,19 @@
         .ms-seal::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,.8) 48%, transparent 64%); background-size: 260% 100%; background-position: 130% 0; animation: msShine 3.4s ease-in-out infinite; mix-blend-mode: soft-light; }
         @keyframes msShine { 0% { background-position: 130% 0; } 60%, 100% { background-position: -80% 0; } }
         .ms-note { margin: 8px 0 0; text-align: center; font-size: 10px; color: #94a3b8; }
-        @media (min-width: 640px) { .ms-frame { padding: 22px 28px 16px; } .ms-details { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ms-logo { width: 76px; height: 76px; } .ms-inst { font-size: 26px; } }
+        @media (min-width: 640px) { .ms-frame { padding: 22px 28px 16px; } .ms-details { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ms-logo { width: 92px; height: 92px; } .ms-inst { font-size: 26px; } .ms-addr { font-size: 15px; } }
         @media (max-width: 420px) { .ms-seal { width: 74px; height: 74px; } .ms-foot { gap: 8px; } .ms-head { flex-direction: column; gap: 6px; } }
+
+        /* html2canvas measures font baselines with a 1x1 <img>; Tailwind's base style makes images block-level, which pushes exported text down */
+        img[width="1"][height="1"] { display: inline !important; }
+        /* Image export (off-screen clone) and bulk print share the desktop/print look */
+        .ms-export, .ms-bulk { box-shadow: none !important; border-radius: 0 !important; }
+        .ms-export .ms-cards, .ms-bulk .ms-cards { display: none !important; }
+        .ms-export .ms-tablewrap, .ms-bulk .ms-tablewrap { display: block !important; }
+        .ms-export .ms-seal::after, .ms-bulk .ms-seal::after { display: none; }
+        .ms-export .ms-seal { animation: none; }
+        .ms-export .ms-logo { width: 104px; height: 104px; }
+        .ms-export .ms-head { flex-direction: row !important; gap: 16px !important; }
 
         /* Print: A4 marksheet + landscape class sheet */
         #print-root { display: none; }
@@ -129,11 +139,34 @@
             #printable-result, #printable-result * { visibility: visible; }
             #printable-result { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none !important; border-radius: 0 !important; font-size: 12px; line-height: 1.35; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             #printable-result * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            #printable-result .ms-frame { padding: 14px 20px 10px; }
-            #printable-result .ms-details { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 12px; }
-            #printable-result .ms-table thead th, #printable-result .ms-table tbody td, #printable-result .ms-table tfoot td { padding: 6px 10px; }
-            #printable-result .ms-seal { width: 92px; height: 92px; animation: none; } #printable-result .ms-seal::after { animation: none; background-position: 40% 0; }
+            /* compact A4 layout: keeps one marksheet on one page even with many subjects + overall table */
+            #printable-result .ms-logo, #print-root .ms-sheet .ms-logo { width: 104px; height: 104px; }
+            #printable-result .ms-head, #print-root .ms-sheet .ms-head { gap: 16px; padding: 2px 0 0; }
+            #printable-result .ms-addr, #print-root .ms-sheet .ms-addr { font-size: 14px; margin-top: 2px; }
+            #printable-result .ms-frame, #print-root .ms-sheet .ms-frame { padding: 8px 18px 6px; }
+            #printable-result .ms-titlebar, #print-root .ms-sheet .ms-titlebar { margin: 6px 0 8px; }
+            #printable-result .ms-exam, #print-root .ms-sheet .ms-exam { padding: 4px 18px; }
+            #printable-result .ms-details, #print-root .ms-sheet .ms-details { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 6px 12px; gap: 6px 14px; margin-bottom: 8px; }
+            #printable-result .ms-stats, #print-root .ms-sheet .ms-stats { margin-bottom: 8px; gap: 6px; }
+            #printable-result .ms-tile, #print-root .ms-sheet .ms-tile { padding: 4px 6px; }
+            #printable-result .ms-tablewrap, #print-root .ms-sheet .ms-tablewrap { margin-bottom: 8px; }
+            #printable-result .ms-table thead th, #printable-result .ms-table tbody td, #printable-result .ms-table tfoot td,
+            #print-root .ms-sheet .ms-table thead th, #print-root .ms-sheet .ms-table tbody td, #print-root .ms-sheet .ms-table tfoot td { padding: 3.5px 10px; }
+            #printable-result .ms-mini, #print-root .ms-sheet .ms-mini { gap: 8px; margin-bottom: 8px; }
+            #printable-result .ms-box, #print-root .ms-sheet .ms-box { padding: 5px 12px; }
+            #printable-result .ms-box .big, #print-root .ms-sheet .ms-box .big { font-size: 19px; }
+            #printable-result .ms-overall, #print-root .ms-sheet .ms-overall { margin-bottom: 6px !important; }
+            #printable-result .ms-foot, #print-root .ms-sheet .ms-foot { margin-top: 4px; padding-top: 6px; }
+            #printable-result .ms-sig-line, #print-root .ms-sheet .ms-sig-line { height: 26px; }
+            #printable-result .ms-note, #print-root .ms-sheet .ms-note { margin-top: 4px; }
+            #printable-result .ms-seal, #print-root .ms-sheet .ms-seal { width: 80px; height: 80px; animation: none; }
+            #printable-result .ms-seal::after { animation: none; background-position: 40% 0; }
             .no-print { display: none !important; }
+            body.print-bulk > *:not(#print-root) { display: none !important; }
+            body.print-bulk #print-root { display: block; position: static; }
+            body.print-bulk #print-root, body.print-bulk #print-root * { visibility: visible; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #print-root .ms-sheet { font-size: 12px; line-height: 1.35; break-inside: avoid; break-after: page; margin: 0; }
+            #print-root .ms-sheet:last-child { break-after: auto; }
             body.print-class > *:not(#print-root) { display: none !important; }
             body.print-class #print-root, body.print-class #print-root * { visibility: visible; }
             body.print-class #print-root { display: block; page: cls; position: static; font-size: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -378,8 +411,14 @@
             <div id="result-display-container" class="hidden transition-all duration-300">
                 <!-- Action Bar -->
                 <div class="flex flex-wrap justify-end gap-3 mb-4 no-print">
-                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition">
+                    <button onclick="printMarksheet()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition">
                         <i class="fas fa-print"></i> Print / Save PDF
+                    </button>
+                    <button id="ms-share-img" onclick="shareMarksheetImage()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition">
+                        <i class="fas fa-share-alt"></i> Share Image
+                    </button>
+                    <button id="ms-save-img" onclick="downloadMarksheetImage()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm transition">
+                        <i class="fas fa-image"></i> Save Image
                     </button>
                     <button onclick="closeResultCard()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition">
                         <i class="fas fa-times"></i> Close
@@ -387,65 +426,7 @@
                 </div>
 
                 <!-- Printable Marksheet Card -->
-                <div id="printable-result" class="ms-sheet">
-                    <div id="res-watermark" class="ms-wm" aria-hidden="true"></div>
-                    <div class="ms-frame">
-                        <div class="ms-micro" id="res-micro-top" aria-hidden="true"></div>
-                        <div class="ms-head">
-                            <img id="res-logo" class="ms-logo hidden" alt="">
-                            <div>
-                                <h2 id="res-madrasa-name" class="ms-inst"></h2>
-                                <p id="res-madrasa-address" class="ms-addr"></p>
-                            </div>
-                        </div>
-                        <div class="ms-titlebar"><span class="ms-rule"></span><div><p class="ms-doc">Statement of Marks</p><span id="res-exam-title" class="ms-exam"></span></div><span class="ms-rule"></span></div>
-                        <div id="res-details" class="ms-details"></div>
-                        <div id="res-stats" class="ms-stats"></div>
-                        <div id="res-marks-cards" class="md:hidden print:hidden space-y-2 mb-4"></div>
-                        <div class="hidden md:block print:block ms-tablewrap">
-                            <table class="ms-table">
-                                <thead>
-                                    <tr>
-                                        <th>Subject</th>
-                                        <th class="c">Max</th>
-                                        <th class="c">Obtained</th>
-                                        <th class="c">Grade</th>
-                                        <th class="c">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="res-marks-tbody"></tbody>
-                                <tfoot id="res-tfoot"></tfoot>
-                            </table>
-                        </div>
-                        <div class="ms-mini">
-                            <div class="ms-box">
-                                <h4>Percentage</h4>
-                                <p class="big" id="res-summary-perc"></p>
-                            </div>
-                            <div class="ms-box">
-                                <h4>Attendance</h4>
-                                <p class="big"><span id="res-attendance-perc"></span> <small id="res-attendance-days"></small></p>
-                                <div class="ms-bar"><div id="res-attendance-bar" style="width:0%"></div></div>
-                            </div>
-                        </div>
-                        <div id="res-overall" class="ms-overall hidden mb-4">
-                            <h4>Overall Performance &mdash; All Exams</h4>
-                            <div class="ms-tablewrap" style="margin-bottom:0">
-                                <table class="ms-table" style="font-size:12px">
-                                    <thead><tr><th>Exam</th><th class="c">Marks</th><th class="c">%</th><th class="c">Result</th><th class="c">Grade</th></tr></thead>
-                                    <tbody id="res-overall-body"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="ms-foot">
-                            <div><div class="ms-sig-line"></div><div id="res-sign-left"></div></div>
-                            <div id="res-seal" class="ms-seal" title="Security hologram"></div>
-                            <div><div class="ms-sig-line"></div><div id="res-sign-right"></div></div>
-                        </div>
-                        <p class="ms-note">Date of issue: <span id="res-issue-date"></span> &bull; Computer generated result.</p>
-                        <div class="ms-micro" id="res-micro-bottom" aria-hidden="true" style="margin-top:8px"></div>
-                    </div>
-                </div>
+                <div id="printable-result" class="ms-sheet"></div>
             </div>
         </main>
 
@@ -793,6 +774,16 @@
 
                     <!-- TAB 4: MARKS & ATTENDANCE ENTRY -->
                     <div id="admin-tab-reports" class="admin-tab-content hidden space-y-4">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5 space-y-3">
+                            <div><h3 class="font-bold text-slate-800 text-sm">Student Marksheets &mdash; bulk PDF</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">One PDF with every student&rsquo;s individual marksheet, designed exactly like the public result page (one student per page). Choose a class, or all classes.</p></div>
+                            <div class="flex flex-col md:flex-row gap-3 md:items-end">
+                                <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Examination</label><select id="bulk-exam" onchange="updateBulkInfo()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+                                <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Class</label><select id="bulk-class" onchange="updateBulkInfo()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+                                <button id="bulk-btn" onclick="printBulkMarksheets()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Download Marksheets PDF</button>
+                            </div>
+                            <p id="bulk-info" class="text-xs text-slate-500"></p>
+                        </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5 flex flex-col md:flex-row gap-3 md:items-end">
                             <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Examination</label><select id="rep-exam" onchange="renderClassReport()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
                             <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Class</label><select id="rep-class" onchange="renderClassReport()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
@@ -1693,16 +1684,14 @@
             } catch (e) { if (e.name !== 'AbortError') window.prompt('Copy this link:', url); }
         }
 
-        // ================= MARKSHEET (public) =================
-        // Watermark (repeating institution name + faint logo), micro-text borders and the hologram seal
-        function msSecurity(inst, logo) {
-            const $ = id => document.getElementById(id), name = inst.toUpperCase().slice(0, 40);
+        // ================= MARKSHEET (public + bulk) =================
+        // Watermark (repeating institution name + faint logo), micro-text borders and the hologram seal.
+        // uid keeps SVG ids unique when many marksheets are on one page (bulk PDF).
+        function msSecurity(inst, logo, uid) {
+            const name = inst.toUpperCase().slice(0, 40);
             const wm = `<svg xmlns='http://www.w3.org/2000/svg' width='430' height='270'><g transform='rotate(-28 215 135)' fill='#065f46' fill-opacity='.06' font-family='Georgia,serif' font-weight='700' text-anchor='middle'><text x='215' y='125' font-size='21' letter-spacing='3'>${esc(name)}</text><text x='215' y='152' font-size='11' letter-spacing='7'>OFFICIAL RESULT</text></g></svg>`;
-            const w = $('res-watermark');
-            w.style.backgroundImage = `url("data:image/svg+xml;utf8,${encodeURIComponent(wm)}")`;
-            w.innerHTML = logo ? `<img src="${esc(logo)}" alt="">` : '';
+            const bg = `url('data:image/svg+xml;utf8,${encodeURIComponent(wm).replace(/'/g, '%27').replace(/\(/g, '%28').replace(/\)/g, '%29')}')`;
             const micro = (name + ' \u2022 ').repeat(60);
-            $('res-micro-top').textContent = micro; $('res-micro-bottom').textContent = micro;
             // Ring text: institution name + stars, repeated and stretched so it fills the circle exactly (short or long names)
             const CIRC = 2 * Math.PI * 44, ctx = (() => { try { return document.createElement('canvas').getContext('2d'); } catch (e) { return null; } })();
             const measure = (t, f) => (ctx ? (ctx.font = `700 ${f}px Georgia, serif`, ctx.measureText(t).width) : t.length * f * .62) + t.length * .9;
@@ -1714,50 +1703,40 @@
             fs = Math.max(4.8, Math.min(9.5, fs * CIRC / (reps * measure(unit, fs))));
             const ring = unit.repeat(reps), tl = (CIRC - .5).toFixed(1);
             let rays = ''; for (let i = 0; i < 36; i++) { const a = i * Math.PI / 18; rays += `<line x1='${(60 + 33 * Math.cos(a)).toFixed(1)}' y1='${(60 + 33 * Math.sin(a)).toFixed(1)}' x2='${(60 + 52 * Math.cos(a)).toFixed(1)}' y2='${(60 + 52 * Math.sin(a)).toFixed(1)}'/>`; }
-            $('res-seal').innerHTML = `<svg viewBox="0 0 120 120" role="img" aria-label="Verified result"><defs>
-                <linearGradient id="msHolo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbc2eb"/><stop offset=".2" stop-color="#a6c1ee"/><stop offset=".4" stop-color="#84fab0"/><stop offset=".6" stop-color="#fef9d7"/><stop offset=".8" stop-color="#f6b7d0"/><stop offset="1" stop-color="#8fd3f4"/></linearGradient>
-                <radialGradient id="msGlow"><stop offset="0" stop-color="#fff" stop-opacity=".97"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></radialGradient>
-                <path id="msRing" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
-                <circle cx="60" cy="60" r="58" fill="url(#msHolo)" stroke="#b8923a" stroke-width="1.6"/>
+            const seal = `<svg viewBox="0 0 120 120" role="img" aria-label="Verified result"><defs>
+                <linearGradient id="msHolo${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbc2eb"/><stop offset=".2" stop-color="#a6c1ee"/><stop offset=".4" stop-color="#84fab0"/><stop offset=".6" stop-color="#fef9d7"/><stop offset=".8" stop-color="#f6b7d0"/><stop offset="1" stop-color="#8fd3f4"/></linearGradient>
+                <radialGradient id="msGlow${uid}"><stop offset="0" stop-color="#fff" stop-opacity=".97"/><stop offset="1" stop-color="#fff" stop-opacity=".7"/></radialGradient>
+                <path id="msRing${uid}" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+                <circle cx="60" cy="60" r="58" fill="url(#msHolo${uid})" stroke="#b8923a" stroke-width="1.6"/>
                 <g stroke="#fff" stroke-opacity=".55" stroke-width=".7">${rays}</g>
                 <circle cx="60" cy="60" r="53.5" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width=".8"/>
-                <text font-family="Georgia,serif" font-size="${fs.toFixed(2)}" font-weight="700" letter-spacing=".9" fill="#064e3b" textLength="${tl}" lengthAdjust="spacing"><textPath href="#msRing" textLength="${tl}" lengthAdjust="spacing">${esc(ring)}</textPath></text>
-                <circle cx="60" cy="60" r="35" fill="url(#msGlow)" stroke="#8a6d1f" stroke-width="1"/>
+                <text font-family="Georgia,serif" font-size="${fs.toFixed(2)}" font-weight="700" letter-spacing=".9" fill="#064e3b" textLength="${tl}" lengthAdjust="spacing"><textPath href="#msRing${uid}" textLength="${tl}" lengthAdjust="spacing">${esc(ring)}</textPath></text>
+                <circle cx="60" cy="60" r="35" fill="url(#msGlow${uid})" stroke="#8a6d1f" stroke-width="1"/>
                 <circle cx="60" cy="60" r="32.5" fill="none" stroke="#b8923a" stroke-width=".5" stroke-dasharray="1.2 1.6"/>
                 <text x="60" y="55" text-anchor="middle" font-family="Playball,'Brush Script MT',cursive" font-size="16" fill="#064e3b">Verified</text>
                 <path d="M41 61.5 H53 M67 61.5 H79" stroke="#b8923a" stroke-width=".7"/><text x="60" y="64" text-anchor="middle" font-size="6" fill="#b8923a">\u2726</text>
                 <text x="60" y="78" text-anchor="middle" font-family="Playball,'Brush Script MT',cursive" font-size="16" fill="#064e3b">Result</text></svg>`;
+            return { bg, micro, seal, wmImg: logo ? `<img src="${esc(logo)}" alt="">` : '' };
         }
 
-        function displayMarksheet(d) {
+        // Builds the inside of one marksheet (same markup for the public page, image export and bulk PDF).
+        function marksheetHTML(d, uid = 'p') {
             const { madrasa, exam, cls, subjects, details, result, summary, position, exams, overall } = d;
-            const $ = id => document.getElementById(id);
             const inst = madrasa.name || 'Institution', logo = (madrasa.logo || '').trim();
-            $('res-madrasa-name').textContent = inst;
-            $('res-madrasa-address').textContent = madrasa.subtitle || '';
-            $('res-madrasa-address').classList.toggle('hidden', !madrasa.subtitle);
-            $('res-exam-title').textContent = exam.name;
-            const lg = $('res-logo');
-            if (logo) { lg.src = logo; lg.classList.remove('hidden'); } else { lg.removeAttribute('src'); lg.classList.add('hidden'); }
-            msSecurity(inst, logo);
-            const sig = (id, title, name) => { $(id).innerHTML = (name ? `<p class="ms-sign-name">${esc(name)}</p>` : '') + `<p class="ms-sign-title">${esc(title)}</p>`; };
-            sig('res-sign-left', cls.teacherTitle || 'Class Teacher', cls.teacherName);
-            sig('res-sign-right', madrasa.headTitle || 'Principal', madrasa.headName);
-            $('res-details').innerHTML = [...details, { label: 'Class', value: cls.name }].map(x =>
-                `<div><p class="ms-k">${esc(x.label)}</p><p class="ms-v">${esc(x.value)}</p></div>`).join('');
+            const sec = msSecurity(inst, logo, uid);
+            const sig = (title, name) => (name ? `<p class="ms-sign-name">${esc(name)}</p>` : '') + `<p class="ms-sign-title">${esc(title)}</p>`;
+            const detailsHTML = [...details, { label: 'Class', value: cls.name }].map(x => `<div><p class="ms-k">${esc(x.label)}</p><p class="ms-v">${esc(x.value)}</p></div>`).join('');
 
-            const tile = (cl, label, val, sub) => `<div class="ms-tile ${cl}"><p class="ms-tl">${label}</p><p class="ms-tv">${val}</p>${sub ? `<p class="ms-ts">${sub}</p>` : ''}</div>`;
+            const tile = (c, label, val, sub) => `<div class="ms-tile ${c}"><p class="ms-tl">${label}</p><p class="ms-tv">${val}</p>${sub ? `<p class="ms-ts">${sub}</p>` : ''}</div>`;
             const boxes = [
                 summary.passed ? tile('ok', 'Result', 'PASSED') : tile('bad', 'Result', 'FAILED'),
                 tile('gold', 'Grade', esc(summary.grade.grade), esc(summary.grade.title))
             ];
             if (position) boxes.push(tile('sky', 'Class Position', ord(position.rank), `of ${position.of} students`));
-            $('res-stats').style.gridTemplateColumns = `repeat(${boxes.length}, minmax(0, 1fr))`;
-            $('res-stats').innerHTML = boxes.join('');
 
             // The server only says whether each subject was passed; pass marks themselves are never sent or shown.
             const row = sub => { const ab = result.marks[sub.id] === 'AB'; return { ab, o: ab ? 0 : Number(result.marks[sub.id] ?? 0), ok: !ab && !!sub.passed, g: esc((result.grades[sub.id] || {}).grade || '-') }; };
-            $('res-marks-tbody').innerHTML = subjects.map(sub => {
+            const tbody = subjects.map(sub => {
                 const { ab, o, ok, g } = row(sub);
                 return `<tr><td class="ms-sub">${esc(sub.name)}</td>
                     <td class="c" style="color:#475569">${sub.maxMarks}</td>
@@ -1765,8 +1744,8 @@
                     <td class="c" style="font-weight:800;color:${ok ? '#b45309' : '#dc2626'}">${g}</td>
                     <td class="c"><span class="ms-pill ${ab ? 'abs' : ok ? 'pass' : 'fail'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
             }).join('');
-            $('res-tfoot').innerHTML = `<tr><td style="text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:11px">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:#065f46">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:#065f46">${summary.percentage}%</td></tr>`;
-            $('res-marks-cards').innerHTML = subjects.map(sub => {
+            const tfoot = `<tr><td style="text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:11px">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:#065f46">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:#065f46">${summary.percentage}%</td></tr>`;
+            const cards = subjects.map(sub => {
                 const { ab, o, ok, g } = row(sub);
                 return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
                     <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks}</p></div>
@@ -1775,20 +1754,131 @@
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></div></div>`;
             }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
 
-            $('res-summary-perc').textContent = summary.percentage + '%';
             const days = Number(cls.totalWorkingDays) || 200, present = Number(result.attendanceDays || 0), att = days > 0 ? Math.min(100, present / days * 100).toFixed(1) : 0;
-            $('res-attendance-perc').textContent = att + '%';
-            $('res-attendance-days').textContent = `(${present}/${days} days)`;
-            $('res-attendance-bar').style.width = att + '%';
+            const bg = 'background:rgba(241,245,249,.9)';
+            const overallHTML = exams.length < 2 ? '' : `<div class="ms-overall mb-4"><h4>Overall Performance &mdash; All Exams</h4><div class="ms-tablewrap" style="margin-bottom:0"><table class="ms-table" style="font-size:12px">
+                <thead><tr><th>Exam</th><th class="c">Marks</th><th class="c">%</th><th class="c">Result</th><th class="c">Grade</th></tr></thead><tbody>`
+                + exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? '#047857' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
+                + `<tr><td style="font-weight:800;${bg}">Overall</td><td class="c" style="font-weight:800;${bg}">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;${bg}">${overall.percentage}%</td><td class="c" style="font-weight:800;${bg};color:${overall.failedCount ? '#dc2626' : '#047857'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;${bg}">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr></tbody></table></div></div>`;
+            const issued = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-            $('res-overall').classList.toggle('hidden', exams.length < 2);
-            $('res-overall-body').innerHTML = exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? '#047857' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
-                + `<tr><td style="font-weight:800;background:rgba(241,245,249,.9)">Overall</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9)">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9)">${overall.percentage}%</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9);color:${overall.failedCount ? '#dc2626' : '#047857'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;background:rgba(241,245,249,.9)">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr>`;
-            $('res-issue-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            return `<div class="ms-wm" style="background-image:${sec.bg}" aria-hidden="true">${sec.wmImg}</div>
+                <div class="ms-frame">
+                    <div class="ms-micro" aria-hidden="true">${esc(sec.micro)}</div>
+                    <div class="ms-head">
+                        ${logo ? `<img class="ms-logo" src="${esc(logo)}" alt="">` : ''}
+                        <div><h2 class="ms-inst">${esc(inst)}</h2>${madrasa.subtitle ? `<p class="ms-addr">${esc(madrasa.subtitle)}</p>` : ''}</div>
+                    </div>
+                    <div class="ms-titlebar"><span class="ms-rule"></span><div><span class="ms-exam">${esc(exam.name)}</span></div><span class="ms-rule"></span></div>
+                    <div class="ms-details">${detailsHTML}</div>
+                    <div class="ms-stats" style="grid-template-columns:repeat(${boxes.length}, minmax(0, 1fr))">${boxes.join('')}</div>
+                    <div class="ms-cards md:hidden print:hidden space-y-2 mb-4">${cards}</div>
+                    <div class="hidden md:block print:block ms-tablewrap">
+                        <table class="ms-table">
+                            <thead><tr><th>Subject</th><th class="c">Max</th><th class="c">Obtained</th><th class="c">Grade</th><th class="c">Status</th></tr></thead>
+                            <tbody>${tbody}</tbody><tfoot>${tfoot}</tfoot>
+                        </table>
+                    </div>
+                    <div class="ms-mini">
+                        <div class="ms-box"><h4>Percentage</h4><p class="big">${summary.percentage}%</p></div>
+                        <div class="ms-box"><h4>Attendance</h4><p class="big">${att}% <small>(${present}/${days} days)</small></p><div class="ms-bar"><div style="width:${att}%"></div></div></div>
+                    </div>
+                    ${overallHTML}
+                    <div class="ms-foot">
+                        <div><div class="ms-sig-line"></div><div>${sig(cls.teacherTitle || 'Class Teacher', cls.teacherName)}</div></div>
+                        <div class="ms-seal" title="Security hologram">${sec.seal}</div>
+                        <div><div class="ms-sig-line"></div><div>${sig(madrasa.headTitle || 'Principal', madrasa.headName)}</div></div>
+                    </div>
+                    <p class="ms-note">Date of issue: ${issued} &bull; Computer generated result.</p>
+                    <div class="ms-micro" aria-hidden="true" style="margin-top:8px">${esc(sec.micro)}</div>
+                </div>`;
+        }
 
-            const container = $('result-display-container');
+        // ---- file names: "<admission no>_<student name>" ----
+        const fileSafe = v => String(v ?? '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90);
+        const resultFileName = m => fileSafe(`${m.adm}_${m.name}`).replace(/^_+|_+$/g, '') || 'Result';
+        let lastMs = null; // the marksheet currently shown on the public page
+
+        function displayMarksheet(d) {
+            const nameV = (d.details[0] || {}).value || '';
+            const admV = ((d.details.find(x => x.label === admLabel()) || {}).value) || document.getElementById('search-adm-input').value.trim().toUpperCase();
+            lastMs = { adm: admV, name: nameV, img: null };
+            document.getElementById('printable-result').innerHTML = marksheetHTML(d, 'p');
+            const container = document.getElementById('result-display-container');
             container.classList.remove('hidden');
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const mine = lastMs; setTimeout(() => { if (lastMs === mine) prepareMarksheetImage(mine); }, 900); // render in the background so Share is instant
+        }
+
+        // Print / Save PDF: the browser uses the page title as the PDF file name, so set it to "<admission no>_<name>".
+        function printWithTitle(title) {
+            const old = document.title; document.title = title;
+            const restore = () => { document.title = old; window.removeEventListener('afterprint', restore); };
+            window.addEventListener('afterprint', restore); setTimeout(restore, 60000);
+            window.print();
+        }
+        function printMarksheet() { printWithTitle(lastMs ? resultFileName(lastMs) : document.title); }
+
+        // ---- share / save as image (lossless PNG, 3x resolution) ----
+        let h2cPromise = null;
+        function loadHtml2Canvas() {
+            if (window.html2canvas) return Promise.resolve(window.html2canvas);
+            if (!h2cPromise) h2cPromise = new Promise((res, rej) => {
+                const sc = document.createElement('script');
+                sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                sc.onload = () => res(window.html2canvas); sc.onerror = () => { h2cPromise = null; rej(new Error('Could not load the image tool. Check your internet connection.')); };
+                document.head.appendChild(sc);
+            });
+            return h2cPromise;
+        }
+        async function renderMarksheetBlob() {
+            const h2c = await loadHtml2Canvas(), src = document.getElementById('printable-result');
+            const stage = document.createElement('div');
+            stage.style.cssText = 'position:fixed;left:-10000px;top:0;width:820px;pointer-events:none';
+            const clone = src.cloneNode(true); clone.removeAttribute('id'); clone.classList.add('ms-export'); clone.style.width = '820px';
+            stage.appendChild(clone); document.body.appendChild(stage);
+            try {
+                if (document.fonts && document.fonts.ready) await document.fonts.ready;
+                await Promise.all([...clone.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+                const h = clone.offsetHeight || 1200, scale = Math.max(1.5, Math.min(3, Math.sqrt(16e6 / (820 * h))));
+                const canvas = await h2c(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, width: 820, windowWidth: 820 });
+                return await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('Image could not be created')), 'image/png'));
+            } finally { stage.remove(); }
+        }
+        function prepareMarksheetImage(m) {
+            if (!m.img) m.img = renderMarksheetBlob().catch(e => { m.img = null; throw e; });
+            m.img.catch(() => {}); return m.img;
+        }
+        function saveBlob(blob, name) {
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+            document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        }
+        async function withBusy(id, label, fn) {
+            const b = document.getElementById(id), html = b.innerHTML; b.disabled = true; b.classList.add('opacity-60'); b.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${label}`;
+            try { await fn(); } finally { b.disabled = false; b.classList.remove('opacity-60'); b.innerHTML = html; }
+        }
+        async function downloadMarksheetImage() {
+            if (!lastMs) return;
+            await withBusy('ms-save-img', 'Preparing...', async () => {
+                try { saveBlob(await prepareMarksheetImage(lastMs), resultFileName(lastMs) + '.png'); showToast('Image saved.', 'success'); }
+                catch (e) { showToast(e.message || 'Could not create the image. Please use Print / Save PDF.', 'error'); }
+            });
+        }
+        async function shareMarksheetImage() {
+            if (!lastMs) return;
+            await withBusy('ms-share-img', 'Preparing...', async () => {
+                const name = resultFileName(lastMs) + '.png';
+                let blob;
+                try { blob = await prepareMarksheetImage(lastMs); } catch (e) { showToast(e.message || 'Could not create the image. Please use Print / Save PDF.', 'error'); return; }
+                const file = new File([blob], name, { type: 'image/png' });
+                try {
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name.replace(/\.png$/, '') }); return; }
+                    saveBlob(blob, name); showToast('Sharing is not supported here, so the image was saved to your device.', 'info');
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                    saveBlob(blob, name); showToast('Could not open the share sheet, so the image was saved instead.', 'info');
+                }
+            });
         }
 
         // ================= SETUP TAB =================
@@ -1901,6 +1991,12 @@
             c.innerHTML = (appState.classes.length > 1 ? '<option value="ALL">All Classes (one PDF)</option>' : '') + appState.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
             if ([...e.options].some(o => o.value === ev)) e.value = ev;
             if ([...c.options].some(o => o.value === cv)) c.value = cv;
+            const be = document.getElementById('bulk-exam'), bc = document.getElementById('bulk-class'), bev = be.value, bcv = bc.value;
+            be.innerHTML = appState.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            bc.innerHTML = (appState.classes.length > 1 ? '<option value="ALL">All Classes (one PDF)</option>' : '') + appState.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            if ([...be.options].some(o => o.value === bev)) be.value = bev;
+            if ([...bc.options].some(o => o.value === bcv)) bc.value = bcv;
+            updateBulkInfo();
             renderClassReport();
         }
         function renderClassReport() {
@@ -1957,6 +2053,77 @@
                     : '<p class="text-sm text-slate-400 text-center py-6">No results entered for this selection yet.</p>');
             return { rows: rows.length, html };
         }
+        // ================= BULK STUDENT MARKSHEETS (same design as the public page) =================
+        // Builds the same data the public result API returns, from the admin's local data.
+        function buildMarksheetData(ex, st) {
+            const G = appState.grades, cls = appState.classes.find(c => c.id === st.classId);
+            if (!cls) return null;
+            const subsAll = appState.subjects.filter(s => s.classId === st.classId);
+            const take = m => subsAll.filter(s => isActive(s) && m && m[s.id] !== undefined);
+            const maxOf = l => l.reduce((a, s) => a + Number(s.maxMarks), 0);
+            const subOk = (m, s) => !isAb(m && m[s.id]) && (Number(m && m[s.id]) || 0) >= Number(s.passingMarks);
+            const mine = appState.results.filter(r => r.studentId === st.id);
+            const cur = mine.find(r => r.examId === ex.id);
+            if (!cur) return null;
+            const marks = cur.marks || {}, mySubs = take(marks), maxPer = maxOf(mySubs);
+            const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(s => subOk(marks, s));
+            const myPct = exactPct(obtained, maxPer);
+            const mateIds = new Set(appState.students.filter(s => s.classId === st.classId).map(s => s.id));
+            const pcts = appState.results.filter(r => r.examId === ex.id && mateIds.has(r.studentId)).map(r => { const l = take(r.marks); return exactPct(sumMarks(r.marks, l), maxOf(l)); });
+            const exams = appState.exams.filter(e => e.isPublic).map(e => ({ e, r: mine.find(r => r.examId === e.id) })).filter(x => x.r).map(({ e, r }) => {
+                const l = take(r.marks), o = sumMarks(r.marks, l), mx = maxOf(l), ok = l.length > 0 && l.every(s => subOk(r.marks, s));
+                return { name: e.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exactPct(o, mx), !ok, G) };
+            });
+            const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length;
+            return {
+                madrasa: appState.madrasa, exam: { id: ex.id, name: ex.name },
+                cls: { name: cls.name, totalWorkingDays: Number(cls.totalWorkingDays) || 200, teacherTitle: cls.teacherTitle || '', teacherName: cls.teacherName || '' },
+                subjects: mySubs.map(s => ({ id: s.id, name: s.name, maxMarks: Number(s.maxMarks), passed: subOk(marks, s) })),
+                details: [{ label: 'Student Name', value: st.name }, ...appState.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admissionNo : fieldVal(st, f.id) })).filter(x => x.value)],
+                result: { attendanceDays: Number(cur.attendanceDays) || 0, marks, grades: Object.fromEntries(mySubs.map(s => [s.id, isAb(marks[s.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exactPct(Number(marks[s.id]) || 0, Number(s.maxMarks)), !subOk(marks, s), G)])) },
+                summary: { obtained, max: maxPer, percentage: pctOf(obtained, maxPer), passed, grade: gradeOf(myPct, !passed, G) },
+                position: appState.portal.showPosition !== false ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
+                exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exactPct(oObt, oMax), failedCount > 0, G) }
+            };
+        }
+        function bulkSelection() {
+            const ex = appState.exams.find(e => e.id === document.getElementById('bulk-exam').value), cid = document.getElementById('bulk-class').value;
+            const classes = cid === 'ALL' ? appState.classes : appState.classes.filter(c => c.id === cid);
+            const natural = (a, b) => String(a.admissionNo).localeCompare(String(b.admissionNo), undefined, { numeric: true, sensitivity: 'base' });
+            const list = [], missing = [];
+            if (ex) classes.forEach(c => appState.students.filter(s => s.classId === c.id).sort(natural).forEach(st => { const d = buildMarksheetData(ex, st); (d ? list : missing).push(d || st); }));
+            return { ex, classes, list, missing };
+        }
+        function updateBulkInfo() {
+            const el = document.getElementById('bulk-info'); if (!el) return;
+            const { ex, list, missing } = bulkSelection();
+            el.textContent = !ex ? 'Create an exam and a class first.' : `${list.length} marksheet${list.length === 1 ? '' : 's'} will be created` + (missing.length ? ` (${missing.length} student${missing.length === 1 ? '' : 's'} without marks for this exam will be skipped).` : '.') + ' In the print window choose "Save as PDF".';
+        }
+        async function printBulkMarksheets() {
+            const { ex, classes, list } = bulkSelection();
+            if (!ex || !list.length) { showToast('No results entered for this selection.', 'error'); return; }
+            const btn = document.getElementById('bulk-btn'), html = btn.innerHTML; btn.disabled = true; btn.classList.add('opacity-60'); btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Preparing ${list.length}...`;
+            let root = null, blobUrl = '';
+            try {
+                await new Promise(r => setTimeout(r, 50));
+                // an uploaded logo is a big text string: turn it into one short blob link so hundreds of pages stay light
+                const logo = (appState.madrasa.logo || '').trim();
+                if (logo.startsWith('data:')) { try { blobUrl = URL.createObjectURL(await (await fetch(logo)).blob()); } catch (e) { blobUrl = ''; } }
+                const madrasa = blobUrl ? { ...appState.madrasa, logo: blobUrl } : appState.madrasa;
+                root = document.createElement('div'); root.id = 'print-root';
+                root.innerHTML = list.map((d, i) => `<div class="ms-sheet ms-bulk">${marksheetHTML({ ...d, madrasa }, 'b' + i)}</div>`).join('');
+                document.body.appendChild(root); document.body.classList.add('print-bulk');
+                await Promise.all([...root.querySelectorAll('img')].slice(0, 2).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+                const old = document.title;
+                document.title = fileSafe(`Marksheets_${classes.length === 1 ? classes[0].name : 'All Classes'}_${ex.name}`).replace(/ /g, '_');
+                const done = () => { document.title = old; document.body.classList.remove('print-bulk'); root.remove(); if (blobUrl) URL.revokeObjectURL(blobUrl); window.removeEventListener('afterprint', done); };
+                window.addEventListener('afterprint', done);
+                setTimeout(() => window.print(), 100);
+            } catch (e) {
+                document.body.classList.remove('print-bulk'); if (root) root.remove(); showToast('Could not prepare the marksheets.', 'error');
+            } finally { btn.disabled = false; btn.classList.remove('opacity-60'); btn.innerHTML = html; }
+        }
+
         function printClassReport() {
             const src = document.getElementById('class-print-area');
             if (!src.querySelector('table')) { showToast('No results to print for this selection.', 'error'); return; }
