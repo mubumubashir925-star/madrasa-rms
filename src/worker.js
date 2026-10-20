@@ -1,59 +1,118 @@
+// ============================================================================
+//  Result Publisher - multi-institution (SaaS) backend
+//  Runs on Cloudflare Pages (_worker.js) or Workers, with one D1 database.
+//  Every institution ("tenant") has its own data, address and admin login.
+// ============================================================================
+const BRAND = 'Result Publisher';
 const enc = new TextEncoder();
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 const fail = (m, s = 400) => json({ error: m }, s);
 const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-// ---------- auth (HMAC-signed token, 12h) ----------
+// ---------- crypto, passwords, tokens ----------
 async function hmac(secret, data) {
   const k = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(data)));
 }
-async function safeEq(a, b, secret) { // compare digests in constant time
-  return crypto.subtle.timingSafeEqual(await hmac(secret, a), await hmac(secret, b));
-}
-async function makeToken(env, ver) {
-  const p = btoa(JSON.stringify({ exp: Date.now() + 12 * 3600e3, v: ver || 0 }));
-  return p + '.' + b64u(await hmac(env.JWT_SECRET, p));
-}
-async function isAdmin(req, env) {
-  const [p, sig] = (req.headers.get('Authorization') || '').replace('Bearer ', '').split('.');
-  if (!p || !sig || b64u(await hmac(env.JWT_SECRET, p)) !== sig) return false;
-  try { const t = JSON.parse(atob(p)); return t.exp > Date.now() && (t.v || 0) === ((await getAdmin(env.DB))?.ver || 0); } catch { return false; }
-}
-
-// ---------- admin credentials (stored hashed in D1; falls back to Cloudflare secrets) ----------
+const safeEq = async (a, b, secret) => crypto.subtle.timingSafeEqual(await hmac(secret, String(a)), await hmac(secret, String(b)));
 const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 const unhex = h => Uint8Array.from(h.match(/../g), x => parseInt(x, 16));
 async function pbkdf2(pw, salt) {
   const k = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, k, 256));
 }
-async function getAdmin(db) { const r = await db.prepare("SELECT value FROM settings WHERE key='admin'").first(); return r ? JSON.parse(r.value) : null; }
-async function passwordOk(env, adm, pw) {
-  return adm ? crypto.subtle.timingSafeEqual(await pbkdf2(String(pw), unhex(adm.salt)), unhex(adm.hash)) : safeEq(String(pw), env.ADMIN_PASSWORD, env.JWT_SECRET);
+async function hashPw(pw) { const s = crypto.getRandomValues(new Uint8Array(16)); return { salt: hex(s), hash: hex(await pbkdf2(String(pw), s)) }; }
+const checkPw = async (pw, salt, hash) => crypto.subtle.timingSafeEqual(await pbkdf2(String(pw), unhex(salt)), unhex(hash));
+
+async function makeToken(env, claims, hours = 12) {
+  const p = btoa(JSON.stringify({ ...claims, exp: Date.now() + hours * 3600e3 }));
+  return p + '.' + b64u(await hmac(env.JWT_SECRET, p));
 }
-async function changeAccount(env, body) {
-  const adm = await getAdmin(env.DB);
-  if (!(await passwordOk(env, adm, body.current || ''))) return fail('Current password is wrong', 403);
-  const username = opt(body.username, 40) || adm?.username || env.ADMIN_USER;
-  if (username.length < 3) return fail('Username must be at least 3 characters');
-  let { salt, hash } = adm || {};
-  if (body.password) {
-    if (body.password.length < 8 || body.password.length > 100) return fail('New password must be 8 to 100 characters');
-    const s = crypto.getRandomValues(new Uint8Array(16)); salt = hex(s); hash = hex(await pbkdf2(body.password, s));
-  } else if (!adm) { // username-only change while still on the Cloudflare secret: keep the current password
-    const s = crypto.getRandomValues(new Uint8Array(16)); salt = hex(s); hash = hex(await pbkdf2(body.current, s));
-  }
-  const ver = Date.now();
-  await env.DB.prepare("INSERT INTO settings VALUES ('admin', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify({ username, salt, hash, ver })).run();
-  return json({ token: await makeToken(env, ver), username });
+async function readToken(req, env) {
+  const [p, sig] = (req.headers.get('Authorization') || '').replace('Bearer ', '').split('.');
+  if (!p || !sig || b64u(await hmac(env.JWT_SECRET, p)) !== sig) return null;
+  try { const t = JSON.parse(atob(p)); return t.exp > Date.now() ? t : null; } catch { return null; }
 }
 
-// ---------- validation + table mapping ----------
+// ---------- validation helpers ----------
 const str = (v, max = 200) => { if (typeof v !== 'string' || !v.trim() || v.length > max) throw new Error('Invalid or missing text value'); return v.trim(); };
 const opt = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const absent = v => v === 'AB';
 const num = (v, lo, hi) => { v = Number(v); if (!Number.isFinite(v) || v < lo || v > hi) throw new Error('Number out of range'); return v; };
+const RESERVED = new Set(['super', 'admin', 'api', 'logo', 'icons', 'assets', 'static', 'login', 'logout', 'www', 'app', 'sw', 'styles', 'manifest', 'index', 'new', 'null', 'undefined', 'home', 'help', 'support', 'pricing']);
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+const cleanSlug = v => String(v || '').trim().toLowerCase();
+function checkSlug(slug) {
+  if (!SLUG_RE.test(slug)) throw new Error('Address must be 3-40 characters: lowercase letters, numbers and hyphens only.');
+  if (RESERVED.has(slug)) throw new Error('That address is reserved. Please choose another.');
+}
+const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const tenantState = t => (t.status !== 'active' ? 'suspended' : (t.paid_until && t.paid_until < todayStr() ? 'expired' : 'active'));
+const blockedMsg = st => (st === 'expired' ? 'This subscription has expired. Please contact support to renew.' : 'This account is suspended. Please contact support.');
+
+// ---------- database: schema + automatic upgrade from the old single-institution version ----------
+const SCHEMA = [
+  "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS tenants (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, admin_user TEXT NOT NULL, admin_salt TEXT NOT NULL, admin_hash TEXT NOT NULL, admin_ver INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active', plan TEXT NOT NULL DEFAULT 'standard', paid_until TEXT NOT NULL DEFAULT '', max_students INTEGER NOT NULL DEFAULT 500, contact TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '')",
+  "CREATE TABLE IF NOT EXISTS settings (tenant_id INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (tenant_id, key))",
+  "CREATE TABLE IF NOT EXISTS exams (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, is_public INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (tenant_id, id))",
+  "CREATE TABLE IF NOT EXISTS classes (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, working_days INTEGER NOT NULL DEFAULT 200, teacher_title TEXT NOT NULL DEFAULT '', teacher_name TEXT NOT NULL DEFAULT '', PRIMARY KEY (tenant_id, id))",
+  "CREATE TABLE IF NOT EXISTS subjects (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, class_id TEXT NOT NULL, name TEXT NOT NULL, max_marks INTEGER NOT NULL, pass_marks INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (tenant_id, id))",
+  "CREATE TABLE IF NOT EXISTS students (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, admission_no TEXT NOT NULL, name TEXT NOT NULL, father_name TEXT NOT NULL DEFAULT '', class_id TEXT NOT NULL, extra TEXT NOT NULL DEFAULT '{}', PRIMARY KEY (tenant_id, id), UNIQUE (tenant_id, admission_no))",
+  "CREATE TABLE IF NOT EXISTS results (tenant_id INTEGER NOT NULL, exam_id TEXT NOT NULL, student_id TEXT NOT NULL, attendance_days INTEGER NOT NULL DEFAULT 0, marks TEXT NOT NULL DEFAULT '{}', PRIMARY KEY (tenant_id, exam_id, student_id))",
+  "CREATE INDEX IF NOT EXISTS idx_subjects_class ON subjects(tenant_id, class_id)",
+  "CREATE INDEX IF NOT EXISTS idx_students_class ON students(tenant_id, class_id)",
+  "CREATE INDEX IF NOT EXISTS idx_results_student ON results(tenant_id, student_id)"
+];
+const LEGACY_COLUMNS = [
+  ['students', 'extra', "TEXT NOT NULL DEFAULT '{}'"], ['classes', 'teacher_title', "TEXT NOT NULL DEFAULT ''"],
+  ['classes', 'teacher_name', "TEXT NOT NULL DEFAULT ''"], ['subjects', 'active', 'INTEGER NOT NULL DEFAULT 1'],
+];
+const COPY = {
+  settings: 'tenant_id, key, value', exams: 'tenant_id, id, name, is_public', classes: 'tenant_id, id, name, working_days, teacher_title, teacher_name',
+  subjects: 'tenant_id, id, class_id, name, max_marks, pass_marks, active', students: 'tenant_id, id, admission_no, name, father_name, class_id, extra',
+  results: 'tenant_id, exam_id, student_id, attendance_days, marks',
+};
+const tableExists = async (db, n) => !!(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(n).first());
+const initialSettings = name => ({
+  madrasa: { name, subtitle: 'Online Result Portal', logo: '', headTitle: 'Principal', headName: '', shareText: '', bismillah: false },
+  portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true },
+});
+let tenancyReady = false;
+async function ensureTenancy(db, env) {
+  if (tenancyReady) return;
+  if (!(await tableExists(db, 'tenants'))) {
+    if (!(await tableExists(db, 'exams'))) { await db.batch(SCHEMA.map(q => db.prepare(q))); } // brand-new database
+    else {                                                    // old single-institution database -> becomes institution #1
+      for (const [t, c, def] of LEGACY_COLUMNS) {
+        const { results } = await db.prepare(`PRAGMA table_info(${t})`).all();
+        if (!results.some(r => r.name === c)) await db.prepare(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`).run();
+      }
+      const old = Object.fromEntries((await db.prepare('SELECT key,value FROM settings').all()).results.map(r => [r.key, r.value]));
+      const prof = old.madrasa ? JSON.parse(old.madrasa) : {}, adm = old.admin ? JSON.parse(old.admin) : null;
+      let slug = slugify(prof.name) || 'main'; if (!SLUG_RE.test(slug) || RESERVED.has(slug)) slug = 'main';
+      const cred = adm || { username: env.ADMIN_USER || 'admin', ...(await hashPw(env.ADMIN_PASSWORD || crypto.randomUUID())), ver: 0 };
+      const stmts = [db.prepare(SCHEMA[0]), db.prepare(SCHEMA[1])];
+      for (const [t, cols] of Object.entries(COPY)) {
+        const def = SCHEMA.find(q => q.startsWith(`CREATE TABLE IF NOT EXISTS ${t} `));
+        stmts.push(db.prepare(`ALTER TABLE ${t} RENAME TO ${t}_old`), db.prepare(def),
+          db.prepare(`INSERT INTO ${t} (${cols}) SELECT ${cols.replace('tenant_id', '1')} FROM ${t}_old`), db.prepare(`DROP TABLE ${t}_old`));
+      }
+      stmts.push(...SCHEMA.filter(q => q.startsWith('CREATE INDEX')).map(q => db.prepare(q)),
+        db.prepare("DELETE FROM settings WHERE key='admin'"),
+        db.prepare("INSERT INTO tenants (id, slug, name, admin_user, admin_salt, admin_hash, admin_ver, plan, max_students, created_at) VALUES (1, ?, ?, ?, ?, ?, ?, 'owner', 0, ?)")
+          .bind(slug, prof.name || 'Institution', cred.username, cred.salt, cred.hash, cred.ver || 0, todayStr()),
+        db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('default_slug', ?)").bind(slug));
+      await db.batch(stmts);
+    }
+  }
+  tenancyReady = true;
+}
+const getDefaultSlug = async db => (await db.prepare("SELECT value FROM meta WHERE key='default_slug'").first())?.value || '';
+const tenantBySlug = (db, slug) => db.prepare('SELECT * FROM tenants WHERE slug=?').bind(cleanSlug(slug)).first();
+
+// ---------- per-institution data ----------
 const TABLES = {
   classes:  { cols: ['id', 'name', 'working_days', 'teacher_title', 'teacher_name'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), num(r.totalWorkingDays, 1, 366), opt(r.teacherTitle, 60), opt(r.teacherName, 80)] },
   exams:    { cols: ['id', 'name', 'is_public'], pk: ['id'], row: r => [str(r.id, 64), str(r.name), r.isPublic ? 1 : 0] },
@@ -64,37 +123,36 @@ const TABLES = {
     row: r => [str(r.examId, 64), str(r.studentId, 64), num(r.attendanceDays, 0, 366),
       JSON.stringify(Object.fromEntries(Object.entries(r.marks || {}).map(([k, v]) => [k, absent(v) ? 'AB' : num(v, 0, 1000)])))] },
 };
-// D1 allows max 100 bound params per statement -> chunk rows
-const upserts = (db, t, rows) => {
-  const { cols, pk, row } = TABLES[t], per = Math.floor(90 / cols.length), out = [];
+// D1 allows max 100 bound params per statement -> chunk rows. Every statement is locked to one tenant_id.
+const upserts = (db, tid, t, rows) => {
+  const { cols, pk, row } = TABLES[t], all = ['tenant_id', ...cols], per = Math.floor(90 / all.length), out = [];
   const upd = cols.filter(c => !pk.includes(c)).map(c => `${c}=excluded.${c}`).join(',');
   for (let i = 0; i < rows.length; i += per) {
-    const chunk = rows.slice(i, i + per).map(row);
-    const ph = chunk.map(() => `(${cols.map(() => '?').join(',')})`).join(',');
-    out.push(db.prepare(`INSERT INTO ${t} (${cols.join(',')}) VALUES ${ph} ON CONFLICT(${pk.join(',')}) DO UPDATE SET ${upd}`).bind(...chunk.flat()));
+    const chunk = rows.slice(i, i + per).map(r => [tid, ...row(r)]);
+    const ph = chunk.map(() => `(${all.map(() => '?').join(',')})`).join(',');
+    out.push(db.prepare(`INSERT INTO ${t} (${all.join(',')}) VALUES ${ph} ON CONFLICT(tenant_id,${pk.join(',')}) DO UPDATE SET ${upd}`).bind(...chunk.flat()));
   }
   return out;
 };
-const deletes = (db, t, keys) => {
-  const { pk } = TABLES[t], per = Math.floor(90 / pk.length), out = [];
+const deletes = (db, tid, t, keys) => {
+  const { pk } = TABLES[t], per = Math.floor(89 / pk.length), out = [];
   for (let i = 0; i < keys.length; i += per) {
     const chunk = keys.slice(i, i + per).map(k => String(k).split('|'));
-    const where = pk.length === 1 ? `${pk[0]} IN (${chunk.map(() => '?').join(',')})` : chunk.map(() => `(${pk[0]}=? AND ${pk[1]}=?)`).join(' OR ');
-    out.push(db.prepare(`DELETE FROM ${t} WHERE ${where}`).bind(...chunk.flat()));
+    const where = pk.length === 1 ? `${pk[0]} IN (${chunk.map(() => '?').join(',')})` : '(' + chunk.map(() => `(${pk[0]}=? AND ${pk[1]}=?)`).join(' OR ') + ')';
+    out.push(db.prepare(`DELETE FROM ${t} WHERE tenant_id=? AND ${where}`).bind(tid, ...chunk.flat()));
   }
   return out;
 };
 
-// ---------- handlers ----------
 const DEF = {
   portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true },
   grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
   fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }],
 };
-const settings = async db => {
-  const { results } = await db.prepare('SELECT key,value FROM settings').all();
+const settings = async (db, tid) => {
+  const { results } = await db.prepare('SELECT key,value FROM settings WHERE tenant_id=?').bind(tid).all();
   const m = Object.fromEntries(results.map(r => [r.key, JSON.parse(r.value)]));
-  return { madrasa: m.madrasa || { name: 'Your Institution', subtitle: 'Online Result Portal', logo: '', headTitle: 'Principal', headName: '', bismillah: false }, announcements: m.announcements || [],
+  return { madrasa: m.madrasa || initialSettings('Your Institution').madrasa, announcements: m.announcements || [],
     portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields };
 };
 const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
@@ -103,10 +161,10 @@ const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0)
 const exact = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, never the rounded one
 const subPassed = (m, x) => !absent(m?.[x.id]) && (Number(m?.[x.id]) || 0) >= x.passingMarks;
 
-async function adminState(db) {
-  const [ex, cl, su, st, re] = await db.batch(['exams', 'classes', 'subjects', 'students', 'results'].map(t => db.prepare(`SELECT * FROM ${t}`)));
+async function adminState(db, tid) {
+  const [ex, cl, su, st, re] = await db.batch(['exams', 'classes', 'subjects', 'students', 'results'].map(t => db.prepare(`SELECT * FROM ${t} WHERE tenant_id=?`).bind(tid)));
   return {
-    ...(await settings(db)),
+    ...(await settings(db, tid)),
     exams: ex.results.map(r => ({ id: r.id, name: r.name, isPublic: !!r.is_public })),
     classes: cl.results.map(r => ({ id: r.id, name: r.name, totalWorkingDays: r.working_days, teacherTitle: r.teacher_title || '', teacherName: r.teacher_name || '' })),
     subjects: su.results.map(r => ({ id: r.id, classId: r.class_id, name: r.name, maxMarks: r.max_marks, passingMarks: r.pass_marks, active: r.active !== 0 })),
@@ -115,13 +173,22 @@ async function adminState(db) {
   };
 }
 
-async function sync(db, body) {
-  const stmts = [], { upserts: up = {}, deletes: del = {} } = body;
-  for (const t of ['results', 'students', 'subjects', 'classes', 'exams']) if (del[t]?.length) stmts.push(...deletes(db, t, del[t]));
-  for (const t of ['classes', 'exams', 'subjects', 'students', 'results']) if (up[t]?.length) stmts.push(...upserts(db, t, up[t]));
+async function sync(db, t, body) {
+  const tid = t.id, stmts = [], { upserts: up = {}, deletes: del = {} } = body;
+  if (t.max_students > 0 && up.students?.length) { // plan limit
+    const ids = up.students.map(s => String(s.id)); let existing = 0;
+    for (let i = 0; i < ids.length; i += 90) {
+      const c = ids.slice(i, i + 90);
+      existing += (await db.prepare(`SELECT COUNT(*) AS c FROM students WHERE tenant_id=? AND id IN (${c.map(() => '?').join(',')})`).bind(tid, ...c).first()).c;
+    }
+    const cur = (await db.prepare('SELECT COUNT(*) AS c FROM students WHERE tenant_id=?').bind(tid).first()).c, added = ids.length - existing;
+    if (added > 0 && cur + added - (del.students || []).length > t.max_students) throw new Error(`Student limit reached (${t.max_students}). Please contact support to upgrade your plan.`);
+  }
+  for (const k of ['results', 'students', 'subjects', 'classes', 'exams']) if (del[k]?.length) stmts.push(...deletes(db, tid, k, del[k]));
+  for (const k of ['classes', 'exams', 'subjects', 'students', 'results']) if (up[k]?.length) stmts.push(...upserts(db, tid, k, up[k]));
   if (up.settings) {
     const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl } = up.settings;
-    const put = (k, v) => stmts.push(db.prepare('INSERT INTO settings VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k, JSON.stringify(v)));
+    const put = (k, v) => stmts.push(db.prepare('INSERT INTO settings (tenant_id, key, value) VALUES (?, ?, ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value').bind(tid, k, JSON.stringify(v)));
     if (po) put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition });
     if (gr) {
       if (!Array.isArray(gr.scale) || !gr.scale.length || gr.scale.length > 12) throw new Error('Add 1 to 12 grade rows');
@@ -135,37 +202,43 @@ async function sync(db, body) {
       const logo = (m.logo || '').trim();
       const okLogo = /^https?:\/\//i.test(logo) || /^\/(?!\/)[\w./-]*$/.test(logo) || /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(logo);
       if (logo && (!okLogo || logo.length > 200000)) throw new Error('Logo must be an image link, a /path, or an uploaded image under 150 KB');
-      stmts.push(db.prepare("INSERT INTO settings VALUES ('madrasa', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
-        .bind(JSON.stringify({ name: str(m.name), subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true })));
+      const name = str(m.name);
+      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), bismillah: typeof m.bismillah === 'boolean' ? m.bismillah : true });
+      stmts.push(db.prepare('UPDATE tenants SET name=? WHERE id=?').bind(name, tid));
     }
-    if (a) {
-      if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements');
-      stmts.push(db.prepare("INSERT INTO settings VALUES ('announcements', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
-        .bind(JSON.stringify(a.map(x => str(x, 500)))));
-    }
+    if (a) { if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements'); put('announcements', a.map(x => str(x, 500))); }
   }
   if (stmts.length) await db.batch(stmts); // atomic
 }
 
-async function publicResult(db, url) {
-  const set = await settings(db);
+async function publicInfo(db, t) {
+  const set = await settings(db, t.id), st = tenantState(t);
+  if (st !== 'active') return json({ madrasa: { ...set.madrasa, shareText: '' }, announcements: [], portal: { enabled: false, message: 'This portal is temporarily unavailable. Please contact the institution.', showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
+  const { results } = set.portal.enabled ? await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(t.id).all() : { results: [] };
+  return json({ madrasa: set.madrasa, announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
+}
+
+async function publicResult(db, t, url) {
+  const tid = t.id, state = tenantState(t);
+  if (state !== 'active') return fail('This portal is temporarily unavailable. Please contact the institution.', 403);
+  const set = await settings(db, tid);
   if (!set.portal.enabled) return fail(set.portal.message || 'Results are not available yet.', 403);
   const examId = url.searchParams.get('exam') || '', adm = (url.searchParams.get('adm') || '').trim().toUpperCase();
   if (!examId || !adm) return fail('Exam and admission number are required');
-  const exam = await db.prepare('SELECT id,name FROM exams WHERE id=? AND is_public=1').bind(examId).first();
+  const exam = await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND id=? AND is_public=1').bind(tid, examId).first();
   if (!exam) return fail('This examination is not available', 404);
-  const st = await db.prepare('SELECT * FROM students WHERE admission_no=?').bind(adm).first();
+  const st = await db.prepare('SELECT * FROM students WHERE tenant_id=? AND admission_no=?').bind(tid, adm).first();
   if (!st) return fail(`No student found with ${set.fields[0]?.label || 'Admission No'}: ${adm}`, 404);
   const [cl, su, mine, mates] = await db.batch([
-    db.prepare('SELECT name,working_days,teacher_title,teacher_name FROM classes WHERE id=?').bind(st.class_id),
-    db.prepare('SELECT * FROM subjects WHERE class_id=? ORDER BY rowid').bind(st.class_id),
-    db.prepare('SELECT r.exam_id, r.attendance_days, r.marks, e.name FROM results r JOIN exams e ON e.id=r.exam_id WHERE r.student_id=? AND e.is_public=1 ORDER BY e.rowid').bind(st.id),
-    db.prepare('SELECT r.student_id, r.marks FROM results r JOIN students s ON s.id=r.student_id WHERE r.exam_id=? AND s.class_id=?').bind(examId, st.class_id),
+    db.prepare('SELECT name,working_days,teacher_title,teacher_name FROM classes WHERE tenant_id=? AND id=?').bind(tid, st.class_id),
+    db.prepare('SELECT * FROM subjects WHERE tenant_id=? AND class_id=? ORDER BY rowid').bind(tid, st.class_id),
+    db.prepare('SELECT r.exam_id, r.attendance_days, r.marks, e.name FROM results r JOIN exams e ON e.tenant_id=r.tenant_id AND e.id=r.exam_id WHERE r.tenant_id=? AND r.student_id=? AND e.is_public=1 ORDER BY e.rowid').bind(tid, st.id),
+    db.prepare('SELECT r.student_id, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?').bind(tid, examId, st.class_id),
   ]);
   const c = cl.results[0], subs = su.results.map(x => ({ id: x.id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks, active: x.active !== 0 }));
   const cur = mine.results.find(r => r.exam_id === examId);
   if (!cur) return fail(`Result not yet uploaded for ${st.name} (${adm}) in the selected exam.`, 404);
-  // A subject counts only if it is switched on for the class (ticked in the marks screen) and marks exist for it; hidden subjects are skipped everywhere.
+  // A subject counts only if it is switched on for the class and marks exist for it; hidden subjects are skipped everywhere.
   const take = m => subs.filter(x => x.active && m?.[x.id] !== undefined);
   const maxOf = l => l.reduce((a, x) => a + x.maxMarks, 0);
   const marks = JSON.parse(cur.marks), mySubs = take(marks), maxPer = maxOf(mySubs);
@@ -182,89 +255,216 @@ async function publicResult(db, url) {
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
-    position: set.portal.showPosition ? { rank: 1 + pcts.filter(t => t > myPct + 1e-9).length, of: pcts.length } : null,
+    position: set.portal.showPosition ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
     exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
 }
 
-// Chat apps (WhatsApp, Telegram...) read the page's meta tags without running JavaScript, so the Worker fills them in from the institution profile.
-async function servePage(req, env, url) {
-  const res = await env.ASSETS.fetch(req);
+// ---------- institution admin accounts ----------
+async function tenantAuth(req, env) {
+  const c = await readToken(req, env);
+  if (!c || c.role !== 'tenant') return { status: 401, msg: 'Session expired. Please log in again.' };
+  const t = await env.DB.prepare('SELECT * FROM tenants WHERE id=?').bind(c.tid).first();
+  if (!t) return { status: 401, msg: 'Session expired. Please log in again.' };
+  if (!c.imp) {
+    if ((c.v || 0) !== t.admin_ver) return { status: 401, msg: 'Session expired. Please log in again.' };
+    const st = tenantState(t); if (st !== 'active') return { status: 403, msg: blockedMsg(st) };
+  }
+  return { t, claims: c };
+}
+async function tenantLogin(env, body, defSlug) {
+  const t = await tenantBySlug(env.DB, body.slug || defSlug || '');
+  const userOk = t ? await safeEq(body.username || '', t.admin_user, env.JWT_SECRET) : (await safeEq('x', 'y', env.JWT_SECRET), false);
+  const passOk = t ? await checkPw(body.password || '', t.admin_salt, t.admin_hash) : (await pbkdf2('x', new Uint8Array(16)), false);
+  if (!(t && userOk && passOk)) { await new Promise(r => setTimeout(r, 600)); return fail('Invalid username or password', 401); }
+  const st = tenantState(t); if (st !== 'active') return fail(blockedMsg(st), 403);
+  return json({ token: await makeToken(env, { role: 'tenant', tid: t.id, v: t.admin_ver }), slug: t.slug });
+}
+async function changeTenantAccount(env, t, body) {
+  if (!(await checkPw(body.current || '', t.admin_salt, t.admin_hash))) return fail('Current password is wrong', 403);
+  const username = opt(body.username, 40) || t.admin_user;
+  if (username.length < 3) return fail('Username must be at least 3 characters');
+  let { admin_salt: salt, admin_hash: hash } = t;
+  if (body.password) { if (body.password.length < 8 || body.password.length > 100) return fail('New password must be 8 to 100 characters'); ({ salt, hash } = await hashPw(body.password)); }
+  const ver = Date.now();
+  await env.DB.prepare('UPDATE tenants SET admin_user=?, admin_salt=?, admin_hash=?, admin_ver=? WHERE id=?').bind(username, salt, hash, ver, t.id).run();
+  return json({ token: await makeToken(env, { role: 'tenant', tid: t.id, v: ver }), username });
+}
+
+// ---------- super admin (the platform owner) ----------
+const getSuper = async db => { const r = await db.prepare("SELECT value FROM meta WHERE key='super'").first(); return r ? JSON.parse(r.value) : null; };
+const superReady = (env, sup) => !!(sup || (env.SUPER_USER && env.SUPER_PASSWORD));
+const superPassOk = (env, sup, pw) => (sup ? checkPw(pw, sup.salt, sup.hash) : safeEq(pw, env.SUPER_PASSWORD, env.JWT_SECRET));
+async function superAuth(req, env) {
+  const c = await readToken(req, env);
+  if (!c || c.role !== 'super') return false;
+  return (c.v || 0) === ((await getSuper(env.DB))?.ver || 0);
+}
+const tenantView = r => ({ id: r.id, slug: r.slug, name: r.name, adminUser: r.admin_user, status: r.status, state: tenantState(r), plan: r.plan, paidUntil: r.paid_until, maxStudents: r.max_students, contact: r.contact, notes: r.notes, createdAt: r.created_at, students: r.students ?? 0, classes: r.classes ?? 0 });
+function tenantFields(b) {
+  const paid = opt(b.paidUntil, 10); if (paid && !/^\d{4}-\d{2}-\d{2}$/.test(paid)) throw new Error('Paid-until must be a date (YYYY-MM-DD).');
+  return { plan: opt(b.plan, 30) || 'standard', paid_until: paid, max_students: num(b.maxStudents ?? 500, 0, 100000), contact: opt(b.contact, 100), notes: opt(b.notes, 500) };
+}
+async function superApi(req, env, p, url) {
+  const db = env.DB, m = p.match(/^\/api\/super\/tenants(?:\/(\d+)(?:\/(reset|impersonate))?)?$/);
+  if (p === '/api/super/me') return json({ ok: true, defaultSlug: await getDefaultSlug(db) });
+  if (m && !m[1] && req.method === 'GET') {
+    const { results } = await db.prepare('SELECT t.*, (SELECT COUNT(*) FROM students s WHERE s.tenant_id=t.id) AS students, (SELECT COUNT(*) FROM classes c WHERE c.tenant_id=t.id) AS classes FROM tenants t ORDER BY t.id DESC').all();
+    return json({ tenants: results.map(tenantView), defaultSlug: await getDefaultSlug(db) });
+  }
+  if (m && !m[1] && req.method === 'POST') {
+    const b = await req.json(), slug = cleanSlug(b.slug), name = str(b.name, 100), user = str(b.adminUser, 40), pw = String(b.adminPassword || '');
+    checkSlug(slug); if (user.length < 3 || !/^[A-Za-z0-9._-]+$/.test(user)) throw new Error('Admin username: 3+ characters, letters/numbers/dot/dash/underscore.');
+    if (pw.length < 8 || pw.length > 100) throw new Error('Admin password must be 8 to 100 characters.');
+    const f = tenantFields(b), { salt, hash } = await hashPw(pw), init = initialSettings(name);
+    try {
+      await db.batch([
+        db.prepare('INSERT INTO tenants (slug, name, admin_user, admin_salt, admin_hash, plan, paid_until, max_students, contact, notes, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(slug, name, user, salt, hash, f.plan, f.paid_until, f.max_students, f.contact, f.notes, todayStr()),
+        db.prepare("INSERT INTO settings (tenant_id, key, value) SELECT id, 'madrasa', ? FROM tenants WHERE slug=?").bind(JSON.stringify(init.madrasa), slug),
+        db.prepare("INSERT INTO settings (tenant_id, key, value) SELECT id, 'portal', ? FROM tenants WHERE slug=?").bind(JSON.stringify(init.portal), slug),
+      ]);
+    } catch (e) { if (/UNIQUE/i.test(e.message)) throw new Error('That address is already taken. Choose another.'); throw e; }
+    return json({ tenant: tenantView(await tenantBySlug(db, slug)) });
+  }
+  if (m && m[1]) {
+    const id = Number(m[1]), t = await db.prepare('SELECT * FROM tenants WHERE id=?').bind(id).first();
+    if (!t) return fail('Institution not found', 404);
+    if (m[2] === 'impersonate' && req.method === 'POST') return json({ token: await makeToken(env, { role: 'tenant', tid: t.id, v: t.admin_ver, imp: true }, 3), slug: t.slug });
+    if (m[2] === 'reset' && req.method === 'POST') {
+      const b = await req.json(), pw = String(b.password || ''), user = opt(b.username, 40) || t.admin_user;
+      if (pw.length < 8 || pw.length > 100) throw new Error('Password must be 8 to 100 characters.');
+      const { salt, hash } = await hashPw(pw);
+      await db.prepare('UPDATE tenants SET admin_user=?, admin_salt=?, admin_hash=?, admin_ver=? WHERE id=?').bind(user, salt, hash, Date.now(), id).run();
+      return json({ ok: true });
+    }
+    if (!m[2] && req.method === 'PUT') {
+      const b = await req.json(), f = tenantFields(b), name = str(b.name, 100), slug = cleanSlug(b.slug || t.slug), status = b.status === 'suspended' ? 'suspended' : 'active';
+      if (slug !== t.slug) checkSlug(slug);
+      try { await db.prepare('UPDATE tenants SET slug=?, name=?, status=?, plan=?, paid_until=?, max_students=?, contact=?, notes=? WHERE id=?').bind(slug, name, status, f.plan, f.paid_until, f.max_students, f.contact, f.notes, id).run(); }
+      catch (e) { if (/UNIQUE/i.test(e.message)) throw new Error('That address is already taken.'); throw e; }
+      if (slug !== t.slug && (await getDefaultSlug(db)) === t.slug) await db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('default_slug', ?)").bind(slug).run();
+      return json({ tenant: tenantView(await db.prepare('SELECT * FROM tenants WHERE id=?').bind(id).first()) });
+    }
+    if (!m[2] && req.method === 'DELETE') {
+      const b = await req.json().catch(() => ({}));
+      if (cleanSlug(b.confirm) !== t.slug) throw new Error('Type the institution address to confirm deletion.');
+      const del = ['settings', 'exams', 'classes', 'subjects', 'students', 'results'].map(x => db.prepare(`DELETE FROM ${x} WHERE tenant_id=?`).bind(id));
+      await db.batch([...del, db.prepare('DELETE FROM tenants WHERE id=?').bind(id), db.prepare("DELETE FROM meta WHERE key='default_slug' AND value=?").bind(t.slug)]);
+      return json({ ok: true });
+    }
+  }
+  if (p === '/api/super/default' && req.method === 'POST') {
+    const b = await req.json(), slug = cleanSlug(b.slug);
+    if (slug && !(await tenantBySlug(db, slug))) throw new Error('Institution not found');
+    if (slug) await db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('default_slug', ?)").bind(slug).run(); else await db.prepare("DELETE FROM meta WHERE key='default_slug'").run();
+    return json({ ok: true, defaultSlug: slug });
+  }
+  if (p === '/api/super/account' && req.method === 'POST') {
+    const b = await req.json(), sup = await getSuper(db);
+    if (!(await superPassOk(env, sup, b.current || ''))) return fail('Current password is wrong', 403);
+    const username = opt(b.username, 40) || sup?.username || env.SUPER_USER; if (username.length < 3) throw new Error('Username must be at least 3 characters');
+    let { salt, hash } = sup || {};
+    if (b.password) { if (b.password.length < 8 || b.password.length > 100) throw new Error('New password must be 8 to 100 characters'); ({ salt, hash } = await hashPw(b.password)); }
+    else if (!sup) ({ salt, hash } = await hashPw(b.current));
+    const ver = Date.now();
+    await db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('super', ?)").bind(JSON.stringify({ username, salt, hash, ver })).run();
+    return json({ token: await makeToken(env, { role: 'super', v: ver }), username });
+  }
+  return fail('Not found', 404);
+}
+
+// ---------- API router ----------
+async function api(req, env, url, p) {
+  try {
+    if (!env.JWT_SECRET) return fail('Server is not configured yet: add the JWT_SECRET secret in Cloudflare settings.', 500);
+    await ensureTenancy(env.DB, env);
+    const db = env.DB, defSlug = await getDefaultSlug(db);
+    let m = p.match(/^\/api\/t\/([a-z0-9-]+)\/(public|result)$/);
+    if (!m && (p === '/api/public' || p === '/api/result') && defSlug) m = [p, defSlug, p.slice(5)]; // old links / cached pages keep working
+    if (m && req.method === 'GET') {
+      const t = await tenantBySlug(db, m[1]); if (!t) return fail('Institution not found', 404);
+      return m[2] === 'public' ? publicInfo(db, t) : publicResult(db, t, url);
+    }
+    if (p === '/api/login' && req.method === 'POST') return tenantLogin(env, await req.json(), defSlug);
+    if (p === '/api/super/login' && req.method === 'POST') {
+      const b = await req.json(), sup = await getSuper(db);
+      if (!superReady(env, sup)) return fail('Super admin is not set up. Add SUPER_USER and SUPER_PASSWORD in your Cloudflare settings.', 503);
+      const ok = (await safeEq(b.username || '', sup ? sup.username : env.SUPER_USER, env.JWT_SECRET)) && (await superPassOk(env, sup, b.password || ''));
+      if (!ok) { await new Promise(r => setTimeout(r, 600)); return fail('Invalid username or password', 401); }
+      return json({ token: await makeToken(env, { role: 'super', v: sup?.ver || 0 }) });
+    }
+    if (p.startsWith('/api/super/')) { if (!(await superAuth(req, env))) return fail('Session expired. Please log in again.', 401); return await superApi(req, env, p, url); }
+    if (p.startsWith('/api/admin/')) {
+      const a = await tenantAuth(req, env); if (a.status) return fail(a.msg, a.status);
+      if (p === '/api/admin/state' && req.method === 'GET') return json({ ...(await adminState(db, a.t.id)), institution: { slug: a.t.slug, plan: a.t.plan, maxStudents: a.t.max_students, paidUntil: a.t.paid_until } });
+      if (p === '/api/admin/account' && req.method === 'POST') return changeTenantAccount(env, a.t, await req.json());
+      if (p === '/api/admin/sync' && req.method === 'POST') { await sync(db, a.t, await req.json()); return json({ ok: true }); }
+    }
+    return fail('Not found', 404);
+  } catch (e) {
+    const dup = /UNIQUE/i.test(e.message);
+    return fail(dup ? 'Duplicate admission number' : e.message, dup ? 409 : 400);
+  }
+}
+
+// ---------- pages: one HTML shell, filled in per address (so WhatsApp previews show the right institution) ----------
+async function servePage(req, env, url, route, slug) {
+  const res = await env.ASSETS.fetch(new Request(new URL('/', req.url), { method: 'GET' }));
   if (!res.ok || !(res.headers.get('content-type') || '').includes('text/html')) return res;
-  let m; try { m = (await settings(env.DB)).madrasa; } catch { return res; }
-  const name = m.name || 'Results', desc = m.shareText || `Check your exam results online - ${name}`;
-  const lg = m.logo || '', img = /^https?:\/\//i.test(lg) ? lg : lg.startsWith('data:') ? url.origin + '/logo' : /^\/(?!\/)/.test(lg) ? url.origin + lg : url.origin + '/icons/icon-512.png';
+  let name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route;
+  if (slug) {
+    const t = await tenantBySlug(env.DB, slug);
+    if (!t) { r = 'notfound'; status = 404; slug = ''; }
+    else {
+      const m = (await settings(env.DB, t.id)).madrasa, lg = m.logo || '';
+      name = m.name || t.name; desc = m.shareText || `Check your exam results online - ${name}`;
+      img = /^https?:\/\//i.test(lg) ? lg : lg.startsWith('data:') ? `${url.origin}/${t.slug}/logo` : /^\/(?!\/)/.test(lg) ? url.origin + lg : img;
+      ogUrl = url.origin + (url.pathname === '/' ? '/' : '/' + t.slug);
+      if (r === 'admin') name = 'Admin - ' + name;
+    }
+  }
   const meta = v => ({ element(e) { e.setAttribute('content', v); } });
   return new HTMLRewriter()
     .on('title', { element(e) { e.setInnerContent(name); } })
     .on('meta[name="description"]', meta(desc)).on('meta[property="og:title"]', meta(name)).on('meta[property="og:description"]', meta(desc))
-    .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(url.origin + '/')).on('meta[property="og:site_name"]', meta(name))
-    .transform(new Response(res.body, { status: res.status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } }));
+    .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(ogUrl)).on('meta[property="og:site_name"]', meta(name))
+    .on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
+    .on('link[rel="manifest"]', { element(e) { if (slug) e.setAttribute('href', `/${slug}/manifest.webmanifest`); } })
+    .transform(new Response(res.body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } }));
 }
-
-// Self-healing database: if an update needs a column the database doesn't have yet, add it automatically and retry once.
-const MIGRATIONS = [
-  ['students', 'extra', "TEXT NOT NULL DEFAULT '{}'"],
-  ['classes', 'teacher_title', "TEXT NOT NULL DEFAULT ''"],
-  ['classes', 'teacher_name', "TEXT NOT NULL DEFAULT ''"],
-  ['subjects', 'active', 'INTEGER NOT NULL DEFAULT 1'],
-];
-const schemaErr = e => /no such column|has no column named/i.test(String(e && e.message));
-async function ensureSchema(db) {
-  for (const [t, c, def] of MIGRATIONS) {
-    const { results } = await db.prepare(`PRAGMA table_info(${t})`).all();
-    if (!results.some(r => r.name === c)) await db.prepare(`ALTER TABLE ${t} ADD COLUMN ${c} ${def}`).run();
+async function tenantAsset(env, url, slug, kind, defSlug) {
+  const t = await tenantBySlug(env.DB, slug); if (!t) return new Response('Not found', { status: 404 });
+  const m = (await settings(env.DB, t.id)).madrasa;
+  if (kind === 'logo') {
+    const d = /^data:(image\/[a-z]+);base64,(.+)$/.exec(m.logo || ''); if (!d) return new Response('Not found', { status: 404 });
+    return new Response(Uint8Array.from(atob(d[2]), c => c.charCodeAt(0)), { headers: { 'Content-Type': d[1], 'Cache-Control': 'public, max-age=300' } });
   }
+  const base = t.slug === defSlug ? '/' : `/${t.slug}/`;
+  return new Response(JSON.stringify({ name: m.name, short_name: (m.name || t.name).slice(0, 12), id: base, start_url: base, scope: base, display: 'standalone', orientation: 'portrait', background_color: '#064e3b', theme_color: '#064e3b', lang: 'en',
+    icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] }),
+    { headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=300' } });
 }
 
 async function handle(req, env) {
-    const p = new URL(req.url).pathname;
-    if (p === '/admin' || p === '/admin/') return env.ASSETS.fetch(new Request(new URL('/', req.url), req)); // admin lives at /admin, never linked publicly
-    if (p === '/logo') { // uploaded logo, served as a real image so WhatsApp/Telegram previews can use it
-      const m = /^data:(image\/[a-z]+);base64,(.+)$/.exec((await settings(env.DB)).madrasa.logo || '');
-      if (!m) return new Response('Not found', { status: 404 });
-      return new Response(Uint8Array.from(atob(m[2]), c => c.charCodeAt(0)), { headers: { 'Content-Type': m[1], 'Cache-Control': 'public, max-age=300' } });
-    }
-    if (p === '/' || p === '/index.html') return servePage(req, env, new URL(req.url));
-    if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
-    try {
-      if (p === '/api/public' && req.method === 'GET') {
-        const set = await settings(env.DB);
-        const { results } = set.portal.enabled ? await env.DB.prepare('SELECT id,name FROM exams WHERE is_public=1 ORDER BY rowid').all() : { results: [] };
-        return json({ madrasa: set.madrasa, announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
-      }
-      if (p === '/api/result' && req.method === 'GET') return publicResult(env.DB, new URL(req.url));
-
-      if (p === '/api/login' && req.method === 'POST') {
-        const { username = '', password = '' } = await req.json();
-        const adm = await getAdmin(env.DB);
-        const okU = await safeEq(String(username), adm?.username || env.ADMIN_USER, env.JWT_SECRET);
-        const okP = await passwordOk(env, adm, password);
-        if (!(okU && okP)) { await new Promise(r => setTimeout(r, 600)); return fail('Invalid username or password', 401); }
-        return json({ token: await makeToken(env, adm?.ver) });
-      }
-
-      if (p.startsWith('/api/admin/')) {
-        if (!(await isAdmin(req, env))) return fail('Session expired. Please log in again.', 401);
-        if (p === '/api/admin/state' && req.method === 'GET') return json(await adminState(env.DB));
-        if (p === '/api/admin/account' && req.method === 'POST') return changeAccount(env, await req.json());
-        if (p === '/api/admin/sync' && req.method === 'POST') { await sync(env.DB, await req.json()); return json({ ok: true }); }
-      }
-      return fail('Not found', 404);
-    } catch (e) {
-      if (schemaErr(e)) throw e;
-      const dup = /UNIQUE/i.test(e.message);
-      return fail(dup ? 'Duplicate admission number' : e.message, dup ? 409 : 400);
-    }
+  const url = new URL(req.url), p = url.pathname, seg = p.split('/').filter(Boolean);
+  if (p.startsWith('/api/')) return api(req, env, url, p);
+  const last = seg[seg.length - 1] || '';
+  const asset = seg.length === 2 && (seg[1] === 'logo' || seg[1] === 'manifest.webmanifest');
+  if (!asset && /\.[a-z0-9]+$/i.test(last)) return env.ASSETS.fetch(req); // real files: styles.css, sw.js, icons...
+  await ensureTenancy(env.DB, env);
+  const defSlug = await getDefaultSlug(env.DB);
+  if (asset) return tenantAsset(env, url, seg[0].toLowerCase(), seg[1] === 'logo' ? 'logo' : 'manifest', defSlug);
+  if (p === '/logo' && defSlug) return tenantAsset(env, url, defSlug, 'logo', defSlug);
+  let route = 'landing', slug = '';
+  if (!seg.length) { if (defSlug) { route = 'public'; slug = defSlug; } }
+  else if (seg[0] === 'super') route = 'super';
+  else if (seg[0] === 'admin') { route = defSlug ? 'admin' : 'notfound'; slug = defSlug; }
+  else { slug = seg[0].toLowerCase(); route = seg[1] === 'admin' ? 'admin' : 'public'; }
+  return servePage(req, env, url, route, slug);
 }
 
 export default {
   async fetch(req, env) {
-    const copy = req.clone();
-    try { return await handle(req, env); }
-    catch (e) {
-      if (!schemaErr(e)) return fail(e.message, 500);
-      try { await ensureSchema(env.DB); return await handle(copy, env); } catch (e2) { return fail(e2.message, 500); }
-    }
+    try { return await handle(req, env); } catch (e) { return fail(e.message, 500); }
   },
 };
