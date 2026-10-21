@@ -165,7 +165,7 @@ const settings = async (db, tid) => {
   const { results } = await db.prepare('SELECT key,value FROM settings WHERE tenant_id=?').bind(tid).all();
   const m = Object.fromEntries(results.map(r => [r.key, JSON.parse(r.value)]));
   return { madrasa: m.madrasa || initialSettings('Your Institution').madrasa, announcements: m.announcements || [],
-    portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields };
+    portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields, classSigns: m.classSigns || {} };
 };
 const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
 const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
@@ -199,7 +199,8 @@ async function sync(db, t, body) {
   for (const k of ['results', 'students', 'subjects', 'classes', 'exams']) if (del[k]?.length) stmts.push(...deletes(db, tid, k, del[k]));
   for (const k of ['classes', 'exams', 'subjects', 'students', 'results']) if (up[k]?.length) stmts.push(...upserts(db, tid, k, up[k]));
   if (up.settings) {
-    const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl } = up.settings;
+    const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl, classSigns: cs } = up.settings;
+    const okSign = v => !v || (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 90000);
     const put = (k, v) => stmts.push(db.prepare('INSERT INTO settings (tenant_id, key, value) VALUES (?, ?, ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value').bind(tid, k, JSON.stringify(v)));
     if (po) put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition });
     if (gr) {
@@ -210,12 +211,21 @@ async function sync(db, t, body) {
       if (!Array.isArray(fl) || fl.length > 20 || !fl.some(f => f.id === 'admissionNo')) throw new Error('Invalid student fields');
       put('fields', fl.map(f => { if (!/^[A-Za-z0-9_]{1,40}$/.test(f.id)) throw new Error('Invalid field id'); return { id: f.id, label: str(f.label, 40), show: !!f.show }; }));
     }
+    if (cs) {
+      const e = Object.entries(cs).filter(([k, v]) => v);
+      if (e.length > 80) throw new Error('Too many signatures');
+      const out = {}; let total = 0;
+      for (const [k, v] of e) { if (!okSign(v)) throw new Error('Signature image is too large or invalid'); total += v.length; out[str(k, 64)] = v; }
+      if (total > 1500000) throw new Error('Signatures are too large in total. Use smaller images.');
+      put('classSigns', out);
+    }
     if (m) {
       const logo = (m.logo || '').trim();
       const okLogo = /^https?:\/\//i.test(logo) || /^\/(?!\/)[\w./-]*$/.test(logo) || /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(logo);
       if (logo && (!okLogo || logo.length > 200000)) throw new Error('Logo must be an image link, a /path, or an uploaded image under 150 KB');
       const name = str(m.name);
-      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200) });
+      const headSign = (m.headSign || '').trim(); if (!okSign(headSign)) throw new Error('Signature image is too large or invalid');
+      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), headSign });
       stmts.push(db.prepare('UPDATE tenants SET name=? WHERE id=?').bind(name, tid));
     }
     if (a) { if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements'); put('announcements', a.map(x => str(x, 500))); }
@@ -263,7 +273,7 @@ async function publicResult(db, t, url) {
   });
   const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
+    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '', teacherSign: set.classSigns?.[st.class_id] || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
