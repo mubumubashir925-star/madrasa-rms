@@ -137,6 +137,13 @@
             .ms-sig-line { height: 38px; }
             .ms-sign-name { font-size: 11px; } .ms-sign-title { font-size: 10px; }
         }
+        /* signature pad */
+        .sp-wrap { position: relative; height: 210px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #fff; overflow: hidden; touch-action: none; }
+        .sp-wrap canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+        .sp-line { position: absolute; left: 6%; right: 6%; bottom: 32%; border-bottom: 1px solid #e2e8f0; pointer-events: none; }
+        .sp-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 15px; pointer-events: none; }
+        .sp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 9px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; background: #e2e8f0; color: #334155; }
+        .sp-btn:disabled { opacity: .4; }
         /* result action bar: compact on phones */
         .ms-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
         .ms-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 13px; font-size: 13px; line-height: 1.2; border-radius: 8px; white-space: nowrap; }
@@ -535,6 +542,23 @@
         </div>
 
         <!-- Generic edit dialog (exams, classes, subjects, announcements) -->
+        <div id="sp-modal" class="hidden fixed inset-0 bg-slate-950/70 flex items-end sm:items-center justify-center sm:p-4 no-print" style="z-index:120">
+            <div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl p-4">
+                <div class="flex items-center justify-between mb-1"><h3 id="sp-title" class="font-bold text-slate-800 text-sm">Signature</h3>
+                    <button type="button" onclick="closeSignPad()" aria-label="Close" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fas fa-times"></i></button></div>
+                <p class="text-xs text-slate-500 mb-2">Sign inside the box with your finger or mouse.</p>
+                <div class="sp-wrap"><canvas id="sp-canvas"></canvas><span class="sp-line"></span><span id="sp-hint" class="sp-hint">Sign here</span></div>
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                    <button type="button" id="sp-undo" class="sp-btn" onclick="spUndo()"><i class="fas fa-undo"></i> Undo</button>
+                    <button type="button" id="sp-redo" class="sp-btn" onclick="spRedo()"><i class="fas fa-redo"></i> Redo</button>
+                    <button type="button" id="sp-clear" class="sp-btn" onclick="spClear()"><i class="fas fa-eraser"></i> Clear</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <button type="button" class="sp-btn" onclick="closeSignPad()">Cancel</button>
+                    <button type="button" class="sp-btn" style="background:#047857;color:#fff" onclick="spSave()"><i class="fas fa-check"></i> Save signature</button>
+                </div>
+            </div>
+        </div>
         <div id="ge-modal" class="hidden fixed inset-0 z-[80] bg-slate-950/70 overflow-y-auto p-4 no-print">
             <form onsubmit="submitEdit(event)" class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-4 p-5 space-y-3.5">
                 <div class="flex items-center justify-between"><h3 id="ge-title" class="font-bold text-slate-800"></h3>
@@ -682,6 +706,11 @@
                                             <input type="text" id="setting-head-name" maxlength="80" placeholder="e.g., Mubashir" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm"></div>
                                         <p class="sm:col-span-2 text-[11px] text-slate-400 -mt-1">Shown as the signature on every result sheet and class report.</p>
                                     </div>
+                                    <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                                        <div id="head-sign-preview" class="w-28 h-14 shrink-0 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden"></div>
+                                        <div class="min-w-0 flex-1"><p class="text-xs font-bold uppercase text-slate-600">Head&rsquo;s signature</p><p class="text-[11px] text-slate-400">Draw it on the screen. Printed above the name on every result. Remember to press Save.</p></div>
+                                        <div class="flex flex-col sm:flex-row gap-1.5 shrink-0"><button type="button" id="head-sign-btn" class="abtn abtn-ok" onclick="signHead()">Sign</button><button type="button" id="head-sign-rm" class="abtn abtn-gray hidden" onclick="removeHeadSign()">Remove</button></div>
+                                    </div>
                                     <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Share message</label>
                                         <input type="text" id="setting-share-text" maxlength="200" placeholder="e.g., Check your exam results online" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
                                         <p class="text-[11px] text-slate-400 mt-1">Shown under your institution name and logo when the link is shared on WhatsApp, Telegram etc.</p></div>
@@ -822,7 +851,7 @@
                     </div>
 
                     <div id="admin-tab-setup" class="admin-tab-content hidden space-y-6">
-                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="setup" data-sub="portal" onclick="showSub('setup','portal')">Public Portal</button><button type="button" class="subtab-btn" data-group="setup" data-sub="grading" onclick="showSub('setup','grading')">Grading</button><button type="button" class="subtab-btn" data-group="setup" data-sub="fields" onclick="showSub('setup','fields')">Student Fields</button><button type="button" class="subtab-btn" data-group="setup" data-sub="signs" onclick="showSub('setup','signs')">Signatures</button><button type="button" class="subtab-btn" data-group="setup" data-sub="account" onclick="showSub('setup','account')">Admin Login</button><button type="button" class="subtab-btn" data-group="setup" data-sub="backup" onclick="showSub('setup','backup')">Backup</button></div>
+                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="setup" data-sub="portal" onclick="showSub('setup','portal')">Public Portal</button><button type="button" class="subtab-btn" data-group="setup" data-sub="grading" onclick="showSub('setup','grading')">Grading</button><button type="button" class="subtab-btn" data-group="setup" data-sub="fields" onclick="showSub('setup','fields')">Student Fields</button><button type="button" class="subtab-btn" data-group="setup" data-sub="account" onclick="showSub('setup','account')">Admin Login</button><button type="button" class="subtab-btn" data-group="setup" data-sub="backup" onclick="showSub('setup','backup')">Backup</button></div>
                         
                         <div data-group="setup" data-sub="portal" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
                             <div class="flex items-start justify-between gap-4">
@@ -856,11 +885,6 @@
                             <div id="field-rows" class="space-y-2"></div>
                             <div class="flex gap-2"><input id="new-field-label" maxlength="40" placeholder="New field, e.g. Date of Birth" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white flex-1"><button type="button" onclick="addFieldRow()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-semibold">Add</button></div>
                             <button onclick="saveFields()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save fields</button>
-                        </div>
-                        <div data-group="setup" data-sub="signs" class="subpanel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
-                            <div><h3 class="font-bold text-slate-800"><i class="fas fa-signature text-emerald-700 mr-1.5"></i> Signatures</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Upload a photo or scan of each signature (on plain white paper). The background is removed automatically and the signature is printed above the signature line on every result sheet and class report.</p></div>
-                            <div id="sign-rows" class="space-y-2"></div>
                         </div>
                         <div data-group="setup" data-sub="backup" class="subpanel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
                             <div><h3 class="font-bold text-slate-800"><i class="fas fa-database text-emerald-700 mr-1.5"></i> Backup &amp; Restore</h3>
@@ -1271,8 +1295,8 @@
                 v => { if (!v[0]) return 'Exam title is required.'; appState.exams.push({ id: 'EXM_' + Date.now(), name: v[0], isPublic: v[1] }); }, { again: addExam, msg: 'Exam added.' });
         }
         function addClass() {
-            openEdit('Add Class', [{ label: 'Class name', value: '', required: true }, { label: 'Total working days', type: 'number', min: 1, max: 365, value: 200, required: true }, { label: 'Teacher designation', value: '' }, { label: 'Teacher name', value: '' }],
-                v => { if (!v[0]) return 'Class name is required.'; if (!(v[1] >= 1 && v[1] <= 365)) return 'Working days must be 1 to 365.'; appState.classes.push({ id: 'CLS_' + Date.now(), name: v[0], totalWorkingDays: v[1], teacherTitle: v[2], teacherName: v[3] }); }, { again: addClass, msg: 'Class added.' });
+            openEdit('Add Class', [{ label: 'Class name', value: '', required: true }, { label: 'Total working days', type: 'number', min: 1, max: 365, value: 200, required: true }, { label: 'Teacher designation', value: '' }, { label: 'Teacher name', value: '' }, { label: 'Teacher signature', type: 'sign', sign: '' }],
+                v => { if (!v[0]) return 'Class name is required.'; if (!(v[1] >= 1 && v[1] <= 365)) return 'Working days must be 1 to 365.'; const id = 'CLS_' + Date.now(); appState.classes.push({ id, name: v[0], totalWorkingDays: v[1], teacherTitle: v[2], teacherName: v[3] }); if (v[4]) { appState.classSigns = appState.classSigns || {}; appState.classSigns[id] = v[4]; } }, { again: addClass, msg: 'Class added.' });
         }
         let lastSubjectClass = '';
         function addSubject() {
@@ -1387,13 +1411,14 @@
             document.getElementById('ge-title').textContent = title;
             const lbl = t => `<label class="block text-xs font-bold uppercase text-slate-600 mb-1">${esc(t)}</label>`;
             document.getElementById('ge-fields').innerHTML = fields.map((f, i) => {
+                if (f.type === 'sign') return `<div>${lbl(f.label)}<div class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 bg-slate-50"><div id="ge-sign-${i}" class="w-28 h-14 shrink-0 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden"></div><div class="flex flex-col sm:flex-row gap-1.5 ml-auto"><button type="button" id="ge-sign-btn-${i}" class="abtn abtn-ok" onclick="geSignEdit(${i})">Sign</button><button type="button" id="ge-sign-rm-${i}" class="abtn abtn-gray hidden" onclick="geSignRemove(${i})">Remove</button></div></div></div>`;
                 if (f.type === 'checkbox') return `<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="ge-f-${i}" ${f.value ? 'checked' : ''} class="w-5 h-5 accent-emerald-700"> ${esc(f.label)}</label>`;
                 if (f.type === 'select') return `<div>${lbl(f.label)}<select id="ge-f-${i}" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm bg-white">${f.options.map(o => `<option value="${esc(o.v)}" ${o.v === f.value ? 'selected' : ''}>${esc(o.t)}</option>`).join('')}</select></div>`;
                 if (f.type === 'textarea') return `<div>${lbl(f.label)}<textarea id="ge-f-${i}" rows="9" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm font-mono">${esc(f.value ?? '')}</textarea></div>`;
                 return `<div>${lbl(f.label)}<input id="ge-f-${i}" type="${f.type || 'text'}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} maxlength="200" value="${esc(f.value ?? '')}" ${f.required ? 'required' : ''} class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm"></div>`;
             }).join('');
             document.querySelectorAll('#ge-fields select').forEach(enhanceSelect);
-            geFields = fields; geSave = onSave; geOpts = opts;
+            geFields = fields; fields.forEach((f, i) => { if (f.type === 'sign') geSignRefresh(i); }); geSave = onSave; geOpts = opts;
             document.getElementById('ge-save').textContent = opts.saveLabel || 'Save';
             document.getElementById('ge-again').classList.toggle('hidden', !opts.again);
             document.getElementById('ge-modal').classList.remove('hidden'); document.body.classList.add('overflow-hidden');
@@ -1402,7 +1427,7 @@
         async function submitEdit(e) {
             e.preventDefault();
             const wantAgain = !!(e.submitter && e.submitter.dataset.again);
-            const vals = geFields.map((f, i) => { const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : (f.type === 'select' || f.type === 'textarea') ? el.value : el.value.trim(); });
+            const vals = geFields.map((f, i) => { if (f.type === 'sign') return f.sign || ''; const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : (f.type === 'select' || f.type === 'textarea') ? el.value : el.value.trim(); });
             let err = geSave(vals); if (err && typeof err.then === 'function') err = await err;
             if (typeof err === 'string') { showToast(err, 'error'); return; }
             const again = wantAgain ? geOpts.again : null, msg = geOpts.msg || 'Changes saved.', custom = !!geOpts.custom;
@@ -1418,8 +1443,8 @@
         function editClass(id) {
             const c = appState.classes.find(x => x.id === id); if (!c) return;
             openEdit('Edit Class', [{ label: 'Class name', value: c.name, required: true }, { label: 'Total working days', type: 'number', min: 1, max: 365, value: c.totalWorkingDays, required: true },
-                { label: 'Teacher designation', value: c.teacherTitle || '' }, { label: 'Teacher name', value: c.teacherName || '' }],
-                v => { if (!v[0]) return 'Class name is required.'; if (!(v[1] >= 1 && v[1] <= 365)) return 'Working days must be 1 to 365.'; Object.assign(c, { name: v[0], totalWorkingDays: v[1], teacherTitle: v[2], teacherName: v[3] }); });
+                { label: 'Teacher designation', value: c.teacherTitle || '' }, { label: 'Teacher name', value: c.teacherName || '' }, { label: 'Teacher signature', type: 'sign', sign: (appState.classSigns || {})[c.id] || '' }],
+                v => { if (!v[0]) return 'Class name is required.'; if (!(v[1] >= 1 && v[1] <= 365)) return 'Working days must be 1 to 365.'; Object.assign(c, { name: v[0], totalWorkingDays: v[1], teacherTitle: v[2], teacherName: v[3] }); appState.classSigns = appState.classSigns || {}; if (v[4]) appState.classSigns[c.id] = v[4]; else delete appState.classSigns[c.id]; });
         }
         function editSubject(id) {
             const sub = appState.subjects.find(x => x.id === id); if (!sub) return;
@@ -1696,60 +1721,77 @@
             img.onerror = () => showToast('Could not read that image.', 'error');
             img.src = url;
         }
-        // ---- signatures (head of institution + one per class teacher) ----
-        function processSignature(f) {
-            return new Promise((res, rej) => {
-                const url = URL.createObjectURL(f), img = new Image();
-                img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Could not read that image.')); };
-                img.onload = () => {
-                    URL.revokeObjectURL(url);
-                    try {
-                        const k0 = Math.min(1, 700 / Math.max(img.width, img.height, 1)), w = Math.max(1, Math.round(img.width * k0)), h = Math.max(1, Math.round(img.height * k0));
-                        const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, w, h);
-                        const id = x.getImageData(0, 0, w, h), d = id.data;
-                        for (let i = 0; i < d.length; i += 4) { // white paper -> transparent, ink stays
-                            const lum = .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2], a = lum >= 225 ? 0 : lum <= 150 ? 255 : (225 - lum) / 75 * 255;
-                            d[i + 3] = Math.round(d[i + 3] * a / 255);
-                        }
-                        x.putImageData(id, 0, 0);
-                        let x0 = w, y0 = h, x1 = -1, y1 = -1;
-                        for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) if (d[(yy * w + xx) * 4 + 3] > 40) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
-                        if (x1 < 0) throw new Error('No signature found. Use dark ink on white paper.');
-                        const pad = 4; x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
-                        const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
-                        let k = Math.min(1, 420 / cw, 170 / ch), out = '';
-                        for (let t = 0; t < 6; t++) {
-                            const o = document.createElement('canvas'); o.width = Math.max(1, Math.round(cw * k)); o.height = Math.max(1, Math.round(ch * k));
-                            o.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, o.width, o.height);
-                            out = o.toDataURL('image/png'); if (out.length <= 60000) break; k *= .8;
-                        }
-                        if (out.length > 85000) throw new Error('That signature image is too detailed. Try a cleaner photo.');
-                        res(out);
-                    } catch (e) { rej(e); }
-                };
-                img.src = url;
-            });
+        // ================= SIGNATURE PAD (draw with finger / mouse) =================
+        const SP = { strokes: [], redo: [], cur: null, onSave: null, raf: 0 }, SP_INK = '#0f1d57', SP_W = 3;
+        function spCtx() { return document.getElementById('sp-canvas').getContext('2d'); }
+        function spPath(ctx, pts) {
+            ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+            if (pts.length < 3) { pts.slice(1).forEach(q => ctx.lineTo(q.x, q.y)); }
+            else { for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2; ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my); } ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y); }
+            ctx.stroke();
         }
-        function renderSignatures() {
-            const box = document.getElementById('sign-rows'); if (!box) return;
-            const row = (key, title, sub, img) => `<div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
-                <div class="w-28 h-14 shrink-0 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden">${img ? `<img src="${esc(img)}" alt="" style="max-width:100%;max-height:100%">` : '<span class="text-[10px] text-slate-300">No signature</span>'}</div>
-                <div class="min-w-0 flex-1"><p class="text-sm font-semibold text-slate-800 truncate">${esc(title)}</p><p class="text-xs text-slate-500 truncate">${esc(sub)}</p></div>
-                <div class="flex flex-col sm:flex-row gap-1.5 shrink-0"><label class="abtn abtn-ok cursor-pointer text-center">${img ? 'Change' : 'Upload'}<input type="file" accept="image/*" class="hidden" onchange="handleSignFile(this, '${esc(key)}')"></label>${img ? `<button type="button" class="abtn abtn-gray" onclick="setSign('${esc(key)}', '')">Remove</button>` : ''}</div></div>`;
-            const m = appState.madrasa;
-            box.innerHTML = row('head', m.headTitle || 'Principal', m.headName || 'Head of institution', m.headSign)
-                + appState.classes.map(c => row(c.id, c.name + ' \u2014 ' + (c.teacherTitle || 'Class Teacher'), c.teacherName || 'No teacher name set', (appState.classSigns || {})[c.id])).join('');
+        function spDraw(ctx, strokes, w) {
+            ctx.strokeStyle = SP_INK; ctx.fillStyle = SP_INK; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            strokes.forEach(st => { if (st.length === 1) { ctx.beginPath(); ctx.arc(st[0].x, st[0].y, w / 2, 0, Math.PI * 2); ctx.fill(); } else if (st.length) spPath(ctx, st); });
         }
-        async function handleSignFile(inp, key) {
-            const f = inp.files[0]; inp.value = ''; if (!f) return;
-            if (!f.type.startsWith('image/')) { showToast('Please choose an image file.', 'error'); return; }
-            try { setSign(key, await processSignature(f)); } catch (e) { showToast(e.message || 'Could not use that image.', 'error'); }
+        function spRender() {
+            const cv = document.getElementById('sp-canvas'), ctx = spCtx(), dpr = cv.width / (cv.clientWidth || 1);
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            spDraw(ctx, SP.strokes, SP_W);
+            document.getElementById('sp-undo').disabled = !SP.strokes.length; document.getElementById('sp-redo').disabled = !SP.redo.length; document.getElementById('sp-clear').disabled = !SP.strokes.length;
+            document.getElementById('sp-hint').style.display = SP.strokes.length ? 'none' : 'flex';
         }
-        function setSign(key, val) {
-            if (key === 'head') appState.madrasa.headSign = val;
-            else { appState.classSigns = appState.classSigns || {}; if (val) appState.classSigns[key] = val; else delete appState.classSigns[key]; }
-            saveState(); renderSignatures(); showToast(val ? 'Signature saved.' : 'Signature removed.', 'success');
+        function spQueue() { if (!SP.raf) SP.raf = requestAnimationFrame(() => { SP.raf = 0; spRender(); }); }
+        function spPoint(e) { const r = document.getElementById('sp-canvas').getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+        function spSize() {
+            const cv = document.getElementById('sp-canvas'), dpr = Math.min(3, window.devicePixelRatio || 1);
+            cv.width = Math.max(1, Math.round(cv.clientWidth * dpr)); cv.height = Math.max(1, Math.round(cv.clientHeight * dpr)); spRender();
         }
+        (function initPad() {
+            const cv = document.getElementById('sp-canvas');
+            cv.addEventListener('pointerdown', e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) { } SP.cur = [spPoint(e)]; SP.strokes.push(SP.cur); SP.redo = []; spQueue(); });
+            cv.addEventListener('pointermove', e => { if (!SP.cur) return; e.preventDefault(); (e.getCoalescedEvents ? e.getCoalescedEvents() : [e]).forEach(ev => SP.cur.push(spPoint(ev))); spQueue(); });
+            const end = e => { if (SP.cur) { SP.cur = null; spQueue(); } };
+            cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
+            cv.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+            window.addEventListener('resize', () => { if (!document.getElementById('sp-modal').classList.contains('hidden')) spSize(); });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.getElementById('sp-modal').classList.contains('hidden')) closeSignPad(); });
+        })();
+        function openSignPad(title, onSave) {
+            SP.strokes = []; SP.redo = []; SP.cur = null; SP.onSave = onSave;
+            document.getElementById('sp-title').textContent = title;
+            document.getElementById('sp-modal').classList.remove('hidden');
+            requestAnimationFrame(spSize);
+        }
+        function closeSignPad() { document.getElementById('sp-modal').classList.add('hidden'); SP.onSave = null; }
+        function spUndo() { if (SP.strokes.length) { SP.redo.push(SP.strokes.pop()); spRender(); } }
+        function spRedo() { if (SP.redo.length) { SP.strokes.push(SP.redo.pop()); spRender(); } }
+        function spClear() { SP.strokes = []; SP.redo = []; spRender(); }
+        function spSave() {
+            if (!SP.strokes.length) { showToast('Please sign first.', 'error'); return; }
+            const all = SP.strokes.flat(), pad = SP_W * 2;
+            const x0 = Math.min(...all.map(q => q.x)) - pad, y0 = Math.min(...all.map(q => q.y)) - pad, x1 = Math.max(...all.map(q => q.x)) + pad, y1 = Math.max(...all.map(q => q.y)) + pad;
+            const bw = Math.max(8, x1 - x0), bh = Math.max(8, y1 - y0);
+            let k = Math.min(3, 540 / bw, 210 / bh), out = '';
+            for (let t = 0; t < 6; t++) {
+                const o = document.createElement('canvas'); o.width = Math.max(1, Math.round(bw * k)); o.height = Math.max(1, Math.round(bh * k));
+                const cx = o.getContext('2d'); cx.setTransform(k, 0, 0, k, -x0 * k, -y0 * k); spDraw(cx, SP.strokes, SP_W);
+                out = o.toDataURL('image/png'); if (out.length <= 60000) break; k *= .8;
+            }
+            if (out.length > 85000) { showToast('That signature is too detailed. Please clear and sign more simply.', 'error'); return; }
+            const cb = SP.onSave; closeSignPad(); if (cb) cb(out);
+        }
+        const signPreview = v => v ? `<img src="${esc(v)}" alt="" style="max-width:100%;max-height:100%">` : '<span class="text-[10px] text-slate-300">No signature</span>';
+        // head of institution (applied when the profile is saved, like the logo)
+        let pendingHeadSign = null; // null = unchanged, '' = removed, 'data:...' = newly drawn
+        function headSignValue() { return pendingHeadSign !== null ? pendingHeadSign : (appState.madrasa.headSign || ''); }
+        function renderHeadSign() { const v = headSignValue(); document.getElementById('head-sign-preview').innerHTML = signPreview(v); document.getElementById('head-sign-btn').textContent = v ? 'Change' : 'Sign'; document.getElementById('head-sign-rm').classList.toggle('hidden', !v); }
+        function signHead() { openSignPad('Head signature' + (document.getElementById('setting-head-name').value.trim() ? ' \u2014 ' + document.getElementById('setting-head-name').value.trim() : ''), v => { pendingHeadSign = v; renderHeadSign(); showToast('Signature ready. Press Save Profile to keep it.', 'info'); }); }
+        function removeHeadSign() { pendingHeadSign = ''; renderHeadSign(); }
+        // class teacher signature field inside the Add / Edit Class form
+        function geSignRefresh(i) { const v = geFields[i].sign || ''; document.getElementById('ge-sign-' + i).innerHTML = signPreview(v); document.getElementById('ge-sign-btn-' + i).textContent = v ? 'Change' : 'Sign'; document.getElementById('ge-sign-rm-' + i).classList.toggle('hidden', !v); }
+        function geSignEdit(i) { openSignPad(geFields[i].label, v => { geFields[i].sign = v; geSignRefresh(i); }); }
+        function geSignRemove(i) { geFields[i].sign = ''; geSignRefresh(i); }
         function clearLogo() { pendingLogo = ''; document.getElementById('setting-madrasa-logo').value = ''; setLogoPreview(''); }
 
         let logoTaps = 0, logoTimer;
@@ -2354,6 +2396,7 @@
             document.getElementById('setting-share-text').value = appState.madrasa.shareText || '';
             document.getElementById('setting-head-title').value = appState.madrasa.headTitle || '';
             document.getElementById('setting-head-name').value = appState.madrasa.headName || '';
+            pendingHeadSign = null; renderHeadSign();
 
             updateCounts();
             renderAdminAnnouncements();
@@ -2365,7 +2408,6 @@
             renderStudentForm();
             renderReportSelectors();
             renderSetup();
-            renderSignatures();
         }
 
         // ================= TAB 1: SETTINGS & ANNOUNCEMENTS =================
@@ -2378,6 +2420,8 @@
             appState.madrasa.shareText = document.getElementById('setting-share-text').value.trim();
             appState.madrasa.headTitle = document.getElementById('setting-head-title').value.trim();
             appState.madrasa.headName = document.getElementById('setting-head-name').value.trim();
+            if (pendingHeadSign !== null) appState.madrasa.headSign = pendingHeadSign;
+            pendingHeadSign = null; renderHeadSign();
             saveState();
             showToast("Institution profile updated!", "success");
         }
