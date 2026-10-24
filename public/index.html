@@ -138,6 +138,14 @@
             .ms-sig-line { height: 38px; }
             .ms-sign-name { font-size: 11px; } .ms-sign-title { font-size: 10px; }
         }
+        /* loading spinner + attendance styling + standard font for the floating Add button */
+        .se-spin { width: 26px; height: 26px; border: 3px solid rgb(var(--em-200)); border-top-color: rgb(var(--em-700)); border-radius: 50%; animation: se-rot .7s linear infinite; }
+        @keyframes se-rot { to { transform: rotate(360deg); } }
+        .cs-btn.cs-att { background: #fffbeb; border-color: #f59e0b; color: #92400e; font-weight: 700; }
+        .cs-opt.cs-att { background: #fffbeb; color: #92400e; font-weight: 700; border-left: 4px solid #f59e0b; border-radius: 6px; margin-top: 6px; }
+        .std-font, .fab { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important; }
+        .fab { font-weight: 600; letter-spacing: .01em; }
+        .fab .fab-ico { width: 26px; height: 26px; flex: none; }
         /* signature pad */
         .sp-wrap { position: relative; height: 210px; border: 2px dashed #cbd5e1; border-radius: 12px; background: #fff; overflow: hidden; touch-action: none; }
         .sp-wrap canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
@@ -374,9 +382,11 @@
                 <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Subject</label><select id="te-subject" onchange="teLoad()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
                 <p class="col-span-2 text-[11px] text-slate-400">Enter the marks, tap <b>Save</b>. Leave a mark blank if it is not ready &mdash; you can come back and add it later.</p>
             </div>
-            <div id="te-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="px-4 py-2.5 bg-emerald-900 text-white"><h4 id="te-title" class="font-bold text-sm truncate"></h4><p id="te-sub" class="text-[11px] text-emerald-200 truncate"></p></div>
-                <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="py-2 px-1.5 text-center w-24">Marks</th><th class="py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table></div>
+            <div id="te-loading" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 py-12 flex flex-col items-center gap-3 text-sm text-slate-500"><span class="se-spin"></span>Loading students...</div>
+                            <div id="te-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="se-bar px-4 py-2.5 bg-emerald-900 text-white"><h4 id="te-title" class="font-bold text-sm truncate"></h4><p id="te-sub" class="se-bar-sub text-[11px] text-emerald-200 truncate"></p></div>
+                <div class="px-3 pt-3"><div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input type="search" placeholder="Search student name or admission no..." oninput="seFilter(this)" autocomplete="off" class="se-search w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-600"></div></div>
+                                <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm mt-2"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="se-h-val py-2 px-1.5 text-center w-24">Marks</th><th class="se-h-ab py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table><p class="se-nomatch hidden text-center text-sm text-slate-400 py-4">No student matches your search.</p></div>
                 <div class="bg-slate-900 text-white p-3 m-3 rounded-xl sticky bottom-3 z-10 shadow-2xl">
                     <div class="flex items-center justify-between gap-3"><div class="se-summary text-xs leading-snug"></div><button type="button" id="te-save" onclick="teSave()" class="bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm shrink-0"><i class="fas fa-save"></i> Save</button></div>
                     <p id="te-saved" class="text-[11px] text-slate-400 mt-1.5"></p>
@@ -586,11 +596,14 @@
         <div id="tl-modal" class="hidden fixed inset-0 z-[80] bg-slate-950/70 overflow-y-auto p-4 no-print">
             <div class="bg-white rounded-2xl shadow-2xl max-w-lg mx-auto my-6 p-4 md:p-5">
                 <div class="flex items-center justify-between mb-3"><h3 id="tl-title" class="font-bold text-slate-800">Teacher link</h3><button type="button" onclick="closeTeacherModal()" aria-label="Close" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fas fa-times"></i></button></div>
-                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Teacher name</label>
-                <input id="tl-name" maxlength="80" placeholder="e.g., Ustad Hamza" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm">
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Teacher</label>
+                <select id="tl-pick" onchange="tlPickChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm bg-white"></select>
+                <input id="tl-name" maxlength="80" placeholder="Type the teacher's name" class="hidden mt-2 w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm">
+                <p id="tl-hint" class="text-[11px] text-slate-400 mt-1"></p>
                 <p class="text-xs font-bold uppercase text-slate-600 mt-4 mb-1">Subjects this teacher can enter</p>
                 <label class="flex items-center gap-2 text-sm mb-2"><input type="checkbox" id="tl-all" onchange="tlAllChange()" class="w-5 h-5 accent-emerald-700"> All classes &amp; subjects</label>
                 <div id="tl-scope" class="space-y-3 max-h-72 overflow-y-auto border border-slate-200 rounded-lg p-3"></div>
+                <label class="flex items-start gap-2 text-sm mt-3"><input type="checkbox" id="tl-att" checked class="w-5 h-5 mt-0.5 shrink-0 accent-amber-600"><span>Can also enter students&rsquo; <b>attendance</b> (days present)</span></label>
                 <div class="grid grid-cols-2 gap-2 mt-4"><button type="button" onclick="closeTeacherModal()" class="abtn abtn-gray justify-center">Cancel</button><button type="button" onclick="saveTeacherModal()" class="abtn justify-center" style="background:rgb(var(--em-800));color:#fff">Save</button></div>
             </div>
         </div>
@@ -609,7 +622,7 @@
 
         <!-- Authenticated Admin Dashboard -->
         <div id="admin-dashboard" class="hidden flex-grow flex flex-row">
-            <button id="fab" type="button" class="fab" onclick="fabAction()" aria-label="Add"><span class="fab-plus">+</span><span class="fab-label" id="fab-label">Add</span></button>
+            <button id="fab" type="button" class="fab" onclick="fabAction()" aria-label="Add"><svg class="fab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="fab-label" id="fab-label">Add</span></button>
 
             <!-- Sidebar -->
             <div id="sidebar-overlay" onclick="closeSidebar()" class="hidden fixed inset-0 bg-slate-950/60 z-30 md:hidden"></div>
@@ -928,7 +941,7 @@
                         <div data-group="setup" data-sub="teachers" class="subpanel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
                             <div class="flex items-start justify-between gap-3"><div><h3 class="font-bold text-slate-800"><i class="fas fa-link text-emerald-700 mr-1.5"></i> Teacher links</h3>
                                 <p class="text-xs text-slate-500 mt-0.5">Give each teacher a private link. It opens a simple page where they choose the exam, class and subject, enter marks for their students and save &mdash; no login, and nothing else of your admin panel is visible. Switch a link off or make a new one at any time.</p></div>
-                                <button type="button" onclick="openTeacherModal()" class="abtn abtn-ok shrink-0"><i class="fas fa-plus"></i> Add</button></div>
+                                <button type="button" onclick="openTeacherModal()" class="abtn abtn-ok shrink-0 std-font"><i class="fas fa-plus"></i> Add</button></div>
                             <div id="teacher-list" class="space-y-2"></div>
                         </div>
                         <div data-group="setup" data-sub="backup" class="subpanel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
@@ -1038,15 +1051,17 @@
                         <div id="entry-mode-subject" class="hidden space-y-3">
                             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
                                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label><select id="sm-exam" onchange="loadSubjectEntry()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
-                                    <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label><select id="sm-class" onchange="smClassChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
-                                    <div class="col-span-2 md:col-span-1"><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Subject</label><select id="sm-subject" onchange="loadSubjectEntry()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                                    <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label><select id="sm-exam" onchange="smChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                                    <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label><select id="sm-class" onchange="smClassChange(true)" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                                    <div class="col-span-2 md:col-span-1"><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Subject</label><select id="sm-subject" onchange="smChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
                                 </div>
-                                <p class="text-[11px] text-slate-400 mt-2">Enter the marks of one subject for the whole class. Leave a mark blank to add it later. Other subjects&rsquo; marks are not touched.</p>
+                                <p class="text-[11px] text-slate-400 mt-2">Enter the marks of one subject (or the class attendance) for the whole class. Leave a box blank to add it later. Nothing else is touched.</p>
                             </div>
+                            <div id="sm-loading" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 py-12 flex flex-col items-center gap-3 text-sm text-slate-500"><span class="se-spin"></span>Loading students...</div>
                             <div id="sm-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div class="px-4 py-2.5 bg-emerald-900 text-white"><h4 id="sm-title" class="font-bold text-sm truncate"></h4><p id="sm-sub" class="text-[11px] text-emerald-200 truncate"></p></div>
-                                <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="py-2 px-1.5 text-center w-24">Marks</th><th class="py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table></div>
+                                <div class="se-bar px-4 py-2.5 bg-emerald-900 text-white"><h4 id="sm-title" class="font-bold text-sm truncate"></h4><p id="sm-sub" class="se-bar-sub text-[11px] text-emerald-200 truncate"></p></div>
+                                <div class="px-3 pt-3"><div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input type="search" placeholder="Search student name or admission no..." oninput="seFilter(this)" autocomplete="off" class="se-search w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-600"></div></div>
+                                <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm mt-2"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="se-h-val py-2 px-1.5 text-center w-24">Marks</th><th class="se-h-ab py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table><p class="se-nomatch hidden text-center text-sm text-slate-400 py-4">No student matches your search.</p></div>
                                 <div class="bg-slate-900 text-white p-3 m-3 rounded-xl sticky bottom-3 z-10 shadow-2xl flex items-center justify-between gap-3"><div class="se-summary text-xs leading-snug"></div><button type="button" onclick="saveSubjectEntry()" class="bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm shrink-0"><i class="fas fa-save"></i> Save</button></div>
                             </div>
                         </div>
@@ -1452,7 +1467,7 @@
             sel.style.display = 'none'; sel.removeAttribute('required');
             sel.insertAdjacentElement('afterend', btn); sel._cs = btn;
             const proto = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
-            const sync = () => { const o = sel.options[sel.selectedIndex]; btn.querySelector('.cs-label').textContent = o ? o.text : ''; btn.classList.toggle('cs-placeholder', !o || o.value === ''); };
+            const sync = () => { const o = sel.options[sel.selectedIndex]; btn.querySelector('.cs-label').textContent = o ? o.text : ''; btn.classList.toggle('cs-placeholder', !o || o.value === ''); btn.classList.toggle('cs-att', !!o && o.dataset.kind === 'att'); };
             Object.defineProperty(sel, 'value', { get() { return proto.get.call(this); }, set(v) { proto.set.call(this, v); sync(); }, configurable: true });
             new MutationObserver(sync).observe(sel, { childList: true, subtree: true });
             sel.addEventListener('change', sync);
@@ -1462,7 +1477,7 @@
         function closeSelect() { document.querySelectorAll('.cs-overlay').forEach(o => { if (o._fit && window.visualViewport) { window.visualViewport.removeEventListener('resize', o._fit); window.visualViewport.removeEventListener('scroll', o._fit); } o.remove(); }); }
         function openSelect(sel) {
             closeSelect();
-            const opts = [...sel.options].map(o => ({ v: o.value, t: o.text, s: o.dataset.search || '' }));
+            const opts = [...sel.options].map(o => ({ v: o.value, t: o.text, s: o.dataset.search || '', k: o.dataset.kind || '' }));
             const ov = document.createElement('div'); ov.className = 'cs-overlay';
             ov.innerHTML = '<div class="cs-panel" role="dialog"><div class="cs-head"><input class="cs-search" type="search" placeholder="Type to search..." autocomplete="off"><button type="button" class="cs-close" aria-label="Close">&times;</button></div><div class="cs-list"></div></div>';
             document.body.appendChild(ov);
@@ -1473,7 +1488,7 @@
             const render = q => {
                 q = q.trim().toLowerCase();
                 const m = opts.filter(o => !q || (o.t + ' ' + o.s).toLowerCase().includes(q));
-                list.innerHTML = m.length ? m.map(o => `<button type="button" class="cs-opt${o.v === sel.value ? ' sel' : ''}" data-v="${esc(o.v)}">${esc(o.t)}</button>`).join('') : '<div class="cs-empty">No match found</div>';
+                list.innerHTML = m.length ? m.map(o => `<button type="button" class="cs-opt${o.v === sel.value ? ' sel' : ''}${o.k ? ' cs-' + o.k : ''}" data-v="${esc(o.v)}">${esc(o.t)}</button>`).join('') : '<div class="cs-empty">No match found</div>';
             };
             const choose = v => { closeSelect(); if (sel.value !== v) { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); } };
             render('');
@@ -2246,7 +2261,7 @@
                 const m = obj(D.madrasa), fields = Array.isArray(D.fields) && D.fields.some(x => x && x.id === 'admissionNo') ? D.fields.filter(x => x && x.id).map(x => ({ id: S(x.id), label: S(x.label), show: !!x.show })) : appState.fields;
                 Object.assign(appState, { madrasa: { ...appState.madrasa, ...m, name: S(m.name).trim() || appState.madrasa.name },
                     announcements: Array.isArray(D.announcements) ? D.announcements.map(S) : [], portal: { ...appState.portal, ...obj(D.portal) },
-                    teachers: (Array.isArray(D.teachers) ? D.teachers : []).filter(x => x && /^[A-Za-z0-9_-]{24,64}$/.test(S(x.token))).map(x => ({ id: S(x.id) || 'T_' + Math.random().toString(36).slice(2, 9), name: S(x.name) || 'Teacher', token: S(x.token), subjectIds: (Array.isArray(x.subjectIds) ? x.subjectIds.map(S) : []).filter(id => subjects.some(b => b.id === id)), active: x.active !== false, createdAt: S(x.createdAt) })),
+                    teachers: (Array.isArray(D.teachers) ? D.teachers : []).filter(x => x && /^[A-Za-z0-9_-]{24,64}$/.test(S(x.token))).map(x => ({ id: S(x.id) || 'T_' + Math.random().toString(36).slice(2, 9), name: S(x.name) || 'Teacher', token: S(x.token), subjectIds: (Array.isArray(x.subjectIds) ? x.subjectIds.map(S) : []).filter(id => subjects.some(b => b.id === id)), active: x.active !== false, attendance: x.attendance !== false, createdAt: S(x.createdAt) })),
                     classSigns: Object.fromEntries(Object.entries(obj(D.classSigns)).filter(([id, v]) => typeof v === 'string' && v.startsWith('data:image/') && classes.some(c => c.id === id))),
                     grades: D.grades && Array.isArray(D.grades.scale) ? D.grades : appState.grades, fields, exams, classes, subjects, students, results });
                 saveState(); renderAllAdminData();
@@ -2345,35 +2360,63 @@
         }
         // ================= SUBJECT-WISE ENTRY (shared by admin "By subject" and the teacher link page) =================
         const seNat = (a, b) => String(a.admissionNo).localeCompare(String(b.admissionNo), undefined, { numeric: true, sensitivity: 'base' });
+        const SE_ATT = '__att__', seAttOption = '<option value="__att__" data-kind="att">\ud83d\udcc5 Attendance (days present)</option>';
+        const seG = id => document.getElementById(id);
         function seRows(students, sub, getMark) {
+            const att = !!sub.att;
             return students.map((st, i) => {
-                const v = getMark(st.id), ab = v === 'AB', val = (v === undefined || ab) ? '' : v;
-                return `<tr data-sid="${esc(st.id)}"><td class="py-2 px-2 text-slate-400 text-xs">${i + 1}</td>
+                const v = getMark(st.id), ab = !att && v === 'AB', val = (v === undefined || ab) ? '' : v;
+                return `<tr data-sid="${esc(st.id)}" data-q="${esc((st.name + ' ' + st.admissionNo).toLowerCase())}"><td class="py-2 px-2 text-slate-400 text-xs">${i + 1}</td>
                     <td class="py-2 px-1"><div class="font-semibold text-slate-800 text-sm leading-tight">${esc(st.name)}</div><div class="text-[11px] text-slate-400">${esc(st.admissionNo)}</div></td>
-                    <td class="py-2 px-1.5"><input type="number" inputmode="decimal" step="any" min="0" max="${sub.maxMarks}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}" data-prev="${esc(val)}" value="${esc(val)}" ${ab ? 'disabled' : ''} placeholder="-" oninput="seInput(this)" onkeydown="seEnter(event, this)" enterkeyhint="next" class="se-input w-full px-2 py-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none"></td>
-                    <td class="py-2 px-1.5 text-center"><label class="inline-flex flex-col items-center gap-0.5 text-[10px] font-bold text-red-700 cursor-pointer"><input type="checkbox" class="se-ab w-5 h-5 accent-red-600" onchange="seAbsent(this)" ${ab ? 'checked' : ''}>AB</label></td></tr>`;
+                    <td class="py-2 px-1.5"><input type="number" inputmode="${att ? 'numeric' : 'decimal'}" step="${att ? 1 : 'any'}" min="0" max="${sub.maxMarks}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}" data-prev="${esc(val)}" value="${esc(val)}" ${ab ? 'disabled' : ''} placeholder="-" oninput="seInput(this)" onkeydown="seEnter(event, this)" enterkeyhint="next" class="se-input w-full px-2 py-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none"></td>
+                    ${att ? '' : `<td class="py-2 px-1.5 text-center"><label class="inline-flex flex-col items-center gap-0.5 text-[10px] font-bold text-red-700 cursor-pointer"><input type="checkbox" class="se-ab w-5 h-5 accent-red-600" onchange="seAbsent(this)" ${ab ? 'checked' : ''}>AB</label></td>`}</tr>`;
             }).join('') || '<tr><td colspan="4" class="py-6 text-center text-slate-400">No students in this class.</td></tr>';
         }
+        // marks sheet (green) or attendance sheet (amber, "days present") - clearly different so nobody mistakes it for a subject
+        function seHead(box, att, title, sub) {
+            box.dataset.mode = att ? 'att' : 'marks';
+            const bar = box.querySelector('.se-bar'), bs = box.querySelector('.se-bar-sub');
+            bar.className = 'se-bar px-4 py-2.5 text-white ' + (att ? 'bg-amber-600' : 'bg-emerald-900'); bs.className = 'se-bar-sub text-[11px] truncate ' + (att ? 'text-amber-100' : 'text-emerald-200');
+            bar.querySelector('h4').innerHTML = (att ? '<i class="fas fa-calendar-check mr-1.5"></i>' : '') + esc(title); bs.textContent = sub;
+            box.querySelector('.se-h-val').textContent = att ? 'Days present' : 'Marks'; box.querySelector('.se-h-ab').classList.toggle('hidden', att);
+            const q = box.querySelector('.se-search'); if (q) q.value = '';
+            box.querySelector('.se-nomatch').classList.add('hidden');
+        }
         function seInput(inp) {
-            if (inp.value !== '') { const n = Number(inp.value), max = Number(inp.dataset.max); if (!(Number.isFinite(n) && n >= 0 && n <= max)) { inp.value = inp.dataset.prev || ''; inp.classList.add('border-red-500', 'bg-red-50'); setTimeout(() => inp.classList.remove('border-red-500', 'bg-red-50'), 700); showToast(`Marks can't be more than ${max} for this subject.`, 'error'); return; } }
-            inp.dataset.prev = inp.value; seRefresh(inp.closest('[data-se]'), true);
+            const box = inp.closest('[data-se]'), att = box.dataset.mode === 'att';
+            if (inp.value !== '') {
+                const n = Number(inp.value), max = Number(inp.dataset.max);
+                if (!(Number.isFinite(n) && n >= 0 && n <= max && (!att || Number.isInteger(n)))) {
+                    inp.value = inp.dataset.prev || ''; inp.classList.add('border-red-500', 'bg-red-50'); setTimeout(() => inp.classList.remove('border-red-500', 'bg-red-50'), 700);
+                    showToast(att ? `Days present must be a whole number from 0 to ${max}.` : `Marks can't be more than ${max} for this subject.`, 'error'); return;
+                }
+            }
+            inp.dataset.prev = inp.value; seRefresh(box, true);
         }
         function seAbsent(cb) { const inp = cb.closest('tr').querySelector('.se-input'); inp.disabled = cb.checked; if (cb.checked) { inp.value = ''; inp.dataset.prev = ''; } seRefresh(cb.closest('[data-se]'), true); }
         function seEnter(e, el) {
             if (e.key !== 'Enter') return; e.preventDefault();
-            const all = [...el.closest('[data-se]').querySelectorAll('.se-input:not(:disabled)')], i = all.indexOf(el);
+            const all = [...el.closest('[data-se]').querySelectorAll('.se-input:not(:disabled)')].filter(i => i.closest('tr').style.display !== 'none'), i = all.indexOf(el);
             if (i > -1 && i < all.length - 1) all[i + 1].focus(); else el.blur();
         }
+        function seFilter(inp) {
+            const box = inp.closest('[data-se]'), q = inp.value.trim().toLowerCase(); let shown = 0;
+            box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => { const hit = !q || tr.dataset.q.includes(q); tr.style.display = hit ? '' : 'none'; if (hit) shown++; });
+            box.querySelector('.se-nomatch').classList.toggle('hidden', shown > 0 || !q);
+        }
         function seRefresh(box, dirty) {
-            let total = 0, entered = 0, pass = 0, fail = 0, ab = 0;
+            const att = box.dataset.mode === 'att'; let total = 0, entered = 0, pass = 0, fail = 0, ab = 0, sum = 0, days = 0;
             box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => {
-                const inp = tr.querySelector('.se-input'), isAb = tr.querySelector('.se-ab').checked; total++;
-                if (isAb) { entered++; ab++; fail++; } else if (inp.value !== '') { entered++; if (Number(inp.value) >= Number(inp.dataset.pass)) pass++; else fail++; }
+                const inp = tr.querySelector('.se-input'), abx = tr.querySelector('.se-ab'), isAb = !!(abx && abx.checked); total++; days = Number(inp.dataset.max);
+                if (isAb) { entered++; ab++; fail++; } else if (inp.value !== '') { entered++; sum += Number(inp.value); if (Number(inp.value) >= Number(inp.dataset.pass)) pass++; else fail++; }
             });
-            box.querySelector('.se-summary').innerHTML = `<b>${entered}</b> of ${total} entered &bull; <span class="text-emerald-300">${pass} pass</span> &bull; <span class="text-red-300">${fail} fail</span>${ab ? ` (${ab} AB)` : ''}${total - entered ? ` &bull; <span class="text-amber-300">${total - entered} pending</span>` : ''}`;
+            const pend = total - entered;
+            box.querySelector('.se-summary').innerHTML = att
+                ? `<b>${entered}</b> of ${total} entered${entered && days ? ` &bull; <span class="text-amber-300">avg ${(sum / (entered * days) * 100).toFixed(1)}%</span>` : ''}${pend ? ` &bull; <span class="text-slate-300">${pend} blank</span>` : ''}`
+                : `<b>${entered}</b> of ${total} entered &bull; <span class="text-emerald-300">${pass} pass</span> &bull; <span class="text-red-300">${fail} fail</span>${ab ? ` (${ab} AB)` : ''}${pend ? ` &bull; <span class="text-amber-300">${pend} pending</span>` : ''}`;
             if (dirty) box.dataset.dirty = '1';
         }
-        function seRead(box) { const out = {}; box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => { const inp = tr.querySelector('.se-input'); out[tr.dataset.sid] = tr.querySelector('.se-ab').checked ? 'AB' : inp.value === '' ? '' : Number(inp.value); }); return out; }
+        function seRead(box) { const out = {}; box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => { const inp = tr.querySelector('.se-input'), abx = tr.querySelector('.se-ab'); out[tr.dataset.sid] = (abx && abx.checked) ? 'AB' : inp.value === '' ? '' : Number(inp.value); }); return out; }
 
         // ---- admin: By student | By subject ----
         let entryMode = 'student';
@@ -2384,42 +2427,63 @@
             if (m === 'subject') renderSubjectSelectors();
         }
         function fillSelect(id, html) { const el = document.getElementById(id), prev = el.value; el.innerHTML = html; if ([...el.options].some(o => o.value === prev)) el.value = prev; }
+        const SM = { seq: 0, prev: null };
         function renderSubjectSelectors() {
+            if (seG('sm-sheet').dataset.dirty) return; // never wipe marks that are being typed
             fillSelect('sm-exam', appState.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') || '<option value="">No exams yet</option>');
             fillSelect('sm-class', appState.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') || '<option value="">No classes yet</option>');
             smClassChange();
         }
-        function smClassChange() {
-            const cid = document.getElementById('sm-class').value;
-            fillSelect('sm-subject', appState.subjects.filter(x => x.classId === cid && isActive(x)).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') || '<option value="">No subjects in this class</option>');
-            loadSubjectEntry();
+        function smGuard() {
+            if (seG('sm-sheet').dataset.dirty && !confirm('You have marks that are not saved yet. Discard them?')) {
+                if (SM.prev) { seG('sm-exam').value = SM.prev.exam; seG('sm-class').value = SM.prev.cls; smFillSubjects(SM.prev.sub); }
+                return false;
+            }
+            return true;
         }
-        function loadSubjectEntry() {
-            const examId = document.getElementById('sm-exam').value, cid = document.getElementById('sm-class').value, subId = document.getElementById('sm-subject').value, box = document.getElementById('sm-sheet');
-            const sub = appState.subjects.find(x => x.id === subId), cls = appState.classes.find(x => x.id === cid), ex = appState.exams.find(x => x.id === examId);
+        function smFillSubjects(want) {
+            const cid = seG('sm-class').value, subs = appState.subjects.filter(x => x.classId === cid && isActive(x));
+            fillSelect('sm-subject', subs.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') + (cid ? seAttOption : '') || '<option value="">No subjects in this class</option>');
+            if (want && [...seG('sm-subject').options].some(o => o.value === want)) seG('sm-subject').value = want;
+        }
+        function smClassChange(user) { if (user && !smGuard()) return; seG('sm-sheet').dataset.dirty = ''; smFillSubjects(); loadSubjectEntry(); }
+        function smChange() { if (!smGuard()) return; seG('sm-sheet').dataset.dirty = ''; loadSubjectEntry(); }
+        function loadSubjectEntry() { // spinner first, so nobody can type into the previous selection while the new one loads
+            const seq = ++SM.seq, box = seG('sm-sheet'), ld = seG('sm-loading');
+            box.classList.add('hidden'); ld.classList.remove('hidden');
+            setTimeout(() => { if (seq !== SM.seq) return; ld.classList.add('hidden'); renderSubjectSheet(); }, 220);
+        }
+        function renderSubjectSheet() {
+            const examId = seG('sm-exam').value, cid = seG('sm-class').value, subId = seG('sm-subject').value, box = seG('sm-sheet'), att = subId === SE_ATT;
+            const cls = appState.classes.find(x => x.id === cid), ex = appState.exams.find(x => x.id === examId);
+            const sub = att ? (cls ? { att: true, id: SE_ATT, name: 'Attendance', maxMarks: Number(cls.totalWorkingDays) || 200, passingMarks: 0 } : null) : appState.subjects.find(x => x.id === subId);
             if (!sub || !cls || !ex) { box.classList.add('hidden'); return; }
-            const students = appState.students.filter(x => x.classId === cid).sort(seNat), byStu = new Map(appState.results.filter(r => r.examId === examId).map(r => [r.studentId, r.marks]));
-            document.getElementById('sm-title').textContent = `${sub.name} \u2014 ${cls.name}`;
-            document.getElementById('sm-sub').textContent = `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`;
-            box.querySelector('.se-rows').innerHTML = seRows(students, sub, id => (byStu.get(id) || {})[sub.id]);
+            SM.prev = { exam: examId, cls: cid, sub: subId };
+            const students = appState.students.filter(x => x.classId === cid).sort(seNat), byStu = new Map(appState.results.filter(r => r.examId === examId).map(r => [r.studentId, r]));
+            seHead(box, att, att ? `Attendance \u2014 ${cls.name}` : `${sub.name} \u2014 ${cls.name}`,
+                att ? `${ex.name} \u00b7 Total working days: ${sub.maxMarks} \u00b7 ${students.length} students` : `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`);
+            box.querySelector('.se-rows').innerHTML = seRows(students, sub, att ? id => { const r = byStu.get(id); return r && r.attendanceDays >= 0 ? r.attendanceDays : undefined; } : id => ((byStu.get(id) || {}).marks || {})[sub.id]);
             box.dataset.dirty = ''; seRefresh(box); box.classList.remove('hidden');
         }
         function saveSubjectEntry() {
-            const examId = document.getElementById('sm-exam').value, cid = document.getElementById('sm-class').value, subId = document.getElementById('sm-subject').value, box = document.getElementById('sm-sheet');
+            const examId = seG('sm-exam').value, cid = seG('sm-class').value, subId = seG('sm-subject').value, box = seG('sm-sheet'), att = subId === SE_ATT;
             if (!examId || !subId) return;
-            const vals = seRead(box); let n = 0;
+            const vals = seRead(box);
             Object.entries(vals).forEach(([sid, v]) => {
                 if (!appState.students.some(x => x.id === sid && x.classId === cid)) return;
                 const idx = appState.results.findIndex(r => r.examId === examId && r.studentId === sid);
-                if (v === '') { // blank = not entered: remove the mark if there was one
+                if (att) {
+                    if (v === '') { if (idx > -1) { const r = appState.results[idx]; r.attendanceDays = -1; if (!Object.keys(r.marks).length) appState.results.splice(idx, 1); } }
+                    else if (idx > -1) appState.results[idx].attendanceDays = v;
+                    else appState.results.push({ examId, studentId: sid, attendanceDays: v, marks: {} });
+                } else if (v === '') { // blank = not entered: remove the mark if there was one
                     if (idx > -1) { delete appState.results[idx].marks[subId]; if (!Object.keys(appState.results[idx].marks).length && !(appState.results[idx].attendanceDays >= 0)) appState.results.splice(idx, 1); }
                 } else if (idx > -1) appState.results[idx].marks[subId] = v;
                 else appState.results.push({ examId, studentId: sid, attendanceDays: -1, marks: { [subId]: v } });
-                n++;
             });
-            saveState(); renderAllAdminData(); box.dataset.dirty = '';
-            const left = Object.values(vals).filter(v => v === '').length;
-            showToast(`Saved ${Object.values(vals).length - left} mark${Object.values(vals).length - left === 1 ? '' : 's'}${left ? ` (${left} still blank)` : ''}.`, 'success');
+            saveState(); box.dataset.dirty = ''; renderAllAdminData();
+            const filled = Object.values(vals).filter(v => v !== '').length, left = Object.values(vals).length - filled;
+            showToast(`${att ? 'Attendance' : 'Marks'} saved for ${filled} student${filled === 1 ? '' : 's'}${left ? ` (${left} still blank)` : ''}.`, 'success');
         }
 
         // ================= TEACHER LINKS (admin) =================
@@ -2438,7 +2502,7 @@
             if (!list.length) { el.innerHTML = emptyMsg('No teacher links yet. Tap Add to create one.'); return; }
             el.innerHTML = list.map(tc => `<div class="p-3 rounded-xl border ${tc.active === false ? 'border-slate-200 bg-slate-50 opacity-70' : 'border-emerald-200 bg-emerald-50/40'}">
                 <div class="flex items-start justify-between gap-2"><div class="min-w-0"><p class="font-bold text-slate-800 text-sm truncate">${esc(tc.name)} ${tc.active === false ? '<span class="ml-1 text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">OFF</span>' : ''}</p>
-                    <p class="text-xs text-slate-500 mt-0.5">${esc(scopeText(tc))}</p></div></div>
+                    <p class="text-xs text-slate-500 mt-0.5">${esc(scopeText(tc))}${tc.attendance === false ? '' : ' <span class="text-amber-700 font-semibold">+ attendance</span>'}</p></div></div>
                 <input readonly value="${esc(teacherLink(tc))}" onclick="this.select()" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] text-slate-600 bg-white">
                 <div class="flex flex-wrap gap-1.5 mt-2">
                     <button type="button" class="abtn abtn-ok" onclick="copyTeacherLink('${esc(tc.id)}')"><i class="fas fa-copy"></i> Copy</button>
@@ -2449,12 +2513,20 @@
                     <button type="button" class="abtn abtn-del" onclick="deleteTeacher('${esc(tc.id)}')"><i class="fas fa-trash"></i></button>
                 </div></div>`).join('');
         }
+        function classTeacherList() { // [name, [class names]] for every class teacher that is set
+            const m = new Map(); appState.classes.forEach(c => { const n = (c.teacherName || '').trim(); if (n) m.set(n, [...(m.get(n) || []), c.name]); }); return [...m];
+        }
         function openTeacherModal(id) {
-            tlEditing = id || null; const tc = id ? appState.teachers.find(x => x.id === id) : null;
+            tlEditing = id || null; const tc = id ? appState.teachers.find(x => x.id === id) : null, list = classTeacherList(), isClassT = tc && list.some(([n]) => n === tc.name);
             document.getElementById('tl-title').textContent = tc ? 'Edit teacher link' : 'New teacher link';
-            document.getElementById('tl-name').value = tc ? tc.name : '';
+            const pick = document.getElementById('tl-pick');
+            pick.innerHTML = '<option value="">Choose teacher...</option>' + list.map(([n, cl]) => `<option value="${esc(n)}">${esc(n)} \u2014 ${esc(cl.join(', '))}</option>`).join('') + '<option value="__new__">+ Add another teacher (not a class teacher)</option>';
+            pick.value = tc ? (isClassT ? tc.name : '__new__') : (list.length ? '' : '__new__');
+            document.getElementById('tl-name').value = tc && !isClassT ? tc.name : '';
+            tlPickChange();
             const picked = new Set(tc ? tc.subjectIds : []);
             document.getElementById('tl-all').checked = !tc || !tc.subjectIds.length;
+            document.getElementById('tl-att').checked = !tc || tc.attendance !== false;
             document.getElementById('tl-scope').innerHTML = appState.classes.map(c => {
                 const subs = appState.subjects.filter(x => x.classId === c.id);
                 return subs.length ? `<div><p class="text-xs font-bold text-slate-700 mb-1">${esc(c.name)}</p><div class="flex flex-wrap gap-x-4 gap-y-1.5">${subs.map(x => `<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" class="tl-sub w-4 h-4 accent-emerald-700" value="${esc(x.id)}" ${picked.has(x.id) ? 'checked' : ''}> ${esc(x.name)}</label>`).join('')}</div></div>` : '';
@@ -2462,14 +2534,21 @@
             tlAllChange();
             document.getElementById('tl-modal').classList.remove('hidden'); document.body.classList.add('overflow-hidden');
         }
+        function tlPickChange() {
+            const v = document.getElementById('tl-pick').value, inp = document.getElementById('tl-name'), hint = document.getElementById('tl-hint');
+            inp.classList.toggle('hidden', v !== '__new__');
+            const cl = (classTeacherList().find(([n]) => n === v) || [])[1];
+            hint.textContent = v === '__new__' ? 'For a subject teacher who is not the class teacher of any class.' : cl ? `Class teacher of ${cl.join(', ')}.` : '';
+        }
         function tlAllChange() { const all = document.getElementById('tl-all').checked, box = document.getElementById('tl-scope'); box.classList.toggle('opacity-40', all); box.querySelectorAll('input').forEach(i => i.disabled = all); }
         function closeTeacherModal() { document.getElementById('tl-modal').classList.add('hidden'); document.body.classList.remove('overflow-hidden'); }
         function saveTeacherModal() {
-            const name = document.getElementById('tl-name').value.trim(); if (!name) { showToast('Enter the teacher name.', 'error'); return; }
-            const all = document.getElementById('tl-all').checked, subjectIds = all ? [] : [...document.querySelectorAll('#tl-scope .tl-sub:checked')].map(i => i.value);
+            const pv = document.getElementById('tl-pick').value, name = pv === '__new__' ? document.getElementById('tl-name').value.trim() : pv;
+            if (!name) { showToast('Choose the teacher, or add a new name.', 'error'); return; }
+            const all = document.getElementById('tl-all').checked, attendance = document.getElementById('tl-att').checked, subjectIds = all ? [] : [...document.querySelectorAll('#tl-scope .tl-sub:checked')].map(i => i.value);
             if (!all && !subjectIds.length) { showToast('Tick at least one subject, or choose "All classes & subjects".', 'error'); return; }
-            if (tlEditing) { const tc = appState.teachers.find(x => x.id === tlEditing); Object.assign(tc, { name, subjectIds }); }
-            else appState.teachers.push({ id: 'T_' + Date.now().toString(36), name, token: newToken(), subjectIds, active: true, createdAt: new Date().toISOString().slice(0, 10) });
+            if (tlEditing) { const tc = appState.teachers.find(x => x.id === tlEditing); Object.assign(tc, { name, subjectIds, attendance }); }
+            else appState.teachers.push({ id: 'T_' + Date.now().toString(36), name, token: newToken(), subjectIds, attendance, active: true, createdAt: new Date().toISOString().slice(0, 10) });
             saveState(); closeTeacherModal(); renderTeachers(); showToast(tlEditing ? 'Teacher link updated.' : 'Teacher link created. Copy it and send it to the teacher.', 'success');
         }
         async function copyTeacherLink(id) {
@@ -2485,17 +2564,18 @@
         function deleteTeacher(id) { const tc = appState.teachers.find(x => x.id === id); if (!tc || !confirm(`Delete the link of ${tc.name}? It will stop working immediately.`)) return; appState.teachers = appState.teachers.filter(x => x.id !== id); saveState(); renderTeachers(); showToast('Link deleted.', 'info'); }
 
         // ================= TEACHER MARKS-ENTRY PAGE (opened from a private link) =================
-        const TE = { token: '', roster: null, prev: null };
+        const TE = { token: '', roster: null, prev: null, seq: 0 };
         const teEl = id => document.getElementById(id);
         function teMsg(text, ok) { const el = teEl('te-msg'); el.textContent = text; el.className = 'rounded-xl p-4 text-sm ' + (ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'); }
+        function teLoading(on) { teEl('te-loading').classList.toggle('hidden', !on); if (on) teEl('te-sheet').classList.add('hidden'); }
         async function initEntry() {
-            teEl('entry-view').classList.remove('hidden');
+            teEl('entry-view').classList.remove('hidden'); teLoading(true);
             const seg = location.pathname.split('/').filter(Boolean), i = seg.indexOf('entry'); TE.token = seg[i + 1] || '';
-            try { TE.roster = await api(`${API_T}/entry/${TE.token}`); } catch (e) { teMsg(e.message, false); return; }
+            try { TE.roster = await api(`${API_T}/entry/${TE.token}`); } catch (e) { teLoading(false); teMsg(e.message, false); return; }
             const r = TE.roster; applyAccent((r.madrasa || {}).accent || '');
             teEl('te-inst').textContent = r.madrasa.name || 'Marks entry'; teEl('te-who').textContent = 'Marks entry \u00b7 ' + r.teacher; document.title = 'Marks entry - ' + (r.madrasa.name || '');
             if (r.madrasa.logo) { const lg = teEl('te-logo'); lg.src = r.madrasa.logo; lg.classList.remove('hidden'); }
-            if (!r.exams.length || !r.subjects.length) { teMsg(!r.exams.length ? 'No exam has been created yet. Please ask the administrator.' : 'No subject is available for this link yet. Please ask the administrator.', false); return; }
+            if (!r.exams.length || !r.subjects.length) { teLoading(false); teMsg(!r.exams.length ? 'No exam has been created yet. Please ask the administrator.' : 'No subject is available for this link yet. Please ask the administrator.', false); return; }
             let last = {}; try { last = JSON.parse(localStorage.getItem('te_' + TE.token) || '{}'); } catch (e) { }
             teEl('te-exam').innerHTML = r.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
             teEl('te-exam').value = r.exams.some(x => x.id === last.exam) ? last.exam : r.exams[r.exams.length - 1].id;
@@ -2505,8 +2585,8 @@
         }
         function teFillSubjects(want) {
             const cid = teEl('te-class').value, subs = TE.roster.subjects.filter(x => x.classId === cid);
-            teEl('te-subject').innerHTML = subs.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
-            if (subs.some(x => x.id === want)) teEl('te-subject').value = want;
+            teEl('te-subject').innerHTML = subs.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') + (TE.roster.attendance && cid ? seAttOption : '');
+            if (want && [...teEl('te-subject').options].some(o => o.value === want)) teEl('te-subject').value = want;
         }
         function teGuard() {
             if (teEl('te-sheet').dataset.dirty && !confirm('You have marks that are not saved yet. Discard them?')) {
@@ -2515,27 +2595,31 @@
             }
             return true;
         }
-        function teClassChange() { if (!teGuard()) return; teFillSubjects(''); teLoad(true); }
+        function teClassChange() { if (!teGuard()) return; teEl('te-sheet').dataset.dirty = ''; teFillSubjects(''); teLoad(true); }
         async function teLoad(skipGuard) {
             if (!skipGuard && !teGuard()) return;
-            const box = teEl('te-sheet'), examId = teEl('te-exam').value, cid = teEl('te-class').value, subId = teEl('te-subject').value;
-            const sub = TE.roster.subjects.find(x => x.id === subId), ex = TE.roster.exams.find(x => x.id === examId), cls = TE.roster.classes.find(x => x.id === cid);
-            if (!sub || !ex) { box.classList.add('hidden'); return; }
+            const seq = ++TE.seq, box = teEl('te-sheet'), examId = teEl('te-exam').value, cid = teEl('te-class').value, subId = teEl('te-subject').value, att = subId === SE_ATT;
+            const ex = TE.roster.exams.find(x => x.id === examId), cls = TE.roster.classes.find(x => x.id === cid);
+            const sub = att ? (cls && TE.roster.attendance ? { att: true, id: SE_ATT, name: 'Attendance', maxMarks: cls.workingDays, passingMarks: 0 } : null) : TE.roster.subjects.find(x => x.id === subId);
+            box.dataset.dirty = ''; teEl('te-msg').className = 'hidden';
+            if (!sub || !ex) { teLoading(false); box.classList.add('hidden'); return; }
+            teLoading(true); // hide the old sheet right away: nobody can type while the new data loads
             try {
-                const r = await api(`${API_T}/entry/${TE.token}?exam=${encodeURIComponent(examId)}&subject=${encodeURIComponent(subId)}`);
-                TE.prev = { exam: examId, cls: cid, sub: subId }; try { localStorage.setItem('te_' + TE.token, JSON.stringify({ exam: examId, cls: cid, sub: subId })); } catch (e) { }
+                const r = await api(`${API_T}/entry/${TE.token}?exam=${encodeURIComponent(examId)}&subject=${encodeURIComponent(subId)}${att ? '&class=' + encodeURIComponent(cid) : ''}`);
+                if (seq !== TE.seq) return;
+                TE.prev = { exam: examId, cls: cid, sub: subId }; try { localStorage.setItem('te_' + TE.token, JSON.stringify(TE.prev)); } catch (e) { }
                 const students = TE.roster.students.filter(x => x.classId === cid).sort(seNat);
-                teEl('te-title').textContent = `${sub.name} \u2014 ${cls ? cls.name : ''}`;
-                teEl('te-sub').textContent = `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`;
-                box.querySelector('.se-rows').innerHTML = seRows(students, sub, id => r.marks[id]);
-                teEl('te-saved').textContent = ''; box.dataset.dirty = ''; seRefresh(box); box.classList.remove('hidden'); teEl('te-msg').className = 'hidden';
-            } catch (e) { box.classList.add('hidden'); teMsg(e.message, false); }
+                seHead(box, att, att ? `Attendance \u2014 ${cls.name}` : `${sub.name} \u2014 ${cls ? cls.name : ''}`,
+                    att ? `${ex.name} \u00b7 Total working days: ${sub.maxMarks} \u00b7 ${students.length} students` : `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`);
+                box.querySelector('.se-rows').innerHTML = seRows(students, sub, att ? id => r.att[id] : id => r.marks[id]);
+                teEl('te-saved').textContent = ''; seRefresh(box); teLoading(false); box.classList.remove('hidden');
+            } catch (e) { if (seq !== TE.seq) return; teLoading(false); box.classList.add('hidden'); teMsg(e.message, false); }
         }
         async function teSave() {
             const box = teEl('te-sheet'), btn = teEl('te-save'); btn.disabled = true; btn.classList.add('opacity-60');
             try {
-                await api(`${API_T}/entry/${TE.token}`, { method: 'POST', body: { examId: teEl('te-exam').value, subjectId: teEl('te-subject').value, marks: seRead(box) } });
-                box.dataset.dirty = ''; teEl('te-saved').textContent = 'Saved at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); showToast('Marks saved.', 'success');
+                await api(`${API_T}/entry/${TE.token}`, { method: 'POST', body: { examId: teEl('te-exam').value, subjectId: teEl('te-subject').value, classId: teEl('te-class').value, marks: seRead(box) } });
+                box.dataset.dirty = ''; teEl('te-saved').textContent = 'Saved at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); showToast(box.dataset.mode === 'att' ? 'Attendance saved.' : 'Marks saved.', 'success');
             } catch (e) { showToast(e.message || 'Could not save. Check your connection and try again.', 'error'); }
             finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
         }
