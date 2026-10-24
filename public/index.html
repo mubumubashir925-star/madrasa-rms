@@ -31,16 +31,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Playball&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
+        :root { --em-50: 236 253 245; --em-100: 209 250 229; --em-200: 167 243 208; --em-300: 110 231 183; --em-400: 52 211 153; --em-500: 16 185 129; --em-600: 5 150 105; --em-700: 4 120 87; --em-800: 6 95 70; --em-850: 6 78 59; --em-900: 6 78 59; --em-950: 2 44 34; }
         /* Custom Islamic Geometric Background Pattern */
         .bg-islamic-pattern {
-            background-color: #064e3b;
-            background-image: radial-gradient(#047857 1px, transparent 1px), radial-gradient(#047857 1px, #064e3b 1px);
+            background-color: rgb(var(--em-900));
+            background-image: radial-gradient(rgb(var(--em-700)) 1px, transparent 1px), radial-gradient(rgb(var(--em-700)) 1px, rgb(var(--em-900)) 1px);
             background-size: 40px 40px;
             background-position: 0 0, 20px 20px;
         }
 
         .certificate-border {
-            border: 8px double #064e3b;
+            border: 8px double rgb(var(--em-900));
             position: relative;
         }
         
@@ -62,25 +63,25 @@
         .class-page + .class-page { margin-top: 28px; padding-top: 22px; border-top: 2px dashed #cbd5e1; }
         @media print { .class-page + .class-page { margin: 0; padding: 0; border: 0; } }
         /* ===== Marksheet (public): modern layout with institution watermark + hologram seal ===== */
-        .ms-sheet { position: relative; background: #fff; border: 2px solid #064e3b; border-radius: 10px; padding: 6px; box-shadow: 0 25px 50px -12px rgba(2,44,34,.35); overflow: hidden;
-            background-image: radial-gradient(circle at 1px 1px, rgba(6,78,59,.05) 1px, transparent 1.4px); background-size: 12px 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .ms-sheet { position: relative; background: #fff; border: 2px solid rgb(var(--em-900)); border-radius: 10px; padding: 6px; box-shadow: 0 25px 50px -12px rgba(2,44,34,.35); overflow: hidden;
+            background-image: radial-gradient(circle at 1px 1px, rgb(var(--em-900) / .05) 1px, transparent 1.4px); background-size: 12px 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .ms-wm { position: absolute; inset: 0; z-index: 0; pointer-events: none; background-repeat: repeat; background-position: center; overflow: hidden; }
         .ms-wm img { position: absolute; left: 50%; top: 50%; width: 55%; max-width: 360px; max-height: 60%; object-fit: contain; transform: translate(-50%, -50%); opacity: .07; filter: grayscale(1); }
         .ms-frame { position: relative; z-index: 1; border: 1px solid #c9a24a; border-radius: 6px; padding: 18px 14px 14px; }
         .ms-frame::before { content: ""; position: absolute; inset: 3px; border: 1px solid rgba(201,162,74,.45); border-radius: 4px; pointer-events: none; }
-        .ms-micro { overflow: hidden; white-space: nowrap; font: 700 5px/1 Georgia, serif; letter-spacing: .7px; color: rgba(6,78,59,.55); text-transform: uppercase; user-select: none; }
+        .ms-micro { overflow: hidden; white-space: nowrap; font: 700 5px/1 Georgia, serif; letter-spacing: .7px; color: rgb(var(--em-900) / .55); text-transform: uppercase; user-select: none; }
         .ms-head { display: flex; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 10px 0 6px; }
         .ms-logo { width: auto; height: 76px; max-width: 130px; object-fit: contain; flex: none; }
         .ms-head > div { min-width: 0; max-width: 100%; }
         .ms-inst, .ms-addr { overflow-wrap: anywhere; }
-        .ms-inst { font-family: Georgia, 'Amiri', serif; font-size: 22px; line-height: 1.2; font-weight: 700; color: #022c22; text-transform: uppercase; letter-spacing: .06em; margin: 0; }
+        .ms-inst { font-family: Georgia, 'Amiri', serif; font-size: 22px; line-height: 1.2; font-weight: 700; color: rgb(var(--em-950)); text-transform: uppercase; letter-spacing: .06em; margin: 0; }
         .ms-addr { font-size: 14px; line-height: 1.35; color: #475569; font-weight: 500; margin: 4px 0 0; }
         .ms-titlebar { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0 14px; }
         .ms-rule { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, #c9a24a); }
         .ms-rule:last-child { background: linear-gradient(270deg, transparent, #c9a24a); }
         .ms-titlebar > div { text-align: center; flex: none; max-width: 78%; }
-                .ms-exam { display: block; margin: 0; padding: 6px 20px; border-radius: 999px; background: linear-gradient(135deg, #064e3b, #047857); color: #fff; font-size: 14px; line-height: 1.3; font-weight: 700; letter-spacing: .03em; text-align: center; }
-        .ms-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding: 12px 14px; margin-bottom: 12px; background: rgba(248,250,252,.72); border: 1px solid #e2e8f0; border-left: 4px solid #064e3b; border-radius: 10px; font-size: 13px; }
+                .ms-exam { display: block; margin: 0; padding: 6px 20px; border-radius: 999px; background: linear-gradient(135deg, rgb(var(--em-900)), rgb(var(--em-700))); color: #fff; font-size: 14px; line-height: 1.3; font-weight: 700; letter-spacing: .03em; text-align: center; }
+        .ms-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding: 12px 14px; margin-bottom: 12px; background: rgba(248,250,252,.72); border: 1px solid #e2e8f0; border-left: 4px solid rgb(var(--em-900)); border-radius: 10px; font-size: 13px; }
         .ms-k { margin: 0; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
         .ms-v { margin: 1px 0 0; font-weight: 700; color: #0f172a; word-break: break-word; }
         .ms-stats { display: grid; gap: 8px; margin-bottom: 12px; }
@@ -88,27 +89,27 @@
         .ms-tl { margin: 0; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; opacity: .75; }
         .ms-tv { margin: 1px 0 0; font-size: 17px; line-height: 1.15; font-weight: 800; }
         .ms-ts { margin: 0; font-size: 10px; opacity: .8; }
-        .ms-tile.ok { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+        .ms-tile.ok { background: rgb(var(--em-50)); border-color: rgb(var(--em-300)); color: rgb(var(--em-800)); }
         .ms-tile.bad { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
         .ms-tile.gold { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
         .ms-tile.sky { background: #f0f9ff; border-color: #7dd3fc; color: #0c4a6e; }
         .ms-tablewrap { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
         .ms-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-        .ms-table thead th { background: linear-gradient(135deg, #022c22, #064e3b); color: #fff; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 12px; border-bottom: 2px solid #c9a24a; }
+        .ms-table thead th { background: linear-gradient(135deg, rgb(var(--em-950)), rgb(var(--em-900))); color: #fff; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 9px 12px; border-bottom: 2px solid #c9a24a; }
         .ms-table tbody td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; background: rgba(255,255,255,.55); }
-        .ms-table tbody tr:nth-child(even) td { background: rgba(240,253,244,.55); }
-        .ms-table tfoot td { padding: 10px 12px; background: rgba(241,245,249,.9); border-top: 2px solid #064e3b; font-weight: 800; color: #0f172a; }
+        .ms-table tbody tr:nth-child(even) td { background: rgb(var(--em-50) / .55); }
+        .ms-table tfoot td { padding: 10px 12px; background: rgba(241,245,249,.9); border-top: 2px solid rgb(var(--em-900)); font-weight: 800; color: #0f172a; }
         .ms-table .c { text-align: center; }
         .ms-table { table-layout: auto; } .ms-table th:first-child, .ms-table td:first-child { width: 38%; }
         .ms-sub { font-weight: 700; color: #1e293b; }
         .ms-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
-        .ms-pill.pass { background: #d1fae5; color: #065f46; } .ms-pill.fail { background: #fee2e2; color: #b91c1c; } .ms-pill.abs { background: #fef3c7; color: #92400e; }
+        .ms-pill.pass { background: rgb(var(--em-100)); color: rgb(var(--em-800)); } .ms-pill.fail { background: #fee2e2; color: #b91c1c; } .ms-pill.abs { background: #fef3c7; color: #92400e; }
         .ms-mini { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
         .ms-box { background: rgba(255,255,255,.7); border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 12px; }
         .ms-box h4 { margin: 0 0 2px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #94a3b8; }
         .ms-box .big { margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; }
         .ms-box small { font-size: 11px; color: #64748b; font-weight: 500; }
-        .ms-bar { height: 6px; background: #e2e8f0; border-radius: 99px; margin-top: 5px; overflow: hidden; } .ms-bar > div { height: 100%; background: #059669; border-radius: 99px; }
+        .ms-bar { height: 6px; background: #e2e8f0; border-radius: 99px; margin-top: 5px; overflow: hidden; } .ms-bar > div { height: 100%; background: rgb(var(--em-600)); border-radius: 99px; }
         .ms-overall h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
         .ms-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 14px; margin-top: 8px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; }
         .ms-sig-line { border-bottom: 1px solid #94a3b8; height: 46px; margin-bottom: 4px; display: flex; align-items: flex-end; justify-content: center; }
@@ -221,19 +222,19 @@
         @media (min-width: 640px) { .cs-overlay { align-items: center; } .cs-panel { border-radius: 16px; max-height: 70vh; } }
         .cs-head { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid #e2e8f0; }
         .cs-search { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 16px; outline: none; }
-        .cs-search:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,.2); }
+        .cs-search:focus { border-color: rgb(var(--em-600)); box-shadow: 0 0 0 3px rgb(var(--em-600) / .2); }
         .cs-close { width: 42px; border-radius: 10px; background: #f1f5f9; font-size: 22px; color: #475569; }
         .cs-list { overflow-y: auto; padding: 6px; -webkit-overflow-scrolling: touch; }
         .cs-opt { display: block; width: 100%; text-align: left; padding: 12px 14px; border-radius: 10px; font-size: 15px; color: #1e293b; }
-        .cs-opt:hover, .cs-opt:focus { background: #ecfdf5; outline: none; }
-        .cs-opt.sel { background: #d1fae5; font-weight: 700; color: #065f46; }
+        .cs-opt:hover, .cs-opt:focus { background: rgb(var(--em-50)); outline: none; }
+        .cs-opt.sel { background: rgb(var(--em-100)); font-weight: 700; color: rgb(var(--em-800)); }
         .cs-empty { padding: 18px; text-align: center; color: #94a3b8; font-size: 14px; }
         .cs-overlay { align-items: flex-start !important; padding: 10px 10px 0; }
         .cs-panel { border-radius: 16px !important; max-height: calc(100% - 20px) !important; }
         /* Card lists, FAB, sticky tools */
         .subpanel { overflow: clip !important; }
         .acard { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
-        .acard.open { border-color: #34d399; box-shadow: 0 2px 10px rgba(16,185,129,.12); }
+        .acard.open { border-color: rgb(var(--em-400)); box-shadow: 0 2px 10px rgb(var(--em-500) / .12); }
         .acard-head { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; }
         .acard-title { font-weight: 700; color: #0f172a; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
         .acard-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
@@ -245,20 +246,20 @@
         .acard-row span { color: #64748b; flex-shrink: 0; } .acard-row b { color: #0f172a; text-align: right; font-weight: 600; word-break: break-word; }
         .acard-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
         .abtn { padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
-        .abtn-edit { background: #e0f2fe; color: #075985; } .abtn-del { background: #fee2e2; color: #b91c1c; } .abtn-ok { background: #d1fae5; color: #065f46; } .abtn-gray { background: #e2e8f0; color: #334155; }
+        .abtn-edit { background: #e0f2fe; color: #075985; } .abtn-del { background: #fee2e2; color: #b91c1c; } .abtn-ok { background: rgb(var(--em-100)); color: rgb(var(--em-800)); } .abtn-gray { background: #e2e8f0; color: #334155; }
         .more-btn { width: 100%; padding: 12px; border-radius: 12px; background: #f1f5f9; font-weight: 600; font-size: 13px; color: #475569; }
         .list-tools { position: sticky; top: 64px; z-index: 15; background: #fff; padding: 8px 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .list-tools input[type=search] { flex: 1; min-width: 10rem; }
-        .fab { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 25; min-width: 58px; height: 58px; padding: 0 18px; border-radius: 999px; background: linear-gradient(135deg, #059669, #065f46); color: #fff; box-shadow: 0 8px 20px rgba(6,95,70,.45); display: none; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 14px; }
+        .fab { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 25; min-width: 58px; height: 58px; padding: 0 18px; border-radius: 999px; background: linear-gradient(135deg, rgb(var(--em-600)), rgb(var(--em-800))); color: #fff; box-shadow: 0 8px 20px rgba(6,95,70,.45); display: none; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 14px; }
         .fab.show { display: flex; } .fab .fab-plus { font-size: 32px; line-height: 1; margin-top: -3px; } .fab .fab-label { display: none; }
         @media (min-width: 768px) { .fab .fab-label { display: inline; } }
         /* Sub-tabs + subject chips */
         .subtabs { display: flex; gap: 4px; padding: 4px; background: #e2e8f0; border-radius: 14px; overflow-x: auto; }
         .subtab-btn { flex: 1 0 auto; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 13px; color: #475569; white-space: nowrap; }
-        .subtab-btn.active { background: #fff; color: #065f46; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+        .subtab-btn.active { background: #fff; color: rgb(var(--em-800)); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
         .subcount { font-weight: 500; opacity: .7; margin-left: 4px; }
         .chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 999px; font-size: 13px; font-weight: 600; background: #fff; cursor: pointer; color: #334155; }
-        .chip:has(input:checked) { background: #065f46; border-color: #065f46; color: #fff; }
+        .chip:has(input:checked) { background: rgb(var(--em-800)); border-color: rgb(var(--em-800)); color: #fff; }
         .chip input { accent-color: #fbbf24; width: 16px; height: 16px; }
         /* Mobile-first helpers */
         html { -webkit-tap-highlight-color: transparent; }
@@ -360,6 +361,29 @@
         </div>
     </div>
 
+    <div id="entry-view" class="hidden min-h-screen bg-slate-100">
+        <header class="sticky top-0 z-20 bg-emerald-950 text-white px-4 py-3 flex items-center gap-3" style="min-height:56px">
+            <img id="te-logo" alt="" class="hidden w-9 h-9 rounded-lg bg-white/10 object-contain">
+            <div class="min-w-0"><p id="te-inst" class="font-bold text-sm truncate">Marks entry</p><p id="te-who" class="text-[11px] text-emerald-200 truncate"></p></div>
+        </header>
+        <main class="max-w-2xl mx-auto p-3 space-y-3">
+            <div id="te-msg" class="hidden"></div>
+            <div id="te-ctrl" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-3 grid grid-cols-2 gap-3">
+                <div class="col-span-2"><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label><select id="te-exam" onchange="teLoad()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label><select id="te-class" onchange="teClassChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Subject</label><select id="te-subject" onchange="teLoad()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                <p class="col-span-2 text-[11px] text-slate-400">Enter the marks, tap <b>Save</b>. Leave a mark blank if it is not ready &mdash; you can come back and add it later.</p>
+            </div>
+            <div id="te-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-4 py-2.5 bg-emerald-900 text-white"><h4 id="te-title" class="font-bold text-sm truncate"></h4><p id="te-sub" class="text-[11px] text-emerald-200 truncate"></p></div>
+                <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="py-2 px-1.5 text-center w-24">Marks</th><th class="py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table></div>
+                <div class="bg-slate-900 text-white p-3 m-3 rounded-xl sticky bottom-3 z-10 shadow-2xl">
+                    <div class="flex items-center justify-between gap-3"><div class="se-summary text-xs leading-snug"></div><button type="button" id="te-save" onclick="teSave()" class="bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm shrink-0"><i class="fas fa-save"></i> Save</button></div>
+                    <p id="te-saved" class="text-[11px] text-slate-400 mt-1.5"></p>
+                </div>
+            </div>
+        </main>
+    </div>
     <div id="public-view" class="hidden flex-grow flex flex-col">
         <!-- Top Announcement Bar -->
         <div id="announcement-bar" class="bg-amber-500 text-slate-950 py-2 px-4 overflow-hidden relative flex items-center shadow-sm">
@@ -555,8 +579,19 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 mt-2">
                     <button type="button" class="sp-btn" onclick="closeSignPad()">Cancel</button>
-                    <button type="button" class="sp-btn" style="background:#047857;color:#fff" onclick="spSave()"><i class="fas fa-check"></i> Save signature</button>
+                    <button type="button" class="sp-btn" style="background:rgb(var(--em-700));color:#fff" onclick="spSave()"><i class="fas fa-check"></i> Save signature</button>
                 </div>
+            </div>
+        </div>
+        <div id="tl-modal" class="hidden fixed inset-0 z-[80] bg-slate-950/70 overflow-y-auto p-4 no-print">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-lg mx-auto my-6 p-4 md:p-5">
+                <div class="flex items-center justify-between mb-3"><h3 id="tl-title" class="font-bold text-slate-800">Teacher link</h3><button type="button" onclick="closeTeacherModal()" aria-label="Close" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fas fa-times"></i></button></div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Teacher name</label>
+                <input id="tl-name" maxlength="80" placeholder="e.g., Ustad Hamza" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm">
+                <p class="text-xs font-bold uppercase text-slate-600 mt-4 mb-1">Subjects this teacher can enter</p>
+                <label class="flex items-center gap-2 text-sm mb-2"><input type="checkbox" id="tl-all" onchange="tlAllChange()" class="w-5 h-5 accent-emerald-700"> All classes &amp; subjects</label>
+                <div id="tl-scope" class="space-y-3 max-h-72 overflow-y-auto border border-slate-200 rounded-lg p-3"></div>
+                <div class="grid grid-cols-2 gap-2 mt-4"><button type="button" onclick="closeTeacherModal()" class="abtn abtn-gray justify-center">Cancel</button><button type="button" onclick="saveTeacherModal()" class="abtn justify-center" style="background:rgb(var(--em-800));color:#fff">Save</button></div>
             </div>
         </div>
         <div id="ge-modal" class="hidden fixed inset-0 z-[80] bg-slate-950/70 overflow-y-auto p-4 no-print">
@@ -711,6 +746,10 @@
                                         <div class="min-w-0 flex-1"><p class="text-xs font-bold uppercase text-slate-600">Head&rsquo;s signature</p><p class="text-[11px] text-slate-400">Draw it on the screen. Printed above the name on every result. Remember to press Save.</p></div>
                                         <div class="flex flex-col sm:flex-row gap-1.5 shrink-0"><button type="button" id="head-sign-btn" class="abtn abtn-ok" onclick="signHead()">Sign</button><button type="button" id="head-sign-rm" class="abtn abtn-gray hidden" onclick="removeHeadSign()">Remove</button></div>
                                     </div>
+                                    <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Accent colour</label>
+                                        <div id="accent-swatches" class="flex flex-wrap items-center gap-2.5"></div>
+                                        <div class="flex items-center gap-2 mt-2.5"><input type="color" id="accent-custom" value="#065f46" oninput="pickAccent(this.value)" class="w-10 h-9 rounded border border-slate-300 bg-white p-0.5"><span class="text-xs text-slate-500">Or pick any colour</span></div>
+                                        <p class="text-[11px] text-slate-400 mt-1">Used on the public portal, the result sheets and this admin panel. Very light colours are darkened automatically so text stays readable. Remember to press Save.</p></div>
                                     <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Share message</label>
                                         <input type="text" id="setting-share-text" maxlength="200" placeholder="e.g., Check your exam results online" class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm">
                                         <p class="text-[11px] text-slate-400 mt-1">Shown under your institution name and logo when the link is shared on WhatsApp, Telegram etc.</p></div>
@@ -851,7 +890,7 @@
                     </div>
 
                     <div id="admin-tab-setup" class="admin-tab-content hidden space-y-6">
-                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="setup" data-sub="portal" onclick="showSub('setup','portal')">Public Portal</button><button type="button" class="subtab-btn" data-group="setup" data-sub="grading" onclick="showSub('setup','grading')">Grading</button><button type="button" class="subtab-btn" data-group="setup" data-sub="fields" onclick="showSub('setup','fields')">Student Fields</button><button type="button" class="subtab-btn" data-group="setup" data-sub="account" onclick="showSub('setup','account')">Admin Login</button><button type="button" class="subtab-btn" data-group="setup" data-sub="backup" onclick="showSub('setup','backup')">Backup</button></div>
+                        <div class="subtabs"><button type="button" class="subtab-btn" data-group="setup" data-sub="portal" onclick="showSub('setup','portal')">Public Portal</button><button type="button" class="subtab-btn" data-group="setup" data-sub="grading" onclick="showSub('setup','grading')">Grading</button><button type="button" class="subtab-btn" data-group="setup" data-sub="fields" onclick="showSub('setup','fields')">Student Fields</button><button type="button" class="subtab-btn" data-group="setup" data-sub="teachers" onclick="showSub('setup','teachers')">Teacher links</button><button type="button" class="subtab-btn" data-group="setup" data-sub="account" onclick="showSub('setup','account')">Admin Login</button><button type="button" class="subtab-btn" data-group="setup" data-sub="backup" onclick="showSub('setup','backup')">Backup</button></div>
                         
                         <div data-group="setup" data-sub="portal" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
                             <div class="flex items-start justify-between gap-4">
@@ -886,6 +925,12 @@
                             <div class="flex gap-2"><input id="new-field-label" maxlength="40" placeholder="New field, e.g. Date of Birth" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white flex-1"><button type="button" onclick="addFieldRow()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-semibold">Add</button></div>
                             <button onclick="saveFields()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm w-full sm:w-auto">Save fields</button>
                         </div>
+                        <div data-group="setup" data-sub="teachers" class="subpanel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
+                            <div class="flex items-start justify-between gap-3"><div><h3 class="font-bold text-slate-800"><i class="fas fa-link text-emerald-700 mr-1.5"></i> Teacher links</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">Give each teacher a private link. It opens a simple page where they choose the exam, class and subject, enter marks for their students and save &mdash; no login, and nothing else of your admin panel is visible. Switch a link off or make a new one at any time.</p></div>
+                                <button type="button" onclick="openTeacherModal()" class="abtn abtn-ok shrink-0"><i class="fas fa-plus"></i> Add</button></div>
+                            <div id="teacher-list" class="space-y-2"></div>
+                        </div>
                         <div data-group="setup" data-sub="backup" class="subpanel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
                             <div><h3 class="font-bold text-slate-800"><i class="fas fa-database text-emerald-700 mr-1.5"></i> Backup &amp; Restore</h3>
                             <p class="text-xs text-slate-500 mt-0.5">Keep a copy of everything in this institution: profile, grading, student fields, exams, classes, subjects, students and results. Your admin username and password are never included.</p></div>
@@ -908,12 +953,17 @@
                     </div>
 
                     <div id="admin-tab-marks" class="admin-tab-content hidden space-y-3">
+                        <div class="flex gap-1 bg-slate-200/70 p-1 rounded-xl text-sm font-semibold">
+                            <button type="button" id="em-student" onclick="setEntryMode('student')" class="flex-1 py-2 rounded-lg"><i class="fas fa-user-pen mr-1"></i> By student</button>
+                            <button type="button" id="em-subject" onclick="setEntryMode('subject')" class="flex-1 py-2 rounded-lg"><i class="fas fa-book-open mr-1"></i> By subject</button>
+                        </div>
+                        <div id="entry-mode-student" class="space-y-3">
                         <!-- Selector card: exam | class, subjects (collapsed), student -->
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 <div class="order-1">
                                     <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label>
-                                    <select id="entry-exam-select" onchange="loadMarksEntrySheet()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
+                                    <select id="entry-exam-select" onchange="populateEntryStudentDropdown()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select>
                                 </div>
                                 <div class="order-2">
                                     <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label>
@@ -983,6 +1033,23 @@
                                 </div>
                             </form>
                         </div>
+                    
+                        </div>
+                        <div id="entry-mode-subject" class="hidden space-y-3">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5">
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label><select id="sm-exam" onchange="loadSubjectEntry()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                                    <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label><select id="sm-class" onchange="smClassChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                                    <div class="col-span-2 md:col-span-1"><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Subject</label><select id="sm-subject" onchange="loadSubjectEntry()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                                </div>
+                                <p class="text-[11px] text-slate-400 mt-2">Enter the marks of one subject for the whole class. Leave a mark blank to add it later. Other subjects&rsquo; marks are not touched.</p>
+                            </div>
+                            <div id="sm-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="px-4 py-2.5 bg-emerald-900 text-white"><h4 id="sm-title" class="font-bold text-sm truncate"></h4><p id="sm-sub" class="text-[11px] text-emerald-200 truncate"></p></div>
+                                <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="py-2 px-1.5 text-center w-24">Marks</th><th class="py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table></div>
+                                <div class="bg-slate-900 text-white p-3 m-3 rounded-xl sticky bottom-3 z-10 shadow-2xl flex items-center justify-between gap-3"><div class="se-summary text-xs leading-snug"></div><button type="button" onclick="saveSubjectEntry()" class="bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm shrink-0"><i class="fas fa-save"></i> Save</button></div>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -1005,6 +1072,34 @@
             else { TENANT = QS.get('t') || ''; ROUTE = TENANT ? (QS.get('view') === 'admin' ? 'admin' : 'public') : 'landing'; }
         }
         const IS_ADMIN_ROUTE = ROUTE === 'admin';
+        // ---- institution accent colour: every "emerald" colour in the app is driven by CSS variables ----
+        const EM_DEFAULT = { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 850: '#064e3b', 900: '#064e3b', 950: '#022c22' };
+        let ACC = { ...EM_DEFAULT };
+        const accHex = n => ACC[n];
+        function hexToHsl(hex) {
+            const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+            let h = 0; const l = (mx + mn) / 2, s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+            if (d) { h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+            return [h, s * 100, l * 100];
+        }
+        function hslToHex(h, s, l) {
+            s /= 100; l /= 100; const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2; let r = 0, g = 0, b = 0;
+            if (h < 60) [r, g, b] = [c, x, 0]; else if (h < 120) [r, g, b] = [x, c, 0]; else if (h < 180) [r, g, b] = [0, c, x]; else if (h < 240) [r, g, b] = [0, x, c]; else if (h < 300) [r, g, b] = [x, 0, c]; else [r, g, b] = [c, 0, x];
+            return '#' + [r, g, b].map(v => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+        }
+        function buildAccentPalette(hex) {
+            if (!/^#[0-9a-f]{6}$/i.test(hex || '') || hex.toLowerCase() === '#065f46') return { ...EM_DEFAULT };
+            let [h, s, l] = hexToHsl(hex); l = Math.min(l, 40); // very light colours are darkened so white text stays readable
+            const up = k => l + (97 - l) * k, hsl = (sat, light) => hslToHex(h, Math.max(0, Math.min(100, sat)), Math.max(2, Math.min(98, light)));
+            return { 50: hsl(s * .8, up(.965)), 100: hsl(s * .85, up(.93)), 200: hsl(s * .9, up(.85)), 300: hsl(s, up(.72)), 400: hsl(s, up(.55)), 500: hsl(s, up(.38)), 600: hsl(s, up(.22)), 700: hsl(s, up(.1)), 800: hsl(s, l), 850: hsl(s, l * .9), 900: hsl(s, l * .8), 950: hsl(s, l * .52) };
+        }
+        function applyAccent(hex) {
+            ACC = buildAccentPalette(hex); const root = document.documentElement.style;
+            Object.entries(ACC).forEach(([n, v]) => { const x = parseInt(v.slice(1), 16); root.setProperty('--em-' + n, `${x >> 16 & 255} ${x >> 8 & 255} ${x & 255}`); });
+            const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = ACC[900];
+            try { if (TENANT) localStorage.setItem('acc_' + TENANT, hex || ''); } catch (e) { }
+        }
+        try { const a0 = TENANT && localStorage.getItem('acc_' + TENANT); if (a0) applyAccent(a0); } catch (e) { } // no colour flash on repeat visits
         const ROOT_MODE = !!TENANT && PATH_SEG[0] !== TENANT;          // the main-address institution lives at "/" and "/admin"
         const pubPath = () => (ROOT_MODE ? '/' : '/' + TENANT);
         const adminPath = () => (ROOT_MODE ? '/admin' : '/' + TENANT + '/admin');
@@ -1021,7 +1116,7 @@
             return { madrasa: { name: 'Institution', subtitle: '', logo: '', headTitle: 'Principal', headName: '' }, announcements: [],
                 portal: { enabled: false, message: '', showPosition: true },
                 grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
-                fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], classSigns: {}, exams: [], classes: [], subjects: [], students: [], results: [] };
+                fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], classSigns: {}, teachers: [], exams: [], classes: [], subjects: [], students: [], results: [] };
         }
         const clone = o => JSON.parse(JSON.stringify(o));
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1038,12 +1133,12 @@
         }
 
         async function loadPublicData() {
-            try { const info = await api(API_T + '/public'); if (info.unavailable) { showBlocked(info.portal && info.portal.message, info.madrasa && info.madrasa.name); return; } appState = { ...emptyState(), ...info }; renderPublicPortal(); }
+            try { const info = await api(API_T + '/public'); if (info.unavailable) { showBlocked(info.portal && info.portal.message, info.madrasa && info.madrasa.name); return; } appState = { ...emptyState(), ...info }; applyAccent((info.madrasa || {}).accent || ''); renderPublicPortal(); }
             catch (e) { if (e.status === 404) showLanding(true); else showToast('Could not load data. Check your connection.', 'error'); }
         }
 
         async function loadAdminState() {
-            appState = { ...emptyState(), ...(await api('/admin/state')) };
+            appState = { ...emptyState(), ...(await api('/admin/state')) }; applyAccent((appState.madrasa || {}).accent || '');
             snapshot = clone(appState);
             renderPublicPortal();
             renderAllAdminData();
@@ -1065,7 +1160,7 @@
                 for (const k of old.keys()) if (!seen.has(k)) (deletes[t] ||= []).push(k);
             }
             const st = {};
-            for (const k of ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns']) if (JSON.stringify(appState[k]) !== JSON.stringify(snapshot[k])) st[k] = k === 'classSigns' ? Object.fromEntries(Object.entries(appState[k] || {}).filter(([id]) => appState.classes.some(c => c.id === id))) : appState[k];
+            for (const k of ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', 'teachers']) if (JSON.stringify(appState[k]) !== JSON.stringify(snapshot[k])) st[k] = k === 'classSigns' ? Object.fromEntries(Object.entries(appState[k] || {}).filter(([id]) => appState.classes.some(c => c.id === id))) : appState[k];
             if (Object.keys(st).length) upserts.settings = st;
             return (Object.keys(upserts).length || Object.keys(deletes).length) ? { upserts, deletes } : null;
         }
@@ -1505,7 +1600,7 @@
                                 <span id="live-sub-status-${sub.id}" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">-</span></div>
                         </td>
                         <td class="py-2.5 px-1.5 text-center">
-                            <input type="number" ${ab ? 'disabled' : 'required'} min="0" max="${sub.maxMarks}" data-subject-id="${sub.id}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}"
+                            <input type="number" ${ab ? 'disabled' : ''} min="0" max="${sub.maxMarks}" data-subject-id="${sub.id}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}"
                                 value="${esc(val)}" placeholder="0-${sub.maxMarks}" onfocus="this.dataset.prev = this.value" oninput="limitEntry(this); recalculateLiveEntry()" onkeydown="entryEnter(event, this)" enterkeyhint="next"
                                 class="entry-mark-input w-full px-2 py-2 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none">
                         </td>
@@ -1520,7 +1615,7 @@
 
         // ================= LANDING / NOT FOUND =================
         function showBlocked(msg, name) {
-            ['public-view', 'admin-view', 'super-view', 'landing-view'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+            ['public-view', 'admin-view', 'super-view', 'landing-view', 'entry-view'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             ['fab', 'ge-modal', 'student-edit-modal', 'staff-modal'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const nm = name || (appState && appState.madrasa && appState.madrasa.name !== 'Institution' ? appState.madrasa.name : '');
             document.getElementById('blocked-title').textContent = IS_ADMIN_ROUTE ? 'Admin access blocked' : 'Portal unavailable';
@@ -1792,6 +1887,16 @@
         function geSignRefresh(i) { const v = geFields[i].sign || ''; document.getElementById('ge-sign-' + i).innerHTML = signPreview(v); document.getElementById('ge-sign-btn-' + i).textContent = v ? 'Change' : 'Sign'; document.getElementById('ge-sign-rm-' + i).classList.toggle('hidden', !v); }
         function geSignEdit(i) { openSignPad(geFields[i].label, v => { geFields[i].sign = v; geSignRefresh(i); }); }
         function geSignRemove(i) { geFields[i].sign = ''; geSignRefresh(i); }
+        // ---- accent colour picker ----
+        const ACCENTS = ['#065f46', '#0f766e', '#1d4ed8', '#4338ca', '#7e22ce', '#be123c', '#c2410c', '#78350f', '#334155'];
+        let pendingAccent = null; // null = unchanged
+        const accentValue = () => pendingAccent !== null ? pendingAccent : ((appState.madrasa || {}).accent || '');
+        function renderAccentPicker() {
+            const cur = (accentValue() || '#065f46').toLowerCase();
+            document.getElementById('accent-swatches').innerHTML = ACCENTS.map(c => `<button type="button" aria-label="Colour ${c}" onclick="pickAccent('${c}')" style="background:${c}" class="w-9 h-9 rounded-full border-2 ${c === cur ? 'border-slate-900 ring-2 ring-offset-2 ring-slate-400' : 'border-white shadow'}"></button>`).join('');
+            document.getElementById('accent-custom').value = /^#[0-9a-f]{6}$/i.test(cur) ? cur : '#065f46';
+        }
+        function pickAccent(hex) { hex = String(hex).toLowerCase(); pendingAccent = hex === '#065f46' ? '' : hex; applyAccent(pendingAccent); renderAccentPicker(); }
         function clearLogo() { pendingLogo = ''; document.getElementById('setting-madrasa-logo').value = ''; setLogoPreview(''); }
 
         let logoTaps = 0, logoTimer;
@@ -1825,7 +1930,7 @@
         // uid keeps SVG ids unique when many marksheets are on one page (bulk PDF).
         function msSecurity(inst, logo, uid) {
             const name = inst.toUpperCase().slice(0, 40);
-            const wm = `<svg xmlns='http://www.w3.org/2000/svg' width='430' height='270'><g transform='rotate(-28 215 135)' fill='#065f46' fill-opacity='.06' font-family='Georgia,serif' font-weight='700' text-anchor='middle'><text x='215' y='125' font-size='21' letter-spacing='3'>${esc(name)}</text><text x='215' y='152' font-size='11' letter-spacing='7'>OFFICIAL RESULT</text></g></svg>`;
+            const wm = `<svg xmlns='http://www.w3.org/2000/svg' width='430' height='270'><g transform='rotate(-28 215 135)' fill='${accHex(800)}' fill-opacity='.06' font-family='Georgia,serif' font-weight='700' text-anchor='middle'><text x='215' y='125' font-size='21' letter-spacing='3'>${esc(name)}</text><text x='215' y='152' font-size='11' letter-spacing='7'>OFFICIAL RESULT</text></g></svg>`;
             const bg = `url('data:image/svg+xml;utf8,${encodeURIComponent(wm).replace(/'/g, '%27').replace(/\(/g, '%28').replace(/\)/g, '%29')}')`;
             const micro = (name + ' \u2022 ').repeat(60);
             // Ring text: institution name + stars, repeated and stretched so it fills the circle exactly (short or long names)
@@ -1846,12 +1951,12 @@
                 <circle cx="60" cy="60" r="58" fill="url(#msHolo${uid})" stroke="#b8923a" stroke-width="1.6"/>
                 <g stroke="#fff" stroke-opacity=".55" stroke-width=".7">${rays}</g>
                 <circle cx="60" cy="60" r="53.5" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width=".8"/>
-                <text font-family="Georgia,serif" font-size="${fs.toFixed(2)}" font-weight="700" letter-spacing=".9" fill="#064e3b" textLength="${tl}" lengthAdjust="spacing"><textPath href="#msRing${uid}" textLength="${tl}" lengthAdjust="spacing">${esc(ring)}</textPath></text>
+                <text font-family="Georgia,serif" font-size="${fs.toFixed(2)}" font-weight="700" letter-spacing=".9" fill="${accHex(900)}" textLength="${tl}" lengthAdjust="spacing"><textPath href="#msRing${uid}" textLength="${tl}" lengthAdjust="spacing">${esc(ring)}</textPath></text>
                 <circle cx="60" cy="60" r="35" fill="url(#msGlow${uid})" stroke="#8a6d1f" stroke-width="1"/>
                 <circle cx="60" cy="60" r="32.5" fill="none" stroke="#b8923a" stroke-width=".5" stroke-dasharray="1.2 1.6"/>
-                <text x="60" y="55" text-anchor="middle" font-family="Playball,'Brush Script MT',cursive" font-size="16" fill="#064e3b">Verified</text>
+                <text x="60" y="55" text-anchor="middle" font-family="Playball,'Brush Script MT',cursive" font-size="16" fill="${accHex(900)}">Verified</text>
                 <path d="M41 61.5 H53 M67 61.5 H79" stroke="#b8923a" stroke-width=".7"/><text x="60" y="64" text-anchor="middle" font-size="6" fill="#b8923a">\u2726</text>
-                <text x="60" y="78" text-anchor="middle" font-family="Playball,'Brush Script MT',cursive" font-size="16" fill="#064e3b">Result</text></svg>`;
+                <text x="60" y="78" text-anchor="middle" font-family="Playball,'Brush Script MT',cursive" font-size="16" fill="${accHex(900)}">Result</text></svg>`;
             return { bg, micro, seal, wmImg: logo ? `<img src="${esc(logo)}" alt="">` : '' };
         }
 
@@ -1881,7 +1986,7 @@
                     <td class="c" style="font-weight:800;color:${ok ? '#b45309' : '#dc2626'}">${g}</td>
                     <td class="c"><span class="ms-pill ${ab ? 'abs' : ok ? 'pass' : 'fail'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
             }).join('');
-            const tfoot = `<tr><td style="text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:11px">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:#065f46">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:#065f46">${summary.percentage}%</td></tr>`;
+            const tfoot = `<tr><td style="text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:11px">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:rgb(var(--em-800))">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:rgb(var(--em-800))">${summary.percentage}%</td></tr>`;
             const cards = subjects.map(sub => {
                 const { ab, o, ok, g } = row(sub);
                 return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
@@ -1892,11 +1997,12 @@
             }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
 
             const days = Number(cls.totalWorkingDays) || 200, present = Number(result.attendanceDays || 0), att = days > 0 ? Math.min(100, present / days * 100).toFixed(1) : 0;
+            const attOn = Number(result.attendanceDays) >= 0;
             const bg = 'background:rgba(241,245,249,.9)';
             const overallHTML = exams.length < 2 ? '' : `<div class="ms-overall mb-4"><h4>Overall Performance &mdash; All Exams</h4><div class="ms-tablewrap" style="margin-bottom:0"><table class="ms-table" style="font-size:12px">
                 <thead><tr><th>Exam</th><th class="c">Marks</th><th class="c">%</th><th class="c">Result</th><th class="c">Grade</th></tr></thead><tbody>`
-                + exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? '#047857' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
-                + `<tr><td style="font-weight:800;${bg}">Overall</td><td class="c" style="font-weight:800;${bg}">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;${bg}">${overall.percentage}%</td><td class="c" style="font-weight:800;${bg};color:${overall.failedCount ? '#dc2626' : '#047857'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;${bg}">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr></tbody></table></div></div>`;
+                + exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? 'rgb(var(--em-700))' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
+                + `<tr><td style="font-weight:800;${bg}">Overall</td><td class="c" style="font-weight:800;${bg}">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;${bg}">${overall.percentage}%</td><td class="c" style="font-weight:800;${bg};color:${overall.failedCount ? '#dc2626' : 'rgb(var(--em-700))'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;${bg}">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr></tbody></table></div></div>`;
             const issued = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
             return `<div class="ms-wm" style="background-image:${sec.bg}" aria-hidden="true">${sec.wmImg}</div>
@@ -1916,9 +2022,9 @@
                             <tbody>${tbody}</tbody><tfoot>${tfoot}</tfoot>
                         </table>
                     </div>
-                    <div class="ms-mini">
+                    <div class="ms-mini"${attOn ? '' : ' style="grid-template-columns:1fr"'}>
                         <div class="ms-box"><h4>Percentage</h4><p class="big">${summary.percentage}%</p></div>
-                        <div class="ms-box"><h4>Attendance</h4><p class="big">${att}% <small>(${present}/${days} days)</small></p><div class="ms-bar"><div style="width:${att}%"></div></div></div>
+                        ${attOn ? `<div class="ms-box"><h4>Attendance</h4><p class="big">${att}% <small>(${present}/${days} days)</small></p><div class="ms-bar"><div style="width:${att}%"></div></div></div>` : ''}
                     </div>
                     ${overallHTML}
                     <div class="ms-foot">
@@ -2108,7 +2214,7 @@
         // ================= BACKUP / RESTORE =================
         const BACKUP_TYPE = 'result-publisher-backup';
         function downloadBackup() {
-            const keys = ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', ...TABLES], data = {};
+            const keys = ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', 'teachers', ...TABLES], data = {};
             keys.forEach(k => { data[k] = clone(appState[k]); });
             const file = { type: BACKUP_TYPE, version: 1, exportedAt: new Date().toISOString(), institution: appState.madrasa.name, data };
             const a = document.createElement('a');
@@ -2140,6 +2246,7 @@
                 const m = obj(D.madrasa), fields = Array.isArray(D.fields) && D.fields.some(x => x && x.id === 'admissionNo') ? D.fields.filter(x => x && x.id).map(x => ({ id: S(x.id), label: S(x.label), show: !!x.show })) : appState.fields;
                 Object.assign(appState, { madrasa: { ...appState.madrasa, ...m, name: S(m.name).trim() || appState.madrasa.name },
                     announcements: Array.isArray(D.announcements) ? D.announcements.map(S) : [], portal: { ...appState.portal, ...obj(D.portal) },
+                    teachers: (Array.isArray(D.teachers) ? D.teachers : []).filter(x => x && /^[A-Za-z0-9_-]{24,64}$/.test(S(x.token))).map(x => ({ id: S(x.id) || 'T_' + Math.random().toString(36).slice(2, 9), name: S(x.name) || 'Teacher', token: S(x.token), subjectIds: (Array.isArray(x.subjectIds) ? x.subjectIds.map(S) : []).filter(id => subjects.some(b => b.id === id)), active: x.active !== false, createdAt: S(x.createdAt) })),
                     classSigns: Object.fromEntries(Object.entries(obj(D.classSigns)).filter(([id, v]) => typeof v === 'string' && v.startsWith('data:image/') && classes.some(c => c.id === id))),
                     grades: D.grades && Array.isArray(D.grades.scale) ? D.grades : appState.grades, fields, exams, classes, subjects, students, results });
                 saveState(); renderAllAdminData();
@@ -2202,27 +2309,30 @@
             const rows = students.map(st => {
                 const per = exams.map(ex => { const r = appState.results.find(r => r.examId === ex.id && r.studentId === st.id);
                     if (!r) return null; const ap = subs.filter(s => r.marks[s.id] !== undefined);
-                    return { m: r.marks, att: Number(r.attendanceDays) || 0, o: sumMarks(r.marks, ap), mx: ap.reduce((a, s) => a + Number(s.maxMarks), 0), fail: ap.length === 0 || ap.some(s => isAb(r.marks[s.id]) || (Number(r.marks[s.id]) || 0) < Number(s.passingMarks)) }; });
-                const have = per.filter(Boolean); if (!have.length) return null;
+                    return { m: r.marks, pend: subs.some(s => r.marks[s.id] === undefined), att: Number(r.attendanceDays) >= 0 ? Number(r.attendanceDays) : null, o: sumMarks(r.marks, ap), mx: ap.reduce((a, s) => a + Number(s.maxMarks), 0), fail: ap.length === 0 || ap.some(s => isAb(r.marks[s.id]) || (Number(r.marks[s.id]) || 0) < Number(s.passingMarks)) }; });
+                const have = per.filter(x => x && !x.pend), pendRow = !all && per[0] && per[0].pend;
+                if (!have.length && !pendRow) return null;
+                if (pendRow) return { st, per, pend: true, o: 0, max: 0, p: 0, failN: 0, attDays: null, attPct: null, grade: { grade: '-' } };
                 const o = have.reduce((a, x) => a + x.o, 0), max = have.reduce((a, x) => a + x.mx, 0), failN = have.filter(x => x.fail).length;
-                return { st, per, o, max, p: pctOf(o, max), failN, attDays: have[0].att, attPct: pctOf(have.reduce((a, x) => a + x.att, 0), have.length * days), grade: gradeOf(exactPct(o, max), failN > 0, G) };
-            }).filter(Boolean).sort((a, b) => exactPct(b.o, b.max) - exactPct(a.o, a.max) || a.st.name.localeCompare(b.st.name));
-            rows.forEach(r => r.rank = 1 + rows.filter(x => exactPct(x.o, x.max) > exactPct(r.o, r.max) + 1e-9).length);
+                return { st, per, o, max, p: pctOf(o, max), failN, attDays: have[0].att, attPct: have.some(x => x.att !== null) ? pctOf(have.reduce((a, x) => a + (x.att || 0), 0), have.length * days) : null, grade: gradeOf(exactPct(o, max), failN > 0, G) };
+            }).filter(Boolean).sort((a, b) => (a.pend ? 1 : 0) - (b.pend ? 1 : 0) || exactPct(b.o, b.max) - exactPct(a.o, a.max) || a.st.name.localeCompare(b.st.name));
+            const done = rows.filter(r => !r.pend);
+            rows.forEach(r => r.rank = r.pend ? '-' : 1 + done.filter(x => exactPct(x.o, x.max) > exactPct(r.o, r.max) + 1e-9).length);
             const th = 'border border-slate-300 px-2 py-1.5 bg-slate-100 text-[11px] uppercase', td = 'border border-slate-300 px-2 py-1 text-center';
             const cols = all ? exams.map(e => `<th class="${th}">${esc(e.name)}</th>`).join('')
                 : subs.map(s => `<th class="${th}">${esc(s.name)}<br><span class="font-normal">/${s.maxMarks}</span></th>`).join('');
             const body = rows.map(r => `<tr><td class="${td} font-bold">${r.rank}</td><td class="${td}">${esc(r.st.admissionNo)}</td><td class="${td} text-left font-medium">${esc(r.st.name)}</td>`
-                + (all ? r.per.map(x => `<td class="${td}">${x ? x.o + '/' + x.mx : '-'}</td>`).join('')
+                + (all ? r.per.map(x => `<td class="${td}">${x ? (x.pend ? 'Pending' : x.o + '/' + x.mx) : '-'}</td>`).join('')
                     : subs.map(s => { const v = r.per[0].m[s.id], ab = isAb(v), bad = v !== undefined && (ab || Number(v) < Number(s.passingMarks));
                         const g = (v === undefined || ab) ? '' : gradeOf(exactPct(Number(v), Number(s.maxMarks)), bad, G).grade;
                         return `<td class="${td} ${bad ? 'text-red-600 font-bold' : ''}">${ab ? 'AB' : (v ?? '-')}${g ? `<span class="block text-[9px] font-semibold text-slate-500">${esc(g)}</span>` : ''}</td>`; }).join(''))
-                + `<td class="${td}">${all ? r.attPct + '%' : `${r.attDays}/${days}<span class="block text-[9px] text-slate-500">${r.attPct}%</span>`}</td>`
-                + `<td class="${td} font-bold">${r.o}/${r.max}</td><td class="${td}">${r.p}%</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td} font-semibold ${r.failN ? 'text-red-600' : 'text-emerald-700'}">${all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
-            const passed = rows.filter(r => r.failN === 0).length, failed = rows.length - passed;
+                + `<td class="${td}">${r.attPct === null ? '-' : all ? r.attPct + '%' : `${r.attDays}/${days}<span class="block text-[9px] text-slate-500">${r.attPct}%</span>`}</td>`
+                + `<td class="${td} font-bold">${r.pend ? '-' : r.o + '/' + r.max}</td><td class="${td}">${r.pend ? '-' : r.p + '%'}</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td} font-semibold ${r.pend ? 'text-amber-600' : r.failN ? 'text-red-600' : 'text-emerald-700'}">${r.pend ? 'PENDING' : all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
+            const passed = done.filter(r => r.failN === 0).length, failed = done.length - passed, pendingN = rows.length - done.length;
             const stat = (l, v, c) => `<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;color:#64748b">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`;
             const overview = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-bottom:10px">`
-                + stat('Total Students', students.length, '#0f172a') + stat('Appeared', rows.length, '#0f172a') + stat('Passed', passed, '#047857') + stat('Failed', failed, '#dc2626')
-                + stat('Pass %', pctOf(passed, rows.length) + '%', '#047857') + stat('Fail %', pctOf(failed, rows.length) + '%', '#dc2626') + `</div>`;
+                + stat('Total Students', students.length, '#0f172a') + stat('Appeared', done.length, '#0f172a') + stat('Passed', passed, 'rgb(var(--em-700))') + stat('Failed', failed, '#dc2626')
+                + stat('Pass %', pctOf(passed, done.length) + '%', 'rgb(var(--em-700))') + stat('Fail %', pctOf(failed, done.length) + '%', '#dc2626') + (pendingN ? stat('Pending', pendingN, '#b45309') : '') + `</div>`;
             const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail) &bull; AB = absent`;
             const sign = (title, name, img) => `<div style="text-align:center"><div style="border-bottom:1px solid #94a3b8;height:40px;margin-bottom:4px;display:flex;align-items:flex-end;justify-content:center">${img ? `<img src="${esc(img)}" style="max-height:38px;max-width:80%;object-fit:contain" alt="">` : ''}</div>${name ? `<div style="font-weight:700;font-size:12px">${esc(name)}</div>` : ''}<div style="font-size:11px;color:#475569">${esc(title)}</div></div>`;
             const html = `<div class="text-center mb-3"><h2 class="text-lg font-bold uppercase font-serif">${esc(appState.madrasa.name)}</h2>
@@ -2233,6 +2343,204 @@
                     : '<p class="text-sm text-slate-400 text-center py-6">No results entered for this selection yet.</p>');
             return { rows: rows.length, html };
         }
+        // ================= SUBJECT-WISE ENTRY (shared by admin "By subject" and the teacher link page) =================
+        const seNat = (a, b) => String(a.admissionNo).localeCompare(String(b.admissionNo), undefined, { numeric: true, sensitivity: 'base' });
+        function seRows(students, sub, getMark) {
+            return students.map((st, i) => {
+                const v = getMark(st.id), ab = v === 'AB', val = (v === undefined || ab) ? '' : v;
+                return `<tr data-sid="${esc(st.id)}"><td class="py-2 px-2 text-slate-400 text-xs">${i + 1}</td>
+                    <td class="py-2 px-1"><div class="font-semibold text-slate-800 text-sm leading-tight">${esc(st.name)}</div><div class="text-[11px] text-slate-400">${esc(st.admissionNo)}</div></td>
+                    <td class="py-2 px-1.5"><input type="number" inputmode="decimal" step="any" min="0" max="${sub.maxMarks}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}" data-prev="${esc(val)}" value="${esc(val)}" ${ab ? 'disabled' : ''} placeholder="-" oninput="seInput(this)" onkeydown="seEnter(event, this)" enterkeyhint="next" class="se-input w-full px-2 py-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none"></td>
+                    <td class="py-2 px-1.5 text-center"><label class="inline-flex flex-col items-center gap-0.5 text-[10px] font-bold text-red-700 cursor-pointer"><input type="checkbox" class="se-ab w-5 h-5 accent-red-600" onchange="seAbsent(this)" ${ab ? 'checked' : ''}>AB</label></td></tr>`;
+            }).join('') || '<tr><td colspan="4" class="py-6 text-center text-slate-400">No students in this class.</td></tr>';
+        }
+        function seInput(inp) {
+            if (inp.value !== '') { const n = Number(inp.value), max = Number(inp.dataset.max); if (!(Number.isFinite(n) && n >= 0 && n <= max)) { inp.value = inp.dataset.prev || ''; inp.classList.add('border-red-500', 'bg-red-50'); setTimeout(() => inp.classList.remove('border-red-500', 'bg-red-50'), 700); showToast(`Marks can't be more than ${max} for this subject.`, 'error'); return; } }
+            inp.dataset.prev = inp.value; seRefresh(inp.closest('[data-se]'), true);
+        }
+        function seAbsent(cb) { const inp = cb.closest('tr').querySelector('.se-input'); inp.disabled = cb.checked; if (cb.checked) { inp.value = ''; inp.dataset.prev = ''; } seRefresh(cb.closest('[data-se]'), true); }
+        function seEnter(e, el) {
+            if (e.key !== 'Enter') return; e.preventDefault();
+            const all = [...el.closest('[data-se]').querySelectorAll('.se-input:not(:disabled)')], i = all.indexOf(el);
+            if (i > -1 && i < all.length - 1) all[i + 1].focus(); else el.blur();
+        }
+        function seRefresh(box, dirty) {
+            let total = 0, entered = 0, pass = 0, fail = 0, ab = 0;
+            box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => {
+                const inp = tr.querySelector('.se-input'), isAb = tr.querySelector('.se-ab').checked; total++;
+                if (isAb) { entered++; ab++; fail++; } else if (inp.value !== '') { entered++; if (Number(inp.value) >= Number(inp.dataset.pass)) pass++; else fail++; }
+            });
+            box.querySelector('.se-summary').innerHTML = `<b>${entered}</b> of ${total} entered &bull; <span class="text-emerald-300">${pass} pass</span> &bull; <span class="text-red-300">${fail} fail</span>${ab ? ` (${ab} AB)` : ''}${total - entered ? ` &bull; <span class="text-amber-300">${total - entered} pending</span>` : ''}`;
+            if (dirty) box.dataset.dirty = '1';
+        }
+        function seRead(box) { const out = {}; box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => { const inp = tr.querySelector('.se-input'); out[tr.dataset.sid] = tr.querySelector('.se-ab').checked ? 'AB' : inp.value === '' ? '' : Number(inp.value); }); return out; }
+
+        // ---- admin: By student | By subject ----
+        let entryMode = 'student';
+        function setEntryMode(m) {
+            entryMode = m;
+            document.getElementById('entry-mode-student').classList.toggle('hidden', m !== 'student'); document.getElementById('entry-mode-subject').classList.toggle('hidden', m !== 'subject');
+            [['em-student', 'student'], ['em-subject', 'subject']].forEach(([id, k]) => { const b = document.getElementById(id); b.className = 'flex-1 py-2 rounded-lg ' + (k === m ? 'bg-white shadow text-emerald-800' : 'text-slate-500'); });
+            if (m === 'subject') renderSubjectSelectors();
+        }
+        function fillSelect(id, html) { const el = document.getElementById(id), prev = el.value; el.innerHTML = html; if ([...el.options].some(o => o.value === prev)) el.value = prev; }
+        function renderSubjectSelectors() {
+            fillSelect('sm-exam', appState.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') || '<option value="">No exams yet</option>');
+            fillSelect('sm-class', appState.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') || '<option value="">No classes yet</option>');
+            smClassChange();
+        }
+        function smClassChange() {
+            const cid = document.getElementById('sm-class').value;
+            fillSelect('sm-subject', appState.subjects.filter(x => x.classId === cid && isActive(x)).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') || '<option value="">No subjects in this class</option>');
+            loadSubjectEntry();
+        }
+        function loadSubjectEntry() {
+            const examId = document.getElementById('sm-exam').value, cid = document.getElementById('sm-class').value, subId = document.getElementById('sm-subject').value, box = document.getElementById('sm-sheet');
+            const sub = appState.subjects.find(x => x.id === subId), cls = appState.classes.find(x => x.id === cid), ex = appState.exams.find(x => x.id === examId);
+            if (!sub || !cls || !ex) { box.classList.add('hidden'); return; }
+            const students = appState.students.filter(x => x.classId === cid).sort(seNat), byStu = new Map(appState.results.filter(r => r.examId === examId).map(r => [r.studentId, r.marks]));
+            document.getElementById('sm-title').textContent = `${sub.name} \u2014 ${cls.name}`;
+            document.getElementById('sm-sub').textContent = `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`;
+            box.querySelector('.se-rows').innerHTML = seRows(students, sub, id => (byStu.get(id) || {})[sub.id]);
+            box.dataset.dirty = ''; seRefresh(box); box.classList.remove('hidden');
+        }
+        function saveSubjectEntry() {
+            const examId = document.getElementById('sm-exam').value, cid = document.getElementById('sm-class').value, subId = document.getElementById('sm-subject').value, box = document.getElementById('sm-sheet');
+            if (!examId || !subId) return;
+            const vals = seRead(box); let n = 0;
+            Object.entries(vals).forEach(([sid, v]) => {
+                if (!appState.students.some(x => x.id === sid && x.classId === cid)) return;
+                const idx = appState.results.findIndex(r => r.examId === examId && r.studentId === sid);
+                if (v === '') { // blank = not entered: remove the mark if there was one
+                    if (idx > -1) { delete appState.results[idx].marks[subId]; if (!Object.keys(appState.results[idx].marks).length && !(appState.results[idx].attendanceDays >= 0)) appState.results.splice(idx, 1); }
+                } else if (idx > -1) appState.results[idx].marks[subId] = v;
+                else appState.results.push({ examId, studentId: sid, attendanceDays: -1, marks: { [subId]: v } });
+                n++;
+            });
+            saveState(); renderAllAdminData(); box.dataset.dirty = '';
+            const left = Object.values(vals).filter(v => v === '').length;
+            showToast(`Saved ${Object.values(vals).length - left} mark${Object.values(vals).length - left === 1 ? '' : 's'}${left ? ` (${left} still blank)` : ''}.`, 'success');
+        }
+
+        // ================= TEACHER LINKS (admin) =================
+        let tlEditing = null;
+        const newToken = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const teacherLink = tc => `${location.origin}/${TENANT}/entry/${tc.token}`;
+        function scopeText(tc) {
+            if (!tc.subjectIds || !tc.subjectIds.length) return 'All classes & subjects';
+            const subs = tc.subjectIds.map(id => appState.subjects.find(x => x.id === id)).filter(Boolean);
+            if (!subs.length) return 'No valid subject \u2014 edit this link';
+            return subs.slice(0, 3).map(x => `${(appState.classes.find(c => c.id === x.classId) || { name: '?' }).name}: ${x.name}`).join(', ') + (subs.length > 3 ? ` +${subs.length - 3} more` : '');
+        }
+        function renderTeachers() {
+            const el = document.getElementById('teacher-list'); if (!el) return;
+            const list = appState.teachers || [];
+            if (!list.length) { el.innerHTML = emptyMsg('No teacher links yet. Tap Add to create one.'); return; }
+            el.innerHTML = list.map(tc => `<div class="p-3 rounded-xl border ${tc.active === false ? 'border-slate-200 bg-slate-50 opacity-70' : 'border-emerald-200 bg-emerald-50/40'}">
+                <div class="flex items-start justify-between gap-2"><div class="min-w-0"><p class="font-bold text-slate-800 text-sm truncate">${esc(tc.name)} ${tc.active === false ? '<span class="ml-1 text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">OFF</span>' : ''}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">${esc(scopeText(tc))}</p></div></div>
+                <input readonly value="${esc(teacherLink(tc))}" onclick="this.select()" class="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] text-slate-600 bg-white">
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                    <button type="button" class="abtn abtn-ok" onclick="copyTeacherLink('${esc(tc.id)}')"><i class="fas fa-copy"></i> Copy</button>
+                    <button type="button" class="abtn abtn-ok" onclick="shareTeacherLink('${esc(tc.id)}')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                    <button type="button" class="abtn abtn-edit" onclick="openTeacherModal('${esc(tc.id)}')"><i class="fas fa-pen"></i> Edit</button>
+                    <button type="button" class="abtn abtn-gray" onclick="toggleTeacher('${esc(tc.id)}')"><i class="fas fa-power-off"></i> ${tc.active === false ? 'Turn on' : 'Turn off'}</button>
+                    <button type="button" class="abtn abtn-gray" onclick="regenTeacher('${esc(tc.id)}')"><i class="fas fa-rotate"></i> New link</button>
+                    <button type="button" class="abtn abtn-del" onclick="deleteTeacher('${esc(tc.id)}')"><i class="fas fa-trash"></i></button>
+                </div></div>`).join('');
+        }
+        function openTeacherModal(id) {
+            tlEditing = id || null; const tc = id ? appState.teachers.find(x => x.id === id) : null;
+            document.getElementById('tl-title').textContent = tc ? 'Edit teacher link' : 'New teacher link';
+            document.getElementById('tl-name').value = tc ? tc.name : '';
+            const picked = new Set(tc ? tc.subjectIds : []);
+            document.getElementById('tl-all').checked = !tc || !tc.subjectIds.length;
+            document.getElementById('tl-scope').innerHTML = appState.classes.map(c => {
+                const subs = appState.subjects.filter(x => x.classId === c.id);
+                return subs.length ? `<div><p class="text-xs font-bold text-slate-700 mb-1">${esc(c.name)}</p><div class="flex flex-wrap gap-x-4 gap-y-1.5">${subs.map(x => `<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" class="tl-sub w-4 h-4 accent-emerald-700" value="${esc(x.id)}" ${picked.has(x.id) ? 'checked' : ''}> ${esc(x.name)}</label>`).join('')}</div></div>` : '';
+            }).join('') || '<p class="text-xs text-slate-400">Add classes and subjects first.</p>';
+            tlAllChange();
+            document.getElementById('tl-modal').classList.remove('hidden'); document.body.classList.add('overflow-hidden');
+        }
+        function tlAllChange() { const all = document.getElementById('tl-all').checked, box = document.getElementById('tl-scope'); box.classList.toggle('opacity-40', all); box.querySelectorAll('input').forEach(i => i.disabled = all); }
+        function closeTeacherModal() { document.getElementById('tl-modal').classList.add('hidden'); document.body.classList.remove('overflow-hidden'); }
+        function saveTeacherModal() {
+            const name = document.getElementById('tl-name').value.trim(); if (!name) { showToast('Enter the teacher name.', 'error'); return; }
+            const all = document.getElementById('tl-all').checked, subjectIds = all ? [] : [...document.querySelectorAll('#tl-scope .tl-sub:checked')].map(i => i.value);
+            if (!all && !subjectIds.length) { showToast('Tick at least one subject, or choose "All classes & subjects".', 'error'); return; }
+            if (tlEditing) { const tc = appState.teachers.find(x => x.id === tlEditing); Object.assign(tc, { name, subjectIds }); }
+            else appState.teachers.push({ id: 'T_' + Date.now().toString(36), name, token: newToken(), subjectIds, active: true, createdAt: new Date().toISOString().slice(0, 10) });
+            saveState(); closeTeacherModal(); renderTeachers(); showToast(tlEditing ? 'Teacher link updated.' : 'Teacher link created. Copy it and send it to the teacher.', 'success');
+        }
+        async function copyTeacherLink(id) {
+            const tc = appState.teachers.find(x => x.id === id); if (!tc) return;
+            try { await navigator.clipboard.writeText(teacherLink(tc)); showToast('Link copied.', 'success'); } catch (e) { window.prompt('Copy this link:', teacherLink(tc)); }
+        }
+        function shareTeacherLink(id) {
+            const tc = appState.teachers.find(x => x.id === id); if (!tc) return;
+            window.open('https://wa.me/?text=' + encodeURIComponent(`Marks entry link for ${tc.name} \u2014 ${appState.madrasa.name}\n${teacherLink(tc)}\n(Private link: please do not share it.)`), '_blank');
+        }
+        function toggleTeacher(id) { const tc = appState.teachers.find(x => x.id === id); if (!tc) return; tc.active = tc.active === false; saveState(); renderTeachers(); showToast(tc.active ? 'Link turned on.' : 'Link turned off. The teacher can no longer enter marks.', 'info'); }
+        function regenTeacher(id) { const tc = appState.teachers.find(x => x.id === id); if (!tc || !confirm(`Make a new link for ${tc.name}? The old link will stop working.`)) return; tc.token = newToken(); saveState(); renderTeachers(); showToast('New link created. Send it to the teacher.', 'success'); }
+        function deleteTeacher(id) { const tc = appState.teachers.find(x => x.id === id); if (!tc || !confirm(`Delete the link of ${tc.name}? It will stop working immediately.`)) return; appState.teachers = appState.teachers.filter(x => x.id !== id); saveState(); renderTeachers(); showToast('Link deleted.', 'info'); }
+
+        // ================= TEACHER MARKS-ENTRY PAGE (opened from a private link) =================
+        const TE = { token: '', roster: null, prev: null };
+        const teEl = id => document.getElementById(id);
+        function teMsg(text, ok) { const el = teEl('te-msg'); el.textContent = text; el.className = 'rounded-xl p-4 text-sm ' + (ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'); }
+        async function initEntry() {
+            teEl('entry-view').classList.remove('hidden');
+            const seg = location.pathname.split('/').filter(Boolean), i = seg.indexOf('entry'); TE.token = seg[i + 1] || '';
+            try { TE.roster = await api(`${API_T}/entry/${TE.token}`); } catch (e) { teMsg(e.message, false); return; }
+            const r = TE.roster; applyAccent((r.madrasa || {}).accent || '');
+            teEl('te-inst').textContent = r.madrasa.name || 'Marks entry'; teEl('te-who').textContent = 'Marks entry \u00b7 ' + r.teacher; document.title = 'Marks entry - ' + (r.madrasa.name || '');
+            if (r.madrasa.logo) { const lg = teEl('te-logo'); lg.src = r.madrasa.logo; lg.classList.remove('hidden'); }
+            if (!r.exams.length || !r.subjects.length) { teMsg(!r.exams.length ? 'No exam has been created yet. Please ask the administrator.' : 'No subject is available for this link yet. Please ask the administrator.', false); return; }
+            let last = {}; try { last = JSON.parse(localStorage.getItem('te_' + TE.token) || '{}'); } catch (e) { }
+            teEl('te-exam').innerHTML = r.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            teEl('te-exam').value = r.exams.some(x => x.id === last.exam) ? last.exam : r.exams[r.exams.length - 1].id;
+            teEl('te-class').innerHTML = r.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            if (r.classes.some(x => x.id === last.cls)) teEl('te-class').value = last.cls;
+            teFillSubjects(last.sub); teEl('te-ctrl').classList.remove('hidden'); await teLoad(true);
+        }
+        function teFillSubjects(want) {
+            const cid = teEl('te-class').value, subs = TE.roster.subjects.filter(x => x.classId === cid);
+            teEl('te-subject').innerHTML = subs.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            if (subs.some(x => x.id === want)) teEl('te-subject').value = want;
+        }
+        function teGuard() {
+            if (teEl('te-sheet').dataset.dirty && !confirm('You have marks that are not saved yet. Discard them?')) {
+                if (TE.prev) { teEl('te-exam').value = TE.prev.exam; teEl('te-class').value = TE.prev.cls; teFillSubjects(TE.prev.sub); }
+                return false;
+            }
+            return true;
+        }
+        function teClassChange() { if (!teGuard()) return; teFillSubjects(''); teLoad(true); }
+        async function teLoad(skipGuard) {
+            if (!skipGuard && !teGuard()) return;
+            const box = teEl('te-sheet'), examId = teEl('te-exam').value, cid = teEl('te-class').value, subId = teEl('te-subject').value;
+            const sub = TE.roster.subjects.find(x => x.id === subId), ex = TE.roster.exams.find(x => x.id === examId), cls = TE.roster.classes.find(x => x.id === cid);
+            if (!sub || !ex) { box.classList.add('hidden'); return; }
+            try {
+                const r = await api(`${API_T}/entry/${TE.token}?exam=${encodeURIComponent(examId)}&subject=${encodeURIComponent(subId)}`);
+                TE.prev = { exam: examId, cls: cid, sub: subId }; try { localStorage.setItem('te_' + TE.token, JSON.stringify({ exam: examId, cls: cid, sub: subId })); } catch (e) { }
+                const students = TE.roster.students.filter(x => x.classId === cid).sort(seNat);
+                teEl('te-title').textContent = `${sub.name} \u2014 ${cls ? cls.name : ''}`;
+                teEl('te-sub').textContent = `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`;
+                box.querySelector('.se-rows').innerHTML = seRows(students, sub, id => r.marks[id]);
+                teEl('te-saved').textContent = ''; box.dataset.dirty = ''; seRefresh(box); box.classList.remove('hidden'); teEl('te-msg').className = 'hidden';
+            } catch (e) { box.classList.add('hidden'); teMsg(e.message, false); }
+        }
+        async function teSave() {
+            const box = teEl('te-sheet'), btn = teEl('te-save'); btn.disabled = true; btn.classList.add('opacity-60');
+            try {
+                await api(`${API_T}/entry/${TE.token}`, { method: 'POST', body: { examId: teEl('te-exam').value, subjectId: teEl('te-subject').value, marks: seRead(box) } });
+                box.dataset.dirty = ''; teEl('te-saved').textContent = 'Saved at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); showToast('Marks saved.', 'success');
+            } catch (e) { showToast(e.message || 'Could not save. Check your connection and try again.', 'error'); }
+            finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
+        }
+        window.addEventListener('beforeunload', e => { const b = document.getElementById('te-sheet'); if (b && b.dataset.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
         // ================= BULK STUDENT MARKSHEETS (same design as the public page) =================
         // Builds the same data the public result API returns, from the admin's local data.
         function buildMarksheetData(ex, st) {
@@ -2245,12 +2553,14 @@
             const mine = appState.results.filter(r => r.studentId === st.id);
             const cur = mine.find(r => r.examId === ex.id);
             if (!cur) return null;
+            const actSubs = subsAll.filter(isActive), complete = m => actSubs.every(s => m && m[s.id] !== undefined);
+            if (!complete(cur.marks)) return null; // marks still pending
             const marks = cur.marks || {}, mySubs = take(marks), maxPer = maxOf(mySubs);
             const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(s => subOk(marks, s));
             const myPct = exactPct(obtained, maxPer);
             const mateIds = new Set(appState.students.filter(s => s.classId === st.classId).map(s => s.id));
-            const pcts = appState.results.filter(r => r.examId === ex.id && mateIds.has(r.studentId)).map(r => { const l = take(r.marks); return exactPct(sumMarks(r.marks, l), maxOf(l)); });
-            const exams = appState.exams.filter(e => e.isPublic).map(e => ({ e, r: mine.find(r => r.examId === e.id) })).filter(x => x.r).map(({ e, r }) => {
+            const pcts = appState.results.filter(r => r.examId === ex.id && mateIds.has(r.studentId) && complete(r.marks)).map(r => { const l = take(r.marks); return exactPct(sumMarks(r.marks, l), maxOf(l)); });
+            const exams = appState.exams.filter(e => e.isPublic).map(e => ({ e, r: mine.find(r => r.examId === e.id) })).filter(x => x.r && complete(x.r.marks)).map(({ e, r }) => {
                 const l = take(r.marks), o = sumMarks(r.marks, l), mx = maxOf(l), ok = l.length > 0 && l.every(s => subOk(r.marks, s));
                 return { name: e.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exactPct(o, mx), !ok, G) };
             });
@@ -2260,7 +2570,7 @@
                 cls: { name: cls.name, totalWorkingDays: Number(cls.totalWorkingDays) || 200, teacherTitle: cls.teacherTitle || '', teacherName: cls.teacherName || '', teacherSign: (appState.classSigns || {})[cls.id] || '' },
                 subjects: mySubs.map(s => ({ id: s.id, name: s.name, maxMarks: Number(s.maxMarks), passed: subOk(marks, s) })),
                 details: [{ label: 'Student Name', value: st.name }, ...appState.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admissionNo : fieldVal(st, f.id) })).filter(x => x.value)],
-                result: { attendanceDays: Number(cur.attendanceDays) || 0, marks, grades: Object.fromEntries(mySubs.map(s => [s.id, isAb(marks[s.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exactPct(Number(marks[s.id]) || 0, Number(s.maxMarks)), !subOk(marks, s), G)])) },
+                result: { attendanceDays: Number.isFinite(Number(cur.attendanceDays)) ? Number(cur.attendanceDays) : 0, marks, grades: Object.fromEntries(mySubs.map(s => [s.id, isAb(marks[s.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exactPct(Number(marks[s.id]) || 0, Number(s.maxMarks)), !subOk(marks, s), G)])) },
                 summary: { obtained, max: maxPer, percentage: pctOf(obtained, maxPer), passed, grade: gradeOf(myPct, !passed, G) },
                 position: appState.portal.showPosition !== false ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
                 exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exactPct(oObt, oMax), failedCount > 0, G) }
@@ -2277,7 +2587,7 @@
         function updateBulkInfo() {
             const el = document.getElementById('bulk-info'); if (!el) return;
             const { ex, list, missing } = bulkSelection();
-            el.textContent = !ex ? 'Create an exam and a class first.' : `${list.length} marksheet${list.length === 1 ? '' : 's'} will be created` + (missing.length ? ` (${missing.length} student${missing.length === 1 ? '' : 's'} without marks for this exam will be skipped).` : '.') + ' In the print window choose "Save as PDF".';
+            el.textContent = !ex ? 'Create an exam and a class first.' : `${list.length} marksheet${list.length === 1 ? '' : 's'} will be created` + (missing.length ? ` (${missing.length} student${missing.length === 1 ? '' : 's'} without complete marks for this exam will be skipped).` : '.') + ' In the print window choose "Save as PDF".';
         }
         async function printBulkMarksheets() {
             const { ex, classes, list } = bulkSelection();
@@ -2388,7 +2698,7 @@
             // Settings inputs
             document.getElementById('setting-madrasa-name').value = appState.madrasa.name;
             document.getElementById('setting-madrasa-subtitle').value = appState.madrasa.subtitle;
-            pendingLogo = null;
+            pendingLogo = null; pendingAccent = null; applyAccent(appState.madrasa.accent || ''); renderAccentPicker();
             const lg = appState.madrasa.logo || '';
             document.getElementById('setting-madrasa-logo').value = lg.startsWith('data:') ? '' : lg;
             document.getElementById('setting-madrasa-logo').placeholder = lg.startsWith('data:') ? 'Using the uploaded image' : 'https://example.com/logo.png';
@@ -2408,6 +2718,8 @@
             renderStudentForm();
             renderReportSelectors();
             renderSetup();
+            renderTeachers();
+            if (entryMode === 'subject') renderSubjectSelectors();
         }
 
         // ================= TAB 1: SETTINGS & ANNOUNCEMENTS =================
@@ -2421,6 +2733,8 @@
             appState.madrasa.headTitle = document.getElementById('setting-head-title').value.trim();
             appState.madrasa.headName = document.getElementById('setting-head-name').value.trim();
             if (pendingHeadSign !== null) appState.madrasa.headSign = pendingHeadSign;
+            if (pendingAccent !== null) appState.madrasa.accent = pendingAccent;
+            pendingAccent = null;
             pendingHeadSign = null; renderHeadSign();
             saveState();
             showToast("Institution profile updated!", "success");
@@ -2758,10 +3072,11 @@
         function populateEntryStudentDropdown() {
             const classId = document.getElementById('entry-class-select').value;
             renderEntryChips();
-            const studentSel = document.getElementById('entry-student-select'), prev = studentSel.value;
+            const studentSel = document.getElementById('entry-student-select'), prev = studentSel.value, examSel2 = document.getElementById('entry-exam-select').value;
             const list = appState.students.filter(s => s.classId === classId).sort((a, b) => a.name.localeCompare(b.name));
             studentSel.innerHTML = list.length
-                ? list.map(s => `<option value="${esc(s.id)}" data-search="${esc(s.admissionNo)}">${esc(s.name)}</option>`).join('')
+                ? list.map(s => { const r = appState.results.find(x => x.examId === examSel2 && x.studentId === s.id), act = appState.subjects.filter(x => x.classId === classId && isActive(x)), miss = r ? act.filter(x => r.marks[x.id] === undefined).length : 0;
+                    return `<option value="${esc(s.id)}" data-search="${esc(s.admissionNo)}">${esc(s.name)}${r ? (miss ? ` \u2014 ${miss} pending` : ' \u2713') : ''}</option>`; }).join('')
                 : `<option value="">No students in this class</option>`;
             if ([...studentSel.options].some(o => o.value === prev)) studentSel.value = prev;
             loadMarksEntrySheet();
@@ -2792,7 +3107,7 @@
             const existingBadge = document.getElementById('entry-existing-badge');
             if (existingResult) {
                 existingBadge.classList.remove('hidden');
-                document.getElementById('entry-days-present').value = existingResult.attendanceDays; document.getElementById('entry-days-present').dataset.prev = existingResult.attendanceDays;
+                const ad = existingResult.attendanceDays >= 0 ? existingResult.attendanceDays : cls.totalWorkingDays; document.getElementById('entry-days-present').value = ad; document.getElementById('entry-days-present').dataset.prev = ad;
             } else {
                 existingBadge.classList.add('hidden');
                 document.getElementById('entry-days-present').value = cls.totalWorkingDays;
@@ -2805,7 +3120,7 @@
 
         function toggleAbsent(cb) {
             const inp = cb.closest('tr').querySelector('.entry-mark-input');
-            inp.disabled = cb.checked; inp.required = !cb.checked;
+            inp.disabled = cb.checked;
             if (cb.checked) inp.value = '';
             recalculateLiveEntry();
         }
@@ -2822,36 +3137,32 @@
             document.getElementById('entry-live-att-perc').textContent = `${attPerc}%`;
 
             const inputs = document.querySelectorAll('.entry-mark-input');
-            let totalMax = 0;
-            let totalObtained = 0;
-            let allPassed = true;
+            let totalMax = 0, totalObtained = 0, failed = false, pending = 0;
 
             inputs.forEach(inp => {
                 const subId = inp.getAttribute('data-subject-id');
                 const max = Number(inp.getAttribute('data-max'));
                 const pass = Number(inp.getAttribute('data-pass'));
                 const abBox = inp.closest('tr').querySelector('.entry-absent'), ab = !!(abBox && abBox.checked);
-                const val = (ab || inp.value === '') ? 0 : Number(inp.value);
-
-                totalMax += max;
-                totalObtained += val;
-
+                const blank = !ab && inp.value === '';
+                const val = (ab || blank) ? 0 : Number(inp.value);
                 const statusSpan = document.getElementById(`live-sub-status-${subId}`);
                 if (ab) {
+                    totalMax += max; failed = true;
                     statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700";
                     statusSpan.textContent = "AB";
-                    allPassed = false;
-                } else if (inp.value === '') {
-                    statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400";
-                    statusSpan.textContent = "\u2013";
-                    allPassed = false;
+                } else if (blank) {
+                    pending++;
+                    statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700";
+                    statusSpan.textContent = "pending";
                 } else if (val >= pass) {
+                    totalMax += max; totalObtained += val;
                     statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800";
                     statusSpan.textContent = "\u2713 " + gradeOf(exactPct(val, max), false, appState.grades).grade;
                 } else {
+                    totalMax += max; totalObtained += val; failed = true;
                     statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700";
                     statusSpan.textContent = "\u2717 " + gradeOf(exactPct(val, max), true, appState.grades).grade;
-                    allPassed = false;
                 }
             });
 
@@ -2862,7 +3173,10 @@
             const overallEl = document.getElementById('live-pass-fail');
             if (inputs.length === 0) {
                 overallEl.textContent = '-';
-            } else if (allPassed) {
+            } else if (pending > 0) {
+                overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-amber-400 text-slate-950";
+                overallEl.textContent = `${pending} PENDING`;
+            } else if (!failed) {
                 overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-emerald-500 text-slate-950";
                 overallEl.textContent = "PASSED";
             } else {
@@ -2883,10 +3197,13 @@
             const attInp = document.getElementById('entry-days-present');
             if (attendanceDays > entryMax(attInp)) { showToast(`Present days can't be more than ${entryMax(attInp)}.`, 'error'); return; }
             for (const inp of inputs) { if (!inp.disabled && Number(inp.value) > entryMax(inp)) { showToast(`Marks can't be more than ${entryMax(inp)} for this subject.`, 'error'); inp.focus(); return; } }
-            inputs.forEach(inp => {
+            inputs.forEach(inp => { // blank = not entered yet: it is simply not saved, and can be added later
                 const subId = inp.getAttribute('data-subject-id');
-                marksObj[subId] = inp.closest('tr').querySelector('.entry-absent').checked ? 'AB' : Number(inp.value);
+                if (inp.closest('tr').querySelector('.entry-absent').checked) marksObj[subId] = 'AB';
+                else if (inp.value !== '') marksObj[subId] = Number(inp.value);
             });
+            const pendingN = inputs.length - Object.keys(marksObj).length;
+            if (!Object.keys(marksObj).length && !appState.results.some(r => r.examId === examId && r.studentId === studentId)) { showToast('Enter at least one subject mark to save.', 'error'); return; }
 
             const existingIdx = appState.results.findIndex(r => r.examId === examId && r.studentId === studentId);
             if (existingIdx > -1) {
@@ -2905,7 +3222,7 @@
             renderAllAdminData();
             document.getElementById('entry-existing-badge').classList.remove('hidden');
             const student = appState.students.find(s => s.id === studentId);
-            showToast(`Result saved for ${student.name} (${student.admissionNo})!`, "success");
+            showToast(`Saved ${student.name} (${student.admissionNo})${pendingN ? ` - ${pendingN} subject${pendingN > 1 ? 's' : ''} still pending` : ''}.`, "success");
             if (e.submitter && e.submitter.dataset.next) {
                 const sel = document.getElementById('entry-student-select'), ids = [...sel.options].map(o => o.value), i = ids.indexOf(studentId);
                 if (i > -1 && i < ids.length - 1) { sel.value = ids[i + 1]; loadMarksEntrySheet(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -2926,7 +3243,7 @@
 
         // Initialize Application on Load
         window.addEventListener('DOMContentLoaded', async () => {
-            ['ge-modal', 'student-edit-modal', 'fab'].forEach(id => { const el = document.getElementById(id); if (el) document.body.appendChild(el); }); // dialogs must work on every screen
+            ['ge-modal', 'sp-modal', 'tl-modal', 'student-edit-modal', 'fab'].forEach(id => { const el = document.getElementById(id); if (el) document.body.appendChild(el); }); // dialogs must work on every screen
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
             document.querySelectorAll('select').forEach(enhanceSelect);
             ['acad', 'stu', 'setup'].forEach(g => showSub(g, subState[g]));
@@ -2935,6 +3252,7 @@
                 const c = document.getElementById(id)?.closest('.rounded-xl'); if (c) { c.style.cursor = 'pointer'; c.addEventListener('click', fn); } });
             if (ROUTE === 'landing' || ROUTE === 'notfound') { showLanding(ROUTE === 'notfound'); return; }
             if (ROUTE === 'super') { await initSuper(); return; }
+            if (ROUTE === 'entry') { await initEntry(); return; }
             if (!IS_ADMIN_ROUTE) { document.getElementById('public-view').classList.remove('hidden'); await loadPublicData(); return; }
             if (META('blocked')) { // suspended / expired: no login form; only a support session opened from the platform console gets in
                 let ok = false;
