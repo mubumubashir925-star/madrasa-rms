@@ -217,7 +217,7 @@ async function sync(db, t, body) {
       put('teachers', tch.map(x => {
         const token = String(x.token || ''); if (!/^[A-Za-z0-9_-]{24,64}$/.test(token) || seen.has(token)) throw new Error('Invalid teacher link');
         seen.add(token);
-        return { id: str(x.id, 64), name: str(x.name, 80), token, subjectIds: Array.isArray(x.subjectIds) ? x.subjectIds.slice(0, 600).map(v => str(v, 64)) : [], active: x.active !== false, createdAt: opt(x.createdAt, 30) };
+        return { id: str(x.id, 64), name: str(x.name, 80), token, subjectIds: Array.isArray(x.subjectIds) ? x.subjectIds.slice(0, 600).map(v => str(v, 64)) : [], active: x.active !== false, attendance: x.attendance !== false, createdAt: opt(x.createdAt, 30) };
       }));
     }
     if (cs) {
@@ -305,7 +305,7 @@ async function entryApi(req, env, url, slug, token) {
   const tid = t.id, picked = new Set(tc.subjectIds || []);
   const [ex, cl, su] = await db.batch([
     db.prepare('SELECT id,name FROM exams WHERE tenant_id=? ORDER BY rowid').bind(tid),
-    db.prepare('SELECT id,name FROM classes WHERE tenant_id=? ORDER BY rowid').bind(tid),
+    db.prepare('SELECT id,name,working_days FROM classes WHERE tenant_id=? ORDER BY rowid').bind(tid),
     db.prepare('SELECT id,class_id,name,max_marks,pass_marks FROM subjects WHERE tenant_id=? AND active<>0 ORDER BY rowid').bind(tid),
   ]);
   const subs = su.results.filter(x => !picked.size || picked.has(x.id));
@@ -313,17 +313,39 @@ async function entryApi(req, env, url, slug, token) {
   const subOf = id => subs.find(x => x.id === id);
   if (req.method === 'GET' && !url.searchParams.get('subject')) {
     const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
-    return json({ teacher: tc.name, madrasa: { name: set.madrasa.name, logo: set.madrasa.logo, accent: set.madrasa.accent || '' }, exams: ex.results, classes,
+    return json({ teacher: tc.name, madrasa: { name: set.madrasa.name, logo: set.madrasa.logo, accent: set.madrasa.accent || '' }, exams: ex.results, attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
       subjects: subs.map(x => ({ id: x.id, classId: x.class_id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks })),
       students: stu.filter(x => classIds.has(x.class_id)).map(x => ({ id: x.id, classId: x.class_id, admissionNo: x.admission_no, name: x.name })) });
   }
-  const examId = req.method === 'GET' ? url.searchParams.get('exam') : null;
-  let b = null; if (req.method === 'POST') b = await req.json();
-  const exam = ex.results.find(e => e.id === (req.method === 'GET' ? examId : b?.examId)), sub = subOf(req.method === 'GET' ? url.searchParams.get('subject') : b?.subjectId);
+  const isGet = req.method === 'GET'; let b = null;
+  if (!isGet) { if (req.method !== 'POST') return fail('Not found', 404); b = await req.json(); }
+  const exam = ex.results.find(e => e.id === (isGet ? url.searchParams.get('exam') : b?.examId)), subjectId = isGet ? url.searchParams.get('subject') : b?.subjectId;
+  const rowsSql = 'SELECT r.student_id, r.attendance_days, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?';
+  if (subjectId === '__att__') { // attendance (days present) instead of a subject
+    const cls = classes.find(c => c.id === (isGet ? url.searchParams.get('class') : b?.classId));
+    if (!exam || !cls || tc.attendance === false) return fail('Please choose an exam and a class you are allowed to enter.', 403);
+    const days = cls.working_days || 200, { results: arows } = await db.prepare(rowsSql).bind(tid, exam.id, cls.id).all();
+    if (isGet) return json({ att: Object.fromEntries(arows.filter(r => r.attendance_days >= 0).map(r => [r.student_id, r.attendance_days])) });
+    const { results: astu } = await db.prepare('SELECT id,name FROM students WHERE tenant_id=? AND class_id=?').bind(tid, cls.id).all();
+    const avalid = new Map(astu.map(x => [x.id, x.name])), ahave = new Map(arows.map(r => [r.student_id, r])), aentries = Object.entries(b.marks || {});
+    if (aentries.length > 1500) throw new Error('Too many students in one save');
+    const aup = [], adel = []; let an = 0;
+    for (const [sid, v] of aentries) {
+      if (!avalid.has(sid)) continue;
+      let att = -1;
+      if (!(v === '' || v === null || v === undefined)) { att = Number(v); if (!Number.isInteger(att) || att < 0 || att > days) throw new Error(`Days present for ${avalid.get(sid)} must be a whole number from 0 to ${days}.`); }
+      const old = ahave.get(sid), m = old ? JSON.parse(old.marks) : {};
+      if (att < 0 && !Object.keys(m).length) { if (old) adel.push(exam.id + '|' + sid); } else aup.push({ examId: exam.id, studentId: sid, attendanceDays: att, marks: m });
+      an++;
+    }
+    const astmts = [...(adel.length ? deletes(db, tid, 'results', adel) : []), ...(aup.length ? upserts(db, tid, 'results', aup) : [])];
+    if (astmts.length) await db.batch(astmts);
+    return json({ ok: true, saved: an });
+  }
+  const sub = subOf(subjectId);
   if (!exam || !sub) return fail('Please choose an exam and a subject you are allowed to enter.', 403);
-  const { results: rows } = await db.prepare('SELECT r.student_id, r.attendance_days, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?').bind(tid, exam.id, sub.class_id).all();
+  const { results: rows } = await db.prepare(rowsSql).bind(tid, exam.id, sub.class_id).all();
   if (req.method === 'GET') return json({ marks: Object.fromEntries(rows.map(r => [r.student_id, JSON.parse(r.marks)[sub.id]]).filter(([, v]) => v !== undefined)) });
-  if (req.method !== 'POST') return fail('Not found', 404);
   const { results: stu } = await db.prepare('SELECT id,name FROM students WHERE tenant_id=? AND class_id=?').bind(tid, sub.class_id).all();
   const valid = new Map(stu.map(x => [x.id, x.name])), have = new Map(rows.map(r => [r.student_id, r])), entries = Object.entries(b.marks || {});
   if (entries.length > 1500) throw new Error('Too many students in one save');
