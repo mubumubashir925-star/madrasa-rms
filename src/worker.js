@@ -132,7 +132,7 @@ const TABLES = {
   students: { cols: ['id', 'admission_no', 'name', 'father_name', 'class_id', 'extra'], pk: ['id'], row: r => [str(r.id, 64), str(r.admissionNo, 40).toUpperCase(), str(r.name), opt(r.fatherName), str(r.classId, 64),
     JSON.stringify(Object.fromEntries(Object.entries(r.extra || {}).slice(0, 20).map(([k, v]) => [k.slice(0, 40), String(v).slice(0, 200)])))] },
   results:  { cols: ['exam_id', 'student_id', 'attendance_days', 'marks'], pk: ['exam_id', 'student_id'],
-    row: r => [str(r.examId, 64), str(r.studentId, 64), num(r.attendanceDays, 0, 366),
+    row: r => [str(r.examId, 64), str(r.studentId, 64), num(r.attendanceDays, -1, 366),
       JSON.stringify(Object.fromEntries(Object.entries(r.marks || {}).map(([k, v]) => [k, absent(v) ? 'AB' : num(v, 0, 1000)])))] },
 };
 // D1 allows max 100 bound params per statement -> chunk rows. Every statement is locked to one tenant_id.
@@ -165,7 +165,7 @@ const settings = async (db, tid) => {
   const { results } = await db.prepare('SELECT key,value FROM settings WHERE tenant_id=?').bind(tid).all();
   const m = Object.fromEntries(results.map(r => [r.key, JSON.parse(r.value)]));
   return { madrasa: m.madrasa || initialSettings('Your Institution').madrasa, announcements: m.announcements || [],
-    portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields, classSigns: m.classSigns || {} };
+    portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields, classSigns: m.classSigns || {}, teachers: m.teachers || [] };
 };
 const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
 const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
@@ -199,7 +199,7 @@ async function sync(db, t, body) {
   for (const k of ['results', 'students', 'subjects', 'classes', 'exams']) if (del[k]?.length) stmts.push(...deletes(db, tid, k, del[k]));
   for (const k of ['classes', 'exams', 'subjects', 'students', 'results']) if (up[k]?.length) stmts.push(...upserts(db, tid, k, up[k]));
   if (up.settings) {
-    const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl, classSigns: cs } = up.settings;
+    const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl, classSigns: cs, teachers: tch } = up.settings;
     const okSign = v => !v || (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 90000);
     const put = (k, v) => stmts.push(db.prepare('INSERT INTO settings (tenant_id, key, value) VALUES (?, ?, ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value').bind(tid, k, JSON.stringify(v)));
     if (po) put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition });
@@ -210,6 +210,15 @@ async function sync(db, t, body) {
     if (fl) {
       if (!Array.isArray(fl) || fl.length > 20 || !fl.some(f => f.id === 'admissionNo')) throw new Error('Invalid student fields');
       put('fields', fl.map(f => { if (!/^[A-Za-z0-9_]{1,40}$/.test(f.id)) throw new Error('Invalid field id'); return { id: f.id, label: str(f.label, 40), show: !!f.show }; }));
+    }
+    if (tch) {
+      if (!Array.isArray(tch) || tch.length > 100) throw new Error('Too many teacher links');
+      const seen = new Set();
+      put('teachers', tch.map(x => {
+        const token = String(x.token || ''); if (!/^[A-Za-z0-9_-]{24,64}$/.test(token) || seen.has(token)) throw new Error('Invalid teacher link');
+        seen.add(token);
+        return { id: str(x.id, 64), name: str(x.name, 80), token, subjectIds: Array.isArray(x.subjectIds) ? x.subjectIds.slice(0, 600).map(v => str(v, 64)) : [], active: x.active !== false, createdAt: opt(x.createdAt, 30) };
+      }));
     }
     if (cs) {
       const e = Object.entries(cs).filter(([k, v]) => v);
@@ -225,7 +234,7 @@ async function sync(db, t, body) {
       if (logo && (!okLogo || logo.length > 200000)) throw new Error('Logo must be an image link, a /path, or an uploaded image under 150 KB');
       const name = str(m.name);
       const headSign = (m.headSign || '').trim(); if (!okSign(headSign)) throw new Error('Signature image is too large or invalid');
-      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), headSign });
+      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), headSign, accent: /^#[0-9a-fA-F]{6}$/.test(m.accent || '') ? m.accent.toLowerCase() : '' });
       stmts.push(db.prepare('UPDATE tenants SET name=? WHERE id=?').bind(name, tid));
     }
     if (a) { if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements'); put('announcements', a.map(x => str(x, 500))); }
@@ -263,11 +272,14 @@ async function publicResult(db, t, url) {
   // A subject counts only if it is switched on for the class and marks exist for it; hidden subjects are skipped everywhere.
   const take = m => subs.filter(x => x.active && m?.[x.id] !== undefined);
   const maxOf = l => l.reduce((a, x) => a + x.maxMarks, 0);
-  const marks = JSON.parse(cur.marks), mySubs = take(marks), maxPer = maxOf(mySubs);
+  const complete = m => subs.every(x => !x.active || m?.[x.id] !== undefined); // blank marks = still pending
+  const marks = JSON.parse(cur.marks);
+  if (!complete(marks)) return fail(`The result of ${st.name} (${adm}) is not complete yet. Marks of some subjects are still pending - please check again later.`, 404);
+  const mySubs = take(marks), maxPer = maxOf(mySubs);
   const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(x => subPassed(marks, x));
   const percentage = pctOf(obtained, maxPer), G = set.grades, myPct = exact(obtained, maxPer);
-  const pcts = mates.results.map(r => { const m = JSON.parse(r.marks), l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
-  const exams = mine.results.map(r => {
+  const pcts = mates.results.map(r => JSON.parse(r.marks)).filter(complete).map(m => { const l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
+  const exams = mine.results.filter(r => complete(JSON.parse(r.marks))).map(r => {
     const m = JSON.parse(r.marks), l = take(m), o = sumMarks(m, l), mx = maxOf(l), ok = l.length > 0 && l.every(x => subPassed(m, x));
     return { name: r.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exact(o, mx), !ok, G) };
   });
@@ -280,6 +292,55 @@ async function publicResult(db, t, url) {
     position: set.portal.showPosition ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
     exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
+}
+
+// ---------- teacher marks-entry links (no login: the secret link is the key) ----------
+async function entryApi(req, env, url, slug, token) {
+  const db = env.DB, t = await tenantBySlug(db, slug);
+  if (!t) return fail('Institution not found', 404);
+  if (tenantState(t) !== 'active') return fail(publicBlockedMsg, 403);
+  const set = await settings(db, t.id); let tc = null;
+  for (const x of set.teachers) if ((await safeEq(token, x.token, env.JWT_SECRET)) && !tc) tc = x;
+  if (!tc || tc.active === false) return fail('This link is not valid or has been switched off. Please ask the administrator for a new link.', 403);
+  const tid = t.id, picked = new Set(tc.subjectIds || []);
+  const [ex, cl, su] = await db.batch([
+    db.prepare('SELECT id,name FROM exams WHERE tenant_id=? ORDER BY rowid').bind(tid),
+    db.prepare('SELECT id,name FROM classes WHERE tenant_id=? ORDER BY rowid').bind(tid),
+    db.prepare('SELECT id,class_id,name,max_marks,pass_marks FROM subjects WHERE tenant_id=? AND active<>0 ORDER BY rowid').bind(tid),
+  ]);
+  const subs = su.results.filter(x => !picked.size || picked.has(x.id));
+  const classIds = new Set(subs.map(x => x.class_id)), classes = cl.results.filter(c => classIds.has(c.id));
+  const subOf = id => subs.find(x => x.id === id);
+  if (req.method === 'GET' && !url.searchParams.get('subject')) {
+    const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
+    return json({ teacher: tc.name, madrasa: { name: set.madrasa.name, logo: set.madrasa.logo, accent: set.madrasa.accent || '' }, exams: ex.results, classes,
+      subjects: subs.map(x => ({ id: x.id, classId: x.class_id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks })),
+      students: stu.filter(x => classIds.has(x.class_id)).map(x => ({ id: x.id, classId: x.class_id, admissionNo: x.admission_no, name: x.name })) });
+  }
+  const examId = req.method === 'GET' ? url.searchParams.get('exam') : null;
+  let b = null; if (req.method === 'POST') b = await req.json();
+  const exam = ex.results.find(e => e.id === (req.method === 'GET' ? examId : b?.examId)), sub = subOf(req.method === 'GET' ? url.searchParams.get('subject') : b?.subjectId);
+  if (!exam || !sub) return fail('Please choose an exam and a subject you are allowed to enter.', 403);
+  const { results: rows } = await db.prepare('SELECT r.student_id, r.attendance_days, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?').bind(tid, exam.id, sub.class_id).all();
+  if (req.method === 'GET') return json({ marks: Object.fromEntries(rows.map(r => [r.student_id, JSON.parse(r.marks)[sub.id]]).filter(([, v]) => v !== undefined)) });
+  if (req.method !== 'POST') return fail('Not found', 404);
+  const { results: stu } = await db.prepare('SELECT id,name FROM students WHERE tenant_id=? AND class_id=?').bind(tid, sub.class_id).all();
+  const valid = new Map(stu.map(x => [x.id, x.name])), have = new Map(rows.map(r => [r.student_id, r])), entries = Object.entries(b.marks || {});
+  if (entries.length > 1500) throw new Error('Too many students in one save');
+  const up = [], del = []; let n = 0;
+  for (const [sid, v] of entries) {
+    if (!valid.has(sid)) continue;
+    const old = have.get(sid), m = old ? JSON.parse(old.marks) : {};
+    if (v === '' || v === null || v === undefined) delete m[sub.id];
+    else if (absent(v)) m[sub.id] = 'AB';
+    else { const x = Number(v); if (!Number.isFinite(x) || x < 0 || x > sub.max_marks) throw new Error(`Marks for ${valid.get(sid)} must be between 0 and ${sub.max_marks}.`); m[sub.id] = Math.round(x * 100) / 100; }
+    const att = old ? old.attendance_days : -1;
+    if (!Object.keys(m).length && att < 0) { if (old) del.push(exam.id + '|' + sid); } else up.push({ examId: exam.id, studentId: sid, attendanceDays: att, marks: m });
+    n++;
+  }
+  const stmts = [...(del.length ? deletes(db, tid, 'results', del) : []), ...(up.length ? upserts(db, tid, 'results', up) : [])];
+  if (stmts.length) await db.batch(stmts);
+  return json({ ok: true, saved: n });
 }
 
 // ---------- institution admin accounts ----------
@@ -407,6 +468,8 @@ async function api(req, env, url, p) {
       const t = await tenantBySlug(db, m[1]); if (!t) return fail('Institution not found', 404);
       return m[2] === 'public' ? publicInfo(db, t) : publicResult(db, t, url);
     }
+    const em = p.match(/^\/api\/t\/([a-z0-9-]+)\/entry\/([A-Za-z0-9_-]{24,64})$/);
+    if (em && (req.method === 'GET' || req.method === 'POST')) return await entryApi(req, env, url, em[1], em[2]);
     if (p === '/api/login' && req.method === 'POST') return tenantLogin(env, await req.json(), defSlug);
     if (p === '/api/super/login' && req.method === 'POST') {
       const b = await req.json(), sup = await getSuper(db);
@@ -447,6 +510,7 @@ async function servePage(req, env, url, route, slug) {
       img = /^https?:\/\//i.test(lg) ? lg : lg.startsWith('data:') ? `${url.origin}/${t.slug}/logo` : /^\/(?!\/)/.test(lg) ? url.origin + lg : img;
       ogUrl = url.origin + (url.pathname === '/' ? '/' : '/' + t.slug);
       if (r === 'admin') name = 'Admin - ' + name;
+      if (r === 'entry') name = 'Marks entry - ' + name;
     }
   }
   const meta = v => ({ element(e) { e.setAttribute('content', v); } });
@@ -456,7 +520,7 @@ async function servePage(req, env, url, route, slug) {
     .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(ogUrl)).on('meta[property="og:site_name"]', meta(name))
     .on('meta[name="blocked"]', meta(blocked)).on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
     .on('link[rel="manifest"]', { element(e) { if (slug) e.setAttribute('href', `/${slug}/manifest.webmanifest`); } })
-    .transform(new Response(res.body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } }));
+    .transform(new Response(res.body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...(r === 'entry' ? { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } : {}) } }));
 }
 async function tenantAsset(env, url, slug, kind, defSlug) {
   const t = await tenantBySlug(env.DB, slug); if (!t) return new Response('Not found', { status: 404 });
@@ -466,7 +530,7 @@ async function tenantAsset(env, url, slug, kind, defSlug) {
     return new Response(Uint8Array.from(atob(d[2]), c => c.charCodeAt(0)), { headers: { 'Content-Type': d[1], 'Cache-Control': 'public, max-age=300' } });
   }
   const base = t.slug === defSlug ? '/' : `/${t.slug}/`;
-  return new Response(JSON.stringify({ name: m.name, short_name: (m.name || t.name).slice(0, 12), id: base, start_url: base, scope: base, display: 'standalone', orientation: 'portrait', background_color: '#064e3b', theme_color: '#064e3b', lang: 'en',
+  return new Response(JSON.stringify({ name: m.name, short_name: (m.name || t.name).slice(0, 12), id: base, start_url: base, scope: base, display: 'standalone', orientation: 'portrait', background_color: m.accent || '#064e3b', theme_color: m.accent || '#064e3b', lang: 'en',
     icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] }),
     { headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=300' } });
 }
@@ -485,7 +549,7 @@ async function handle(req, env) {
   if (!seg.length) { if (defSlug) { route = 'public'; slug = defSlug; } }
   else if (seg[0] === 'super') route = 'super';
   else if (seg[0] === 'admin') { route = defSlug ? 'admin' : 'notfound'; slug = defSlug; }
-  else { slug = seg[0].toLowerCase(); route = seg[1] === 'admin' ? 'admin' : 'public'; }
+  else { slug = seg[0].toLowerCase(); route = seg[1] === 'admin' ? 'admin' : seg[1] === 'entry' && seg[2] ? 'entry' : 'public'; }
   return servePage(req, env, url, route, slug);
 }
 
