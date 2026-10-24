@@ -2,6 +2,6 @@ module.exports = {
   content: ['./public/index.html'],
   theme: { extend: {
     fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'], serif: ['Amiri', 'serif'] },
-    colors: { emerald: { 850: '#064e3b', 950: '#022c22' } }
+    colors: { emerald: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 850, 900, 950].map(n => [n, `rgb(var(--em-${n}) / <alpha-value>)`])) }
   } }
 };
