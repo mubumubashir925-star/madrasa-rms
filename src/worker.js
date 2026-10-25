@@ -161,11 +161,18 @@ const DEF = {
   grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
   fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }],
 };
-const settings = async (db, tid) => {
-  const { results } = await db.prepare('SELECT key,value FROM settings WHERE tenant_id=?').bind(tid).all();
+// ---- public views get the logo as a small cacheable image link instead of a big embedded copy ----
+const hashStr = x => { let h = 5381; for (let i = 0; i < x.length; i += 7) h = ((h << 5) + h + x.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + x.length.toString(36); };
+const logoRef = (t, logo) => logo && (logo.startsWith('data:') || /^https:\/\//i.test(logo)) ? `/${t.slug}/logo?v=${hashStr(logo)}` : (logo || '');
+const pubMadrasa = (t, m, withSign) => { const { headSign, ...rest } = m; return { ...rest, logo: logoRef(t, m.logo), ...(withSign ? { headSign } : {}) }; };
+const shortName = (app, name) => { app = (app || '').trim(); if (app) return app.slice(0, 12); name = (name || '').trim(); if (name.length <= 12) return name; const w = name.split(/\s+/)[0]; return w.length <= 12 ? w : name.slice(0, 12); };
+const settings = async (db, tid, keys) => {
+  const { results } = keys
+    ? await db.prepare(`SELECT key,value FROM settings WHERE tenant_id=? AND key IN (${keys.map(() => '?').join(',')})`).bind(tid, ...keys).all()
+    : await db.prepare('SELECT key,value FROM settings WHERE tenant_id=?').bind(tid).all();
   const m = Object.fromEntries(results.map(r => [r.key, JSON.parse(r.value)]));
   return { madrasa: m.madrasa || initialSettings('Your Institution').madrasa, announcements: m.announcements || [],
-    portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields, classSigns: m.classSigns || {}, teachers: m.teachers || [] };
+    portal: { ...DEF.portal, ...(m.portal || {}) }, grades: m.grades || DEF.grades, fields: m.fields || DEF.fields, classSigns: m.classSigns || {}, teachers: m.teachers || [], assistants: m.assistants || [] };
 };
 const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
 const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
@@ -199,7 +206,7 @@ async function sync(db, t, body) {
   for (const k of ['results', 'students', 'subjects', 'classes', 'exams']) if (del[k]?.length) stmts.push(...deletes(db, tid, k, del[k]));
   for (const k of ['classes', 'exams', 'subjects', 'students', 'results']) if (up[k]?.length) stmts.push(...upserts(db, tid, k, up[k]));
   if (up.settings) {
-    const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl, classSigns: cs, teachers: tch } = up.settings;
+    const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl, classSigns: cs, teachers: tch, assistants: asst } = up.settings;
     const okSign = v => !v || (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 90000);
     const put = (k, v) => stmts.push(db.prepare('INSERT INTO settings (tenant_id, key, value) VALUES (?, ?, ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value').bind(tid, k, JSON.stringify(v)));
     if (po) put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition });
@@ -220,6 +227,10 @@ async function sync(db, t, body) {
         return { id: str(x.id, 64), name: str(x.name, 80), token, subjectIds: Array.isArray(x.subjectIds) ? x.subjectIds.slice(0, 600).map(v => str(v, 64)) : [], active: x.active !== false, attendance: x.attendance !== false, createdAt: opt(x.createdAt, 30) };
       }));
     }
+    if (asst) {
+      if (!Array.isArray(asst) || asst.length > 8) throw new Error('You can add up to 8 assistant heads');
+      put('assistants', asst.map(x => { const sign = (x.sign || '').trim(); if (!okSign(sign)) throw new Error('A signature image is too large or invalid'); return { id: str(x.id, 64), title: opt(x.title, 60), name: opt(x.name, 80), sign, show: !!x.show }; }));
+    }
     if (cs) {
       const e = Object.entries(cs).filter(([k, v]) => v);
       if (e.length > 80) throw new Error('Too many signatures');
@@ -234,7 +245,7 @@ async function sync(db, t, body) {
       if (logo && (!okLogo || logo.length > 200000)) throw new Error('Logo must be an image link, a /path, or an uploaded image under 150 KB');
       const name = str(m.name);
       const headSign = (m.headSign || '').trim(); if (!okSign(headSign)) throw new Error('Signature image is too large or invalid');
-      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), headSign, accent: /^#[0-9a-fA-F]{6}$/.test(m.accent || '') ? m.accent.toLowerCase() : '' });
+      put('madrasa', { name, subtitle: opt(m.subtitle, 300), logo, headTitle: opt(m.headTitle, 60), headName: opt(m.headName, 80), shareText: opt(m.shareText, 200), headSign, appName: opt(m.appName, 12), logoCropped: !!m.logoCropped, accent: /^#[0-9a-fA-F]{6}$/.test(m.accent || '') ? m.accent.toLowerCase() : '' });
       stmts.push(db.prepare('UPDATE tenants SET name=? WHERE id=?').bind(name, tid));
     }
     if (a) { if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements'); put('announcements', a.map(x => str(x, 500))); }
@@ -243,16 +254,16 @@ async function sync(db, t, body) {
 }
 
 async function publicInfo(db, t) {
-  const set = await settings(db, t.id), st = tenantState(t);
-  if (st !== 'active') return json({ madrasa: { ...set.madrasa, shareText: '' }, announcements: [], portal: { enabled: false, message: publicBlockedMsg, showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
+  const set = await settings(db, t.id, ['madrasa', 'announcements', 'portal', 'fields']), st = tenantState(t);
+  if (st !== 'active') return json({ madrasa: { ...pubMadrasa(t, set.madrasa), shareText: '' }, announcements: [], portal: { enabled: false, message: publicBlockedMsg, showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
   const { results } = set.portal.enabled ? await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(t.id).all() : { results: [] };
-  return json({ madrasa: set.madrasa, announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
+  return json({ madrasa: pubMadrasa(t, set.madrasa), announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
 }
 
 async function publicResult(db, t, url) {
   const tid = t.id, state = tenantState(t);
   if (state !== 'active') return json({ error: publicBlockedMsg, blocked: true }, 403);
-  const set = await settings(db, tid);
+  const set = await settings(db, tid, ['madrasa', 'portal', 'grades', 'fields', 'classSigns', 'assistants']);
   if (!set.portal.enabled) return fail(set.portal.message || 'Results are not available yet.', 403);
   const examId = url.searchParams.get('exam') || '', adm = (url.searchParams.get('adm') || '').trim().toUpperCase();
   if (!examId || !adm) return fail('Exam and admission number are required');
@@ -285,7 +296,7 @@ async function publicResult(db, t, url) {
   });
   const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    madrasa: set.madrasa, exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '', teacherSign: set.classSigns?.[st.class_id] || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
+    madrasa: pubMadrasa(t, set.madrasa, true), assistants: (set.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })), exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '', teacherSign: set.classSigns?.[st.class_id] || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
@@ -299,7 +310,7 @@ async function entryApi(req, env, url, slug, token) {
   const db = env.DB, t = await tenantBySlug(db, slug);
   if (!t) return fail('Institution not found', 404);
   if (tenantState(t) !== 'active') return fail(publicBlockedMsg, 403);
-  const set = await settings(db, t.id); let tc = null;
+  const set = await settings(db, t.id, ['madrasa', 'teachers']); let tc = null;
   for (const x of set.teachers) if ((await safeEq(token, x.token, env.JWT_SECRET)) && !tc) tc = x;
   if (!tc || tc.active === false) return fail('This link is not valid or has been switched off. Please ask the administrator for a new link.', 403);
   const tid = t.id, picked = new Set(tc.subjectIds || []);
@@ -313,7 +324,7 @@ async function entryApi(req, env, url, slug, token) {
   const subOf = id => subs.find(x => x.id === id);
   if (req.method === 'GET' && !url.searchParams.get('subject')) {
     const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
-    return json({ teacher: tc.name, madrasa: { name: set.madrasa.name, logo: set.madrasa.logo, accent: set.madrasa.accent || '' }, exams: ex.results, attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
+    return json({ teacher: tc.name, madrasa: { name: set.madrasa.name, logo: logoRef(t, set.madrasa.logo), accent: set.madrasa.accent || '' }, exams: ex.results, attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
       subjects: subs.map(x => ({ id: x.id, classId: x.class_id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks })),
       students: stu.filter(x => classIds.has(x.class_id)).map(x => ({ id: x.id, classId: x.class_id, admissionNo: x.admission_no, name: x.name })) });
   }
@@ -518,12 +529,12 @@ async function api(req, env, url, p) {
 async function servePage(req, env, url, route, slug) {
   const res = await env.ASSETS.fetch(new Request(new URL('/', req.url), { method: 'GET' }));
   if (!res.ok || !(res.headers.get('content-type') || '').includes('text/html')) return res;
-  let name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route, blocked = '';
+  let appTitle = 'Results', name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route, blocked = '';
   if (slug) {
     const t = await tenantBySlug(env.DB, slug);
     if (!t) { r = 'notfound'; status = 404; slug = ''; }
     else {
-      const m = (await settings(env.DB, t.id)).madrasa, lg = m.logo || '', ts = tenantState(t);
+      const m = (await settings(env.DB, t.id, ['madrasa'])).madrasa, lg = m.logo || '', ts = tenantState(t); appTitle = shortName(m.appName, m.name || t.name);
       if (ts !== 'active') {
         if (r !== 'admin') return blockedPage(m.name || t.name, ts === 'expired' ? 'Portal unavailable' : 'Account suspended', publicBlockedMsg);
         blocked = blockedMsg(ts); // admin address: page loads, but only a platform-owner support session can get past the notice
@@ -540,19 +551,26 @@ async function servePage(req, env, url, route, slug) {
     .on('title', { element(e) { e.setInnerContent(name); } })
     .on('meta[name="description"]', meta(desc)).on('meta[property="og:title"]', meta(name)).on('meta[property="og:description"]', meta(desc))
     .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(ogUrl)).on('meta[property="og:site_name"]', meta(name))
-    .on('meta[name="blocked"]', meta(blocked)).on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
+    .on('meta[name="apple-mobile-web-app-title"]', meta(appTitle)).on('meta[name="blocked"]', meta(blocked)).on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
     .on('link[rel="manifest"]', { element(e) { if (slug) e.setAttribute('href', `/${slug}/manifest.webmanifest`); } })
     .transform(new Response(res.body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...(r === 'entry' ? { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } : {}) } }));
 }
 async function tenantAsset(env, url, slug, kind, defSlug) {
   const t = await tenantBySlug(env.DB, slug); if (!t) return new Response('Not found', { status: 404 });
-  const m = (await settings(env.DB, t.id)).madrasa;
+  const m = (await settings(env.DB, t.id, ['madrasa'])).madrasa;
   if (kind === 'logo') {
+    if (/^https:\/\//i.test(m.logo || '')) { // an online logo link: fetch it once and serve it from here
+      try {
+        const r = await fetch(m.logo, { headers: { Accept: 'image/*' }, cf: { cacheEverything: true, cacheTtl: 3600 } }), ct = r.headers.get('content-type') || '';
+        if (!r.ok || !ct.startsWith('image/') || Number(r.headers.get('content-length') || 0) > 3000000) return new Response('Not found', { status: 404 });
+        return new Response(r.body, { headers: { 'Content-Type': ct, 'Cache-Control': 'public, max-age=3600' } });
+      } catch (e) { return new Response('Not found', { status: 404 }); }
+    }
     const d = /^data:(image\/[a-z]+);base64,(.+)$/.exec(m.logo || ''); if (!d) return new Response('Not found', { status: 404 });
-    return new Response(Uint8Array.from(atob(d[2]), c => c.charCodeAt(0)), { headers: { 'Content-Type': d[1], 'Cache-Control': 'public, max-age=300' } });
+    return new Response(Uint8Array.from(atob(d[2]), c => c.charCodeAt(0)), { headers: { 'Content-Type': d[1], 'Cache-Control': url.searchParams.get('v') ? 'public, max-age=31536000, immutable' : 'public, max-age=300' } });
   }
   const base = t.slug === defSlug ? '/' : `/${t.slug}/`;
-  return new Response(JSON.stringify({ name: m.name, short_name: (m.name || t.name).slice(0, 12), id: base, start_url: base, scope: base, display: 'standalone', orientation: 'portrait', background_color: m.accent || '#064e3b', theme_color: m.accent || '#064e3b', lang: 'en',
+  return new Response(JSON.stringify({ name: m.name, short_name: shortName(m.appName, m.name || t.name), id: base, start_url: base, scope: base, display: 'standalone', orientation: 'portrait', background_color: m.accent || '#064e3b', theme_color: m.accent || '#064e3b', lang: 'en',
     icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] }),
     { headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=300' } });
 }
