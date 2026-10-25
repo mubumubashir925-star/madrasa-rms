@@ -138,6 +138,28 @@
             .ms-sig-line { height: 38px; }
             .ms-sign-name { font-size: 11px; } .ms-sign-title { font-size: 10px; }
         }
+        /* global loading: top bar, first-load screen, save status, cropper, assistant signatures */
+        .net-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 300; overflow: hidden; opacity: 0; transition: opacity .2s; pointer-events: none; }
+        .net-bar.on { opacity: 1; }
+        .net-bar::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: rgb(var(--em-500)); animation: net-slide 1s ease-in-out infinite; }
+        @keyframes net-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+        .app-loader { position: fixed; inset: 0; z-index: 290; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #64748b; font-size: 14px; }
+        .app-loader.hide { display: none; }
+        .save-chip { position: fixed; left: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 260; display: none; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #0f172a; color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.25); max-width: calc(100vw - 96px); cursor: default; }
+        .save-chip.show { display: flex; } .save-chip.err { background: #991b1b; cursor: pointer; } .save-chip.ok { background: rgb(var(--em-800)); }
+        .btn-spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: se-rot .7s linear infinite; vertical-align: -2px; margin-right: 6px; flex: none; }
+        .crop-stage { position: relative; display: inline-block; line-height: 0; touch-action: none; user-select: none; -webkit-user-select: none; background: repeating-conic-gradient(#e2e8f0 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+        .crop-stage img { max-width: 100%; max-height: 46vh; display: block; -webkit-user-drag: none; pointer-events: none; }
+        .crop-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .crop-dim { position: absolute; box-shadow: 0 0 0 9999px rgba(15, 23, 42, .55); }
+        .crop-box { position: absolute; border: 2px solid #fff; outline: 1px solid rgba(15, 23, 42, .4); cursor: move; touch-action: none; box-sizing: border-box; }
+        .crop-h { position: absolute; width: 26px; height: 26px; background: rgb(var(--em-600)); border: 2px solid #fff; border-radius: 50%; touch-action: none; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+        .crop-h[data-h="nw"] { left: -14px; top: -14px; cursor: nwse-resize; } .crop-h[data-h="ne"] { right: -14px; top: -14px; cursor: nesw-resize; }
+        .crop-h[data-h="sw"] { left: -14px; bottom: -14px; cursor: nesw-resize; } .crop-h[data-h="se"] { right: -14px; bottom: -14px; cursor: nwse-resize; }
+        .ms-foot.ms-foot-multi { display: block; }
+        .ms-seal-row { display: flex; justify-content: center; margin: 0 0 8px; }
+        .ms-sigs { display: grid; gap: 10px 14px; align-items: end; }
+        @media screen and (max-width: 639px) { .ms-sigs { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
         /* loading spinner + attendance styling + standard font for the floating Add button */
         .se-spin { width: 26px; height: 26px; border: 3px solid rgb(var(--em-200)); border-top-color: rgb(var(--em-700)); border-radius: 50%; animation: se-rot .7s linear infinite; }
         @keyframes se-rot { to { transform: rotate(360deg); } }
@@ -205,6 +227,10 @@
             #printable-result .ms-note, #print-root .ms-sheet .ms-note { margin-top: 4px; }
             #printable-result .ms-seal, #print-root .ms-sheet .ms-seal { width: 80px; height: 80px; animation: none; }
             #printable-result .ms-seal::after { animation: none; background-position: 40% 0; }
+            #printable-result .ms-seal-row .ms-seal, #print-root .ms-sheet .ms-seal-row .ms-seal { width: 66px; height: 66px; }
+            #printable-result .ms-seal-row, #print-root .ms-sheet .ms-seal-row { margin-bottom: 4px; }
+            #printable-result .ms-sigs .ms-sig-line, #print-root .ms-sheet .ms-sigs .ms-sig-line { height: 30px; }
+            #printable-result .ms-sigs, #print-root .ms-sheet .ms-sigs { gap: 6px 12px; }
             .no-print { display: none !important; }
             body.print-bulk > *:not(#print-root) { display: none !important; }
             body.print-bulk #print-root { display: block; position: static; }
@@ -308,8 +334,12 @@
             background: #94a3b8; 
         }
     </style>
+<script>try{var _m=function(n){return(document.querySelector('meta[name="'+n+'"]')||{}).content||''},_t=_m('tenant');if(_t&&_m('route')==='public'&&!_m('blocked'))window.__pi=fetch('/api/t/'+_t+'/public').then(function(r){return r.ok?r.json():null}).catch(function(){return null})}catch(e){}</script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-dvh flex flex-col">
+    <div id="net-bar" class="net-bar"></div>
+    <div id="app-loader" class="app-loader"><span class="se-spin" style="width:36px;height:36px;border-width:4px"></span><span id="app-loader-text">Loading...</span></div>
+    <div id="save-chip" class="save-chip" onclick="saveChipTap()"></div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" style="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom, 0px));width:min(92vw,26rem);z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none"></div>
@@ -576,6 +606,20 @@
         </div>
 
         <!-- Generic edit dialog (exams, classes, subjects, announcements) -->
+        <div id="crop-modal" class="hidden fixed inset-0 bg-slate-950/75 flex items-end sm:items-center justify-center sm:p-4 no-print" style="z-index:130">
+            <div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 max-h-[96vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-1"><h3 class="font-bold text-slate-800 text-sm">Crop logo</h3><button type="button" onclick="closeCropper()" aria-label="Close" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500"><i class="fas fa-times"></i></button></div>
+                <p class="text-xs text-slate-500">Drag the box to move it and the round handles to resize it. Keep only the emblem you want on the result.</p>
+                <div class="w-full flex justify-center" style="padding:16px 14px"><div id="crop-stage" class="crop-stage"><img id="crop-img" alt=""><div class="crop-clip"><div id="crop-dim" class="crop-dim"></div></div><div id="crop-box" class="crop-box"><span class="crop-h" data-h="nw"></span><span class="crop-h" data-h="ne"></span><span class="crop-h" data-h="sw"></span><span class="crop-h" data-h="se"></span></div></div></div>
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" id="crop-free" class="sp-btn" onclick="cropAspect('free')">Free</button>
+                    <button type="button" id="crop-square" class="sp-btn" onclick="cropAspect('square')">Square</button>
+                    <button type="button" class="sp-btn" onclick="cropFit()">Auto-fit</button>
+                    <button type="button" class="sp-btn" onclick="cropReset()">Reset</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-3"><button type="button" class="sp-btn" onclick="closeCropper()">Cancel</button><button type="button" class="sp-btn" style="background:rgb(var(--em-800));color:#fff" onclick="cropApply()"><i class="fas fa-check"></i> Use this crop</button></div>
+            </div>
+        </div>
         <div id="sp-modal" class="hidden fixed inset-0 bg-slate-950/70 flex items-end sm:items-center justify-center sm:p-4 no-print" style="z-index:120">
             <div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl p-4">
                 <div class="flex items-center justify-between mb-1"><h3 id="sp-title" class="font-bold text-slate-800 text-sm">Signature</h3>
@@ -728,10 +772,15 @@
                                 <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                                     <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-university text-emerald-700"></i> Institution Profile & Branding</h3>
                                 </div>
-                                <form onsubmit="saveMadrasaSettings(event)" class="p-4 md:p-6 space-y-4">
+                                <form onsubmit="saveMadrasaSettings(event)" oninput="markProfileDirty()" onchange="markProfileDirty()" class="p-4 md:p-6 space-y-4">
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Institution Name <span class="text-red-500">*</span></label>
                                         <input type="text" id="setting-madrasa-name" required class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">App name <span class="normal-case font-medium text-slate-400">(shown under the app icon)</span></label>
+                                        <div class="relative"><input type="text" id="setting-app-name" maxlength="12" placeholder="e.g., Misbah Huda" oninput="appNameInput()" class="w-full px-3.5 py-2 pr-14 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none"><span id="app-name-count" class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">0/12</span></div>
+                                        <p class="text-[11px] text-slate-400 mt-1">Phones show only about 12 letters under the app icon, so a long institution name gets cut off. <b>Set this before installing the app</b> &mdash; the name is fixed when the app is installed (to change it later, remove the app and install it again).</p>
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tagline / Address / Subtitle</label>
@@ -744,6 +793,7 @@
                                         <div class="flex items-center gap-3 mt-2">
                                             <div id="logo-preview" class="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-slate-300 shrink-0"><i class="fas fa-school"></i></div>
                                             <label class="abtn abtn-ok cursor-pointer">Upload logo<input type="file" id="setting-logo-file" accept="image/*" class="hidden" onchange="handleLogoFile(this)"></label>
+                                            <button type="button" class="abtn abtn-gray" onclick="recropLogo()"><i class="fas fa-crop-simple"></i> Crop</button>
                                             <button type="button" class="abtn abtn-gray" onclick="clearLogo()">Remove</button>
                                         </div>
                                     </div>
@@ -758,6 +808,11 @@
                                         <div id="head-sign-preview" class="w-28 h-14 shrink-0 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden"></div>
                                         <div class="min-w-0 flex-1"><p class="text-xs font-bold uppercase text-slate-600">Head&rsquo;s signature</p><p class="text-[11px] text-slate-400">Draw it on the screen. Printed above the name on every result. Remember to press Save.</p></div>
                                         <div class="flex flex-col sm:flex-row gap-1.5 shrink-0"><button type="button" id="head-sign-btn" class="abtn abtn-ok" onclick="signHead()">Sign</button><button type="button" id="head-sign-rm" class="abtn abtn-gray hidden" onclick="removeHeadSign()">Remove</button></div>
+                                    </div>
+                                    <div class="pt-1">
+                                        <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase text-slate-600">Assistant heads</p><p class="text-[11px] text-slate-400">Vice principal, secretary, etc. Tick &ldquo;Show on result&rdquo; to print their name and signature on every result certificate.</p></div>
+                                            <button type="button" id="assistant-add" onclick="addAssistant()" class="abtn abtn-ok shrink-0 std-font"><i class="fas fa-plus"></i> Add</button></div>
+                                        <div id="assistant-list" class="space-y-2 mt-2"></div>
                                     </div>
                                     <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Accent colour</label>
                                         <div id="accent-swatches" class="flex flex-wrap items-center gap-2.5"></div>
@@ -1131,16 +1186,24 @@
             return { madrasa: { name: 'Institution', subtitle: '', logo: '', headTitle: 'Principal', headName: '' }, announcements: [],
                 portal: { enabled: false, message: '', showPosition: true },
                 grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
-                fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], classSigns: {}, teachers: [], exams: [], classes: [], subjects: [], students: [], results: [] };
+                fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], classSigns: {}, teachers: [], assistants: [], exams: [], classes: [], subjects: [], students: [], results: [] };
         }
         const clone = o => JSON.parse(JSON.stringify(o));
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-        async function api(path, opts = {}) {
+        // slim progress bar at the top of the screen whenever the app is talking to the server
+        let netPending = 0, netTimer = 0;
+        function netStart() { netPending++; if (!netTimer) netTimer = setTimeout(() => { if (netPending > 0) document.getElementById('net-bar').classList.add('on'); }, 250); }
+        function netEnd() { netPending = Math.max(0, netPending - 1); if (!netPending) { clearTimeout(netTimer); netTimer = 0; const b = document.getElementById('net-bar'); if (b) b.classList.remove('on'); } }
+        function showAppLoader(text) { const l = document.getElementById('app-loader'); document.getElementById('app-loader-text').textContent = text || 'Loading...'; l.classList.remove('hide'); }
+        function hideAppLoader() { const l = document.getElementById('app-loader'); if (l) l.classList.add('hide'); }
+        async function api(path, opts) { netStart(); try { return await apiRaw(path, opts); } finally { netEnd(); } }
+        async function apiRaw(path, opts = {}) {
             const res = await fetch('/api' + path, {
                 method: opts.method || 'GET',
                 headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-                body: opts.body ? JSON.stringify(opts.body) : undefined
+                body: opts.body ? JSON.stringify(opts.body) : undefined,
+                keepalive: !!opts.keepalive
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) { if (data.blocked) showBlocked(data.error); const err = new Error(data.error || 'Request failed'); err.status = res.status; throw err; }
@@ -1148,8 +1211,15 @@
         }
 
         async function loadPublicData() {
-            try { const info = await api(API_T + '/public'); if (info.unavailable) { showBlocked(info.portal && info.portal.message, info.madrasa && info.madrasa.name); return; } appState = { ...emptyState(), ...info }; applyAccent((info.madrasa || {}).accent || ''); renderPublicPortal(); }
-            catch (e) { if (e.status === 404) showLanding(true); else showToast('Could not load data. Check your connection.', 'error'); }
+            const cacheKey = 'pi_' + TENANT; let shown = false;
+            try { const c = JSON.parse(localStorage.getItem(cacheKey) || 'null'); if (c && c.madrasa) { appState = { ...emptyState(), ...c }; applyAccent((c.madrasa || {}).accent || ''); renderPublicPortal(); shown = true; hideAppLoader(); } } catch (e) { }
+            try {
+                let info = null; if (window.__pi) { info = await window.__pi; window.__pi = null; }
+                if (!info) info = await api(API_T + '/public');
+                if (info.unavailable) { try { localStorage.removeItem(cacheKey); } catch (e) { } showBlocked(info.portal && info.portal.message, info.madrasa && info.madrasa.name); return; }
+                appState = { ...emptyState(), ...info }; applyAccent((info.madrasa || {}).accent || ''); renderPublicPortal();
+                try { localStorage.setItem(cacheKey, JSON.stringify(info)); } catch (e) { }
+            } catch (e) { if (!shown) { if (e.status === 404) showLanding(true); else showToast('Could not load data. Check your connection.', 'error'); } }
         }
 
         async function loadAdminState() {
@@ -1175,25 +1245,54 @@
                 for (const k of old.keys()) if (!seen.has(k)) (deletes[t] ||= []).push(k);
             }
             const st = {};
-            for (const k of ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', 'teachers']) if (JSON.stringify(appState[k]) !== JSON.stringify(snapshot[k])) st[k] = k === 'classSigns' ? Object.fromEntries(Object.entries(appState[k] || {}).filter(([id]) => appState.classes.some(c => c.id === id))) : appState[k];
+            for (const k of ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', 'teachers', 'assistants']) if (JSON.stringify(appState[k]) !== JSON.stringify(snapshot[k])) st[k] = k === 'classSigns' ? Object.fromEntries(Object.entries(appState[k] || {}).filter(([id]) => appState.classes.some(c => c.id === id))) : appState[k];
             if (Object.keys(st).length) upserts.settings = st;
             return (Object.keys(upserts).length || Object.keys(deletes).length) ? { upserts, deletes } : null;
         }
 
+        // Saving: changes go to the server in the background. A failed save is never thrown away - it stays on screen and is retried.
+        const SAVE = { busy: false, queued: false, again: false, fails: 0, timer: 0, err: '' };
+        function saveChip(kind, text) {
+            const el = document.getElementById('save-chip'); if (!el) return;
+            el.className = 'save-chip show ' + (kind === 'err' ? 'err' : kind === 'ok' ? 'ok' : '');
+            el.innerHTML = kind === 'busy' ? '<span class="btn-spin" style="margin:0"></span> ' + esc(text || 'Saving...') : kind === 'ok' ? '<i class="fas fa-check"></i> ' + esc(text || 'Saved') : '<i class="fas fa-triangle-exclamation"></i> ' + esc(text) + ' &mdash; tap to retry';
+        }
         function saveState() {
             renderPublicPortal();
             if (!isAdminAuthenticated || !snapshot) return;
-            const diff = computeDiff();
-            if (!diff) return;
-            snapshot = clone(appState);
-            syncChain = syncChain
-                .then(() => api('/admin/sync', { method: 'POST', body: diff }))
-                .catch(async err => {
-                    if (err.status === 401) return handleSessionExpired();
-                    showToast(err.message, 'error');
-                    try { await loadAdminState(); } catch (e) {}
-                });
+            SAVE.fails = 0; SAVE.err = ''; queueSave(250);
         }
+        function queueSave(delay) { SAVE.queued = true; clearTimeout(SAVE.timer); SAVE.timer = setTimeout(flushSave, delay); saveChip('busy'); }
+        function splitDiff(diff) { // tables and settings travel separately, so one rejected item (e.g. a too-large logo) can't block the marks
+            const { settings, ...tables } = diff.upserts, parts = [];
+            if (Object.keys(tables).length || Object.keys(diff.deletes).length) parts.push({ body: { upserts: tables, deletes: diff.deletes }, commit: sent => TABLES.forEach(t => { snapshot[t] = clone(sent[t]); }) });
+            if (settings) parts.push({ body: { upserts: { settings }, deletes: {} }, commit: sent => Object.keys(settings).forEach(k => { snapshot[k] = clone(sent[k]); }) });
+            return parts;
+        }
+        async function flushSave() {
+            SAVE.queued = false;
+            if (!isAdminAuthenticated || !snapshot) return;
+            if (SAVE.busy) { SAVE.again = true; return; }
+            const diff = computeDiff(); if (!diff) { saveDone(); return; }
+            SAVE.busy = true; saveChip('busy');
+            const sent = clone(appState); let failed = null;
+            for (const part of splitDiff(diff)) {
+                try { await api('/admin/sync', { method: 'POST', body: part.body, keepalive: JSON.stringify(part.body).length < 60000 }); part.commit(sent); }
+                catch (err) { if (err.status === 401) { SAVE.busy = false; return handleSessionExpired(); } failed = failed || err; }
+            }
+            SAVE.busy = false;
+            if (failed) {
+                if ((!failed.status || failed.status >= 500) && SAVE.fails < 5) { SAVE.fails++; queueSave([2000, 4000, 8000, 15000, 30000][SAVE.fails - 1]); return; }
+                SAVE.err = failed.message || 'Could not save'; saveChip('err', SAVE.err); showToast(SAVE.err, 'error'); return;
+            }
+            if (SAVE.again || computeDiff()) { SAVE.again = false; queueSave(100); return; }
+            saveDone();
+        }
+        function saveDone() { SAVE.err = ''; SAVE.fails = 0; saveChip('ok', 'Saved'); setTimeout(() => { const el = document.getElementById('save-chip'); if (el && !SAVE.busy && !SAVE.queued && !SAVE.err) el.classList.remove('show'); }, 1400); }
+        function saveChipTap() { if (SAVE.err || SAVE.fails) { SAVE.fails = 0; SAVE.err = ''; saveChip('busy'); flushSave(); } }
+        window.addEventListener('beforeunload', e => { if (SAVE.busy || SAVE.queued || SAVE.err) { e.preventDefault(); e.returnValue = ''; } });
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && SAVE.queued) { clearTimeout(SAVE.timer); flushSave(); } });
+        window.addEventListener('online', () => { if (SAVE.err || SAVE.fails) saveChipTap(); });
 
         function handleSessionExpired() {
             token = ''; localStorage.removeItem(TOKEN_KEY);
@@ -1308,15 +1407,15 @@
             const examId = document.getElementById('search-exam-select').value;
             const adm = document.getElementById('search-adm-input').value.trim().toUpperCase();
             if (!examId) { showToast("Please select an active examination.", "error"); return; }
-            const btn = e.target.querySelector('button[type=submit]');
-            btn.disabled = true; btn.classList.add('opacity-60');
+            const btn = e.target.querySelector('button[type=submit]'), btnHtml = btn.innerHTML;
+            btn.disabled = true; btn.classList.add('opacity-60'); btn.innerHTML = '<span class="btn-spin"></span>Loading result...';
             try {
                 const data = await api(`${API_T}/result?exam=${encodeURIComponent(examId)}&adm=${encodeURIComponent(adm)}`);
                 displayMarksheet(data);
             } catch (err) {
                 document.getElementById('result-display-container').classList.add('hidden');
                 showToast(err.message, err.status === 404 ? 'info' : 'error');
-            } finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
+            } finally { btn.disabled = false; btn.classList.remove('opacity-60'); btn.innerHTML = btnHtml; }
         }
 
         // ================= CARD LISTS (tap a card to expand: details, edit, delete) =================
@@ -1630,6 +1729,7 @@
 
         // ================= LANDING / NOT FOUND =================
         function showBlocked(msg, name) {
+            hideAppLoader();
             ['public-view', 'admin-view', 'super-view', 'landing-view', 'entry-view'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             ['fab', 'ge-modal', 'student-edit-modal', 'staff-modal'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             const nm = name || (appState && appState.madrasa && appState.madrasa.name !== 'Institution' ? appState.madrasa.name : '');
@@ -1640,6 +1740,7 @@
             document.title = nm || 'Unavailable';
         }
         function showLanding(notFound) {
+            hideAppLoader();
             ['public-view', 'admin-view', 'super-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById('landing-view').classList.remove('hidden');
             if (notFound) {
@@ -1711,7 +1812,7 @@
         const tenantById = id => superTenants.find(t => t.id === id);
         function inviteText(name, slug, user, pass) {
             const o = location.origin;
-            return `${name} - Online Results Portal\n\nPublic page (share with students and parents):\n${o}/${slug}\n\nAdmin login (staff only):\n${o}/${slug}/admin\nUsername: ${user}\nPassword: ${pass}\n\nPlease change the password after your first login (Setup > Admin Login).`;
+            return `${name} - Online Results Portal\n\nPublic page (share with students and parents):\n${o}/${slug}\n\nAdmin login (staff only):\n${o}/${slug}/admin\nUsername: ${user}\nPassword: ${pass}\n\nBefore installing the app on a phone: log in, open Overview > Institution Profile and type a short App name (up to 12 letters) - then press Save. The name under the app icon is fixed at install time.\n\nPlease change the password after your first login (Setup > Admin Login).`;
         }
         async function shareOrCopy(text) {
             try { if (navigator.share) { await navigator.share({ text }); return; } await navigator.clipboard.writeText(text); showToast('Copied to clipboard.', 'success'); }
@@ -1806,30 +1907,92 @@
             const m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
             return m ? 'https://lh3.googleusercontent.com/d/' + m[1] : u;
         }
+        // ---- logo cropper ----
+        const CR = { dw: 0, dh: 0, k: 1, box: { x: 0, y: 0, w: 0, h: 0 }, lock: false, drag: null, revoke: '' };
+        function cropBounds(img) { // where the real picture is (ignores empty / white margins), in natural pixels
+            const r = Math.min(1, 700 / Math.max(img.naturalWidth, img.naturalHeight, 1)), w = Math.max(1, Math.round(img.naturalWidth * r)), h = Math.max(1, Math.round(img.naturalHeight * r));
+            const c = document.createElement('canvas'); c.width = w; c.height = h; const cx = c.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, w, h);
+            let d; try { d = cx.getImageData(0, 0, w, h).data; } catch (e) { return null; }
+            let x0 = w, y0 = h, x1 = -1, y1 = -1;
+            for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) { const i = (yy * w + xx) * 4; if (d[i + 3] > 24 && !(d[i] > 238 && d[i + 1] > 238 && d[i + 2] > 238)) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; } }
+            if (x1 < 0) return null;
+            const pad = Math.round(Math.max(x1 - x0, y1 - y0) * .035); x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+            return { x: x0 / r, y: y0 / r, w: (x1 - x0 + 1) / r, h: (y1 - y0 + 1) / r };
+        }
+        function openLogoCropper(url, revoke) {
+            const im = document.getElementById('crop-img'); CR.revoke = revoke || '';
+            im.onload = () => { document.getElementById('crop-modal').classList.remove('hidden'); document.body.classList.add('overflow-hidden'); requestAnimationFrame(() => { cropLayout(); CR.lock = false; cropMarkAspect(); cropFit(); }); };
+            im.onerror = () => { closeCropper(); showToast('Could not read that image.', 'error'); };
+            im.src = url;
+        }
+        function cropLayout() { const im = document.getElementById('crop-img'); CR.dw = im.clientWidth; CR.dh = im.clientHeight; CR.k = im.naturalWidth / (CR.dw || 1); }
+        function cropDraw() { const b = CR.box; ['crop-box', 'crop-dim'].forEach(id => { const el = document.getElementById(id); el.style.left = b.x + 'px'; el.style.top = b.y + 'px'; el.style.width = b.w + 'px'; el.style.height = b.h + 'px'; }); }
+        function cropClamp() {
+            const b = CR.box, MIN = 24; b.w = Math.max(MIN, Math.min(b.w, CR.dw)); b.h = Math.max(MIN, Math.min(b.h, CR.dh));
+            if (CR.lock) { const sq = Math.min(b.w, b.h); b.w = sq; b.h = sq; }
+            b.x = Math.max(0, Math.min(b.x, CR.dw - b.w)); b.y = Math.max(0, Math.min(b.y, CR.dh - b.h));
+        }
+        function cropFit() { const im = document.getElementById('crop-img'), bb = cropBounds(im) || { x: 0, y: 0, w: im.naturalWidth, h: im.naturalHeight }; CR.box = { x: bb.x / CR.k, y: bb.y / CR.k, w: bb.w / CR.k, h: bb.h / CR.k }; cropClamp(); cropDraw(); }
+        function cropReset() { CR.box = { x: 0, y: 0, w: CR.dw, h: CR.dh }; cropClamp(); cropDraw(); }
+        function cropMarkAspect() { [['crop-free', !CR.lock], ['crop-square', CR.lock]].forEach(([id, on]) => { const b = document.getElementById(id); b.style.background = on ? 'rgb(var(--em-100))' : ''; b.style.color = on ? 'rgb(var(--em-800))' : ''; }); }
+        function cropAspect(mode) {
+            CR.lock = mode === 'square'; cropMarkAspect();
+            if (CR.lock) { const b = CR.box, sq = Math.min(b.w, b.h), cx = b.x + b.w / 2, cy = b.y + b.h / 2; CR.box = { x: cx - sq / 2, y: cy - sq / 2, w: sq, h: sq }; cropClamp(); cropDraw(); }
+        }
+        function cropMove(e) {
+            const d = CR.drag, b0 = d.b;
+            if (d.mode === 'move') { CR.box = { ...b0, x: b0.x + e.clientX - d.sx, y: b0.y + e.clientY - d.sy }; cropClamp(); cropDraw(); return; }
+            const px = Math.max(0, Math.min(CR.dw, e.clientX - d.ox)), py = Math.max(0, Math.min(CR.dh, e.clientY - d.oy)), MIN = 24, m = d.mode;
+            let x1 = b0.x, y1 = b0.y, x2 = b0.x + b0.w, y2 = b0.y + b0.h;
+            if (m.includes('w')) x1 = Math.min(px, x2 - MIN); if (m.includes('e')) x2 = Math.max(px, x1 + MIN);
+            if (m.includes('n')) y1 = Math.min(py, y2 - MIN); if (m.includes('s')) y2 = Math.max(py, y1 + MIN);
+            if (CR.lock) {
+                let w = Math.min(x2 - x1, y2 - y1); const room = Math.min(m.includes('n') ? y2 : CR.dh - y1, m.includes('w') ? x2 : CR.dw - x1); w = Math.min(w, room);
+                if (m.includes('w')) x1 = x2 - w; else x2 = x1 + w; if (m.includes('n')) y1 = y2 - w; else y2 = y1 + w;
+            }
+            CR.box = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }; cropClamp(); cropDraw();
+        }
+        (function initCropper() {
+            const st = document.getElementById('crop-stage');
+            st.addEventListener('pointerdown', e => {
+                const h = e.target.closest('.crop-h'), onBox = e.target.closest('#crop-box'); if (!h && !onBox) return;
+                e.preventDefault(); try { st.setPointerCapture(e.pointerId); } catch (x) { }
+                const r = st.getBoundingClientRect(); CR.drag = { mode: h ? h.dataset.h : 'move', sx: e.clientX, sy: e.clientY, b: { ...CR.box }, ox: r.left, oy: r.top };
+            });
+            st.addEventListener('pointermove', e => { if (CR.drag) { e.preventDefault(); cropMove(e); } });
+            const end = () => { CR.drag = null; }; st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
+            window.addEventListener('resize', () => { if (!document.getElementById('crop-modal').classList.contains('hidden')) { const o = CR.k; cropLayout(); CR.box = { x: CR.box.x * o / CR.k, y: CR.box.y * o / CR.k, w: CR.box.w * o / CR.k, h: CR.box.h * o / CR.k }; cropClamp(); cropDraw(); } });
+        })();
+        function closeCropper() { document.getElementById('crop-modal').classList.add('hidden'); document.body.classList.remove('overflow-hidden'); if (CR.revoke) URL.revokeObjectURL(CR.revoke); CR.revoke = ''; CR.drag = null; }
+        function cropApply() {
+            const im = document.getElementById('crop-img'), b = CR.box; let out = '';
+            try {
+                const nw = b.w * CR.k, nh = b.h * CR.k, mx = Math.min(1, 1400 / Math.max(nw, nh)), base = document.createElement('canvas');
+                base.width = Math.max(1, Math.round(nw * mx)); base.height = Math.max(1, Math.round(nh * mx));
+                base.getContext('2d').drawImage(im, b.x * CR.k, b.y * CR.k, nw, nh, 0, 0, base.width, base.height);
+                for (const m of [512, 400, 320, 256, 200]) {
+                    const k = Math.min(1, m / Math.max(base.width, base.height)), c = document.createElement('canvas'), cx = c.getContext('2d');
+                    c.width = Math.max(1, Math.round(base.width * k)); c.height = Math.max(1, Math.round(base.height * k)); cx.drawImage(base, 0, 0, c.width, c.height);
+                    out = c.toDataURL('image/png'); if (out.length <= 150000) break;
+                    cx.globalCompositeOperation = 'destination-over'; cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+                    out = c.toDataURL('image/jpeg', 0.9); if (out.length <= 150000) break;
+                }
+            } catch (e) { out = ''; }
+            if (!out || out.length > 190000) { showToast('That picture is too large to use. Crop a smaller area or choose another image.', 'error'); return; }
+            pendingLogo = out; pendingLogoCropped = true; markProfileDirty();
+            document.getElementById('setting-madrasa-logo').value = ''; document.getElementById('setting-madrasa-logo').placeholder = 'Using the uploaded image';
+            setLogoPreview(out); closeCropper(); showToast('Logo ready. Press "Save Profile Changes" to apply it.', 'info');
+        }
         function handleLogoFile(inp) {
-            const f = inp.files[0]; inp.value = '';
-            if (!f) return;
+            const f = inp.files[0]; inp.value = ''; if (!f) return;
             if (!f.type.startsWith('image/')) { showToast('Please choose an image file.', 'error'); return; }
-            const url = URL.createObjectURL(f), img = new Image();
-            img.onload = () => {
-                let out = '';
-                try {
-                    const base = trimToCanvas(img, 1200).canvas;
-                    for (const m of [512, 400, 320, 256, 200]) {
-                        const k = Math.min(1, m / Math.max(base.width, base.height)), c = document.createElement('canvas'), cx = c.getContext('2d');
-                        c.width = Math.max(1, Math.round(base.width * k)); c.height = Math.max(1, Math.round(base.height * k)); cx.drawImage(base, 0, 0, c.width, c.height);
-                        out = c.toDataURL('image/png'); if (out.length <= 150000) break;
-                        cx.globalCompositeOperation = 'destination-over'; cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
-                        out = c.toDataURL('image/jpeg', 0.9); if (out.length <= 150000) break;
-                    }
-                } catch (e) { out = ''; }
-                URL.revokeObjectURL(url);
-                if (!out || out.length > 190000) { showToast('That image is too large. Try a smaller one.', 'error'); return; }
-                pendingLogo = out; document.getElementById('setting-madrasa-logo').value = ''; document.getElementById('setting-madrasa-logo').placeholder = 'Using the uploaded image';
-                setLogoPreview(out); showToast('Logo ready. Tap "Save Profile Changes" to apply it.', 'info');
-            };
-            img.onerror = () => showToast('Could not read that image.', 'error');
-            img.src = url;
+            const url = URL.createObjectURL(f); openLogoCropper(url, url);
+        }
+        function recropLogo() {
+            const cur = logoValue();
+            if (!cur) showToast('Upload a logo first.', 'info');
+            else if (/^https?:/i.test(cur)) showToast("An online link can't be cropped here. Upload the image file instead.", 'info');
+            else openLogoCropper(cur);
         }
         // ================= SIGNATURE PAD (draw with finger / mouse) =================
         const SP = { strokes: [], redo: [], cur: null, onSave: null, raf: 0 }, SP_INK = '#0f1d57', SP_W = 3;
@@ -1896,12 +2059,37 @@
         let pendingHeadSign = null; // null = unchanged, '' = removed, 'data:...' = newly drawn
         function headSignValue() { return pendingHeadSign !== null ? pendingHeadSign : (appState.madrasa.headSign || ''); }
         function renderHeadSign() { const v = headSignValue(); document.getElementById('head-sign-preview').innerHTML = signPreview(v); document.getElementById('head-sign-btn').textContent = v ? 'Change' : 'Sign'; document.getElementById('head-sign-rm').classList.toggle('hidden', !v); }
-        function signHead() { openSignPad('Head signature' + (document.getElementById('setting-head-name').value.trim() ? ' \u2014 ' + document.getElementById('setting-head-name').value.trim() : ''), v => { pendingHeadSign = v; renderHeadSign(); showToast('Signature ready. Press Save Profile to keep it.', 'info'); }); }
-        function removeHeadSign() { pendingHeadSign = ''; renderHeadSign(); }
+        function signHead() { openSignPad('Head signature' + (document.getElementById('setting-head-name').value.trim() ? ' \u2014 ' + document.getElementById('setting-head-name').value.trim() : ''), v => { pendingHeadSign = v; markProfileDirty(); renderHeadSign(); showToast('Signature ready. Press Save Profile to keep it.', 'info'); }); }
+        function removeHeadSign() { markProfileDirty(); pendingHeadSign = ''; renderHeadSign(); }
         // class teacher signature field inside the Add / Edit Class form
         function geSignRefresh(i) { const v = geFields[i].sign || ''; document.getElementById('ge-sign-' + i).innerHTML = signPreview(v); document.getElementById('ge-sign-btn-' + i).textContent = v ? 'Change' : 'Sign'; document.getElementById('ge-sign-rm-' + i).classList.toggle('hidden', !v); }
         function geSignEdit(i) { openSignPad(geFields[i].label, v => { geFields[i].sign = v; geSignRefresh(i); }); }
         function geSignRemove(i) { geFields[i].sign = ''; geSignRefresh(i); }
+        // ---- assistant heads (vice principal, secretary...) ----
+        const newAsstId = () => 'AS_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        function renderAssistants() {
+            const el = document.getElementById('assistant-list'); if (!el) return; const list = appState.assistants || [];
+            document.getElementById('assistant-add').disabled = list.length >= 6;
+            el.innerHTML = list.length ? list.map((a, i) => `<div class="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input type="text" maxlength="60" value="${esc(a.title)}" placeholder="Designation (e.g., Vice Principal)" oninput="asstEdit(${i}, 'title', this.value)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                    <input type="text" maxlength="80" value="${esc(a.name)}" placeholder="Name" oninput="asstEdit(${i}, 'name', this.value)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></div>
+                <div class="flex items-center gap-2">
+                    <div class="w-24 h-12 shrink-0 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden">${signPreview(a.sign)}</div>
+                    <button type="button" class="abtn abtn-ok" onclick="asstSign(${i})">${a.sign ? 'Change' : 'Sign'}</button>${a.sign ? `<button type="button" class="abtn abtn-gray" onclick="asstEdit(${i}, 'sign', ''); renderAssistants()">Remove</button>` : ''}
+                    <button type="button" class="abtn abtn-del ml-auto" aria-label="Delete" onclick="asstDelete(${i})"><i class="fas fa-trash"></i></button></div>
+                <label class="flex items-start gap-2 text-sm"><input type="checkbox" class="w-5 h-5 mt-0.5 shrink-0 accent-emerald-700" ${a.show ? 'checked' : ''} onchange="asstEdit(${i}, 'show', this.checked)"><span>Show name &amp; signature on the result certificate</span></label></div>`).join('')
+                : '<p class="text-xs text-slate-400">No assistant heads added.</p>';
+        }
+        function asstEdit(i, k, v) { appState.assistants[i][k] = v; markProfileDirty(); }
+        function addAssistant() {
+            appState.assistants = appState.assistants || [];
+            if (appState.assistants.length >= 6) { showToast('You can add up to 6 assistant heads.', 'error'); return; }
+            appState.assistants.push({ id: newAsstId(), title: '', name: '', sign: '', show: true }); markProfileDirty(); renderAssistants();
+            const inp = document.querySelector('#assistant-list > div:last-child input'); if (inp) inp.focus();
+        }
+        function asstSign(i) { const a = appState.assistants[i]; openSignPad((a.title || 'Assistant head') + (a.name ? ' \u2014 ' + a.name : ''), v => { a.sign = v; markProfileDirty(); renderAssistants(); showToast('Signature ready. Press Save Profile Changes to keep it.', 'info'); }); }
+        function asstDelete(i) { const a = appState.assistants[i]; if (!confirm(`Remove ${a.title || a.name || 'this assistant head'}?`)) return; appState.assistants.splice(i, 1); markProfileDirty(); renderAssistants(); }
         // ---- accent colour picker ----
         const ACCENTS = ['#065f46', '#0f766e', '#1d4ed8', '#4338ca', '#7e22ce', '#be123c', '#c2410c', '#78350f', '#334155'];
         let pendingAccent = null; // null = unchanged
@@ -1911,8 +2099,8 @@
             document.getElementById('accent-swatches').innerHTML = ACCENTS.map(c => `<button type="button" aria-label="Colour ${c}" onclick="pickAccent('${c}')" style="background:${c}" class="w-9 h-9 rounded-full border-2 ${c === cur ? 'border-slate-900 ring-2 ring-offset-2 ring-slate-400' : 'border-white shadow'}"></button>`).join('');
             document.getElementById('accent-custom').value = /^#[0-9a-f]{6}$/i.test(cur) ? cur : '#065f46';
         }
-        function pickAccent(hex) { hex = String(hex).toLowerCase(); pendingAccent = hex === '#065f46' ? '' : hex; applyAccent(pendingAccent); renderAccentPicker(); }
-        function clearLogo() { pendingLogo = ''; document.getElementById('setting-madrasa-logo').value = ''; setLogoPreview(''); }
+        function pickAccent(hex) { markProfileDirty(); hex = String(hex).toLowerCase(); pendingAccent = hex === '#065f46' ? '' : hex; applyAccent(pendingAccent); renderAccentPicker(); }
+        function clearLogo() { markProfileDirty(); pendingLogoCropped = false; pendingLogo = ''; document.getElementById('setting-madrasa-logo').value = ''; setLogoPreview(''); }
 
         let logoTaps = 0, logoTimer;
         function logoTap() { logoTaps++; clearTimeout(logoTimer); logoTimer = setTimeout(() => logoTaps = 0, 1500); if (logoTaps >= 5) { logoTaps = 0; openStaffLogin(); } }
@@ -2018,6 +2206,14 @@
                 <thead><tr><th>Exam</th><th class="c">Marks</th><th class="c">%</th><th class="c">Result</th><th class="c">Grade</th></tr></thead><tbody>`
                 + exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? 'rgb(var(--em-700))' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
                 + `<tr><td style="font-weight:800;${bg}">Overall</td><td class="c" style="font-weight:800;${bg}">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;${bg}">${overall.percentage}%</td><td class="c" style="font-weight:800;${bg};color:${overall.failedCount ? '#dc2626' : 'rgb(var(--em-700))'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;${bg}">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr></tbody></table></div></div>`;
+            const extras = (d.assistants || []).filter(a => a.name || a.sign), sealHTML = `<div class="ms-seal" title="Security hologram">${sec.seal}</div>`;
+            let footHTML;
+            if (!extras.length) footHTML = `<div class="ms-foot">${sigBlock(cls.teacherTitle || 'Class Teacher', cls.teacherName, cls.teacherSign)}${sealHTML}${sigBlock(madrasa.headTitle || 'Principal', madrasa.headName, madrasa.headSign)}</div>`;
+            else { // more signers: hologram moves up, signatures share one tidy row (or two when there are many)
+                const signers = [[cls.teacherTitle || 'Class Teacher', cls.teacherName, cls.teacherSign], ...extras.map(a => [a.title || 'Assistant', a.name, a.sign]), [madrasa.headTitle || 'Principal', madrasa.headName, madrasa.headSign]];
+                const cols = signers.length <= 4 ? signers.length : Math.ceil(signers.length / 2);
+                footHTML = `<div class="ms-foot ms-foot-multi"><div class="ms-seal-row">${sealHTML}</div><div class="ms-sigs" style="grid-template-columns:repeat(${cols}, minmax(0, 1fr))">${signers.map(x => sigBlock(...x)).join('')}</div></div>`;
+            }
             const issued = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
             return `<div class="ms-wm" style="background-image:${sec.bg}" aria-hidden="true">${sec.wmImg}</div>
@@ -2042,11 +2238,7 @@
                         ${attOn ? `<div class="ms-box"><h4>Attendance</h4><p class="big">${att}% <small>(${present}/${days} days)</small></p><div class="ms-bar"><div style="width:${att}%"></div></div></div>` : ''}
                     </div>
                     ${overallHTML}
-                    <div class="ms-foot">
-                        ${sigBlock(cls.teacherTitle || 'Class Teacher', cls.teacherName, cls.teacherSign)}
-                        <div class="ms-seal" title="Security hologram">${sec.seal}</div>
-                        ${sigBlock(madrasa.headTitle || 'Principal', madrasa.headName, madrasa.headSign)}
-                    </div>
+                    ${footHTML}
                     <p class="ms-note">Date of issue: ${issued} &bull; Computer generated result.</p>
                     <div class="ms-micro" aria-hidden="true" style="margin-top:8px">${esc(sec.micro)}</div>
                 </div>`;
@@ -2098,7 +2290,7 @@
 
         async function displayMarksheet(d) {
             const lg0 = ((d.madrasa || {}).logo || '').trim();
-            if (lg0) { const t = await trimImage(lg0); if (t !== lg0) d = { ...d, madrasa: { ...d.madrasa, logo: t } }; }
+            if (lg0 && !(d.madrasa || {}).logoCropped) { const t = await trimImage(lg0); if (t !== lg0) d = { ...d, madrasa: { ...d.madrasa, logo: t } }; }
             const nameV = (d.details[0] || {}).value || '';
             const admV = ((d.details.find(x => x.label === admLabel()) || {}).value) || document.getElementById('search-adm-input').value.trim().toUpperCase();
             lastMs = { adm: admV, name: nameV, img: null };
@@ -2130,18 +2322,33 @@
             });
             return h2cPromise;
         }
+        function looksBlank(canvas, r, minFrac) {
+            if (!r || r.w < 4 || r.h < 4) return false;
+            const x = Math.max(0, Math.floor(r.x)), y = Math.max(0, Math.floor(r.y)), w = Math.min(canvas.width - x, Math.floor(r.w)), h = Math.min(canvas.height - y, Math.floor(r.h));
+            if (w <= 0 || h <= 0) return false;
+            const d = canvas.getContext('2d').getImageData(x, y, w, h).data; let ink = 0, n = 0;
+            for (let i = 0; i < d.length; i += 16) { n++; if (d[i + 3] > 20 && (d[i] < 235 || d[i + 1] < 235 || d[i + 2] < 235)) ink++; }
+            return ink / n < minFrac;
+        }
         async function renderMarksheetBlob() {
-            const h2c = await loadHtml2Canvas(), src = document.getElementById('printable-result');
-            const stage = document.createElement('div');
+            const src = document.getElementById('printable-result'), stage = document.createElement('div');
             stage.style.cssText = 'position:fixed;left:-10000px;top:0;width:820px;pointer-events:none';
             const clone = src.cloneNode(true); clone.removeAttribute('id'); clone.classList.add('ms-export'); clone.style.width = '820px';
-            stage.appendChild(clone); document.body.appendChild(stage);
+            stage.appendChild(clone); document.body.appendChild(stage); // copy of THIS result, taken before anything slow happens
             try {
+                const h2c = await loadHtml2Canvas();
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
-                await Promise.all([...clone.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+                await Promise.all([...clone.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => { }) : (i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))));
                 fixContainImages(clone);
                 const h = clone.offsetHeight || 1200, scale = Math.max(1.5, Math.min(3, Math.sqrt(16e6 / (820 * h))));
-                const canvas = await h2c(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, width: 820, windowWidth: 820 });
+                const cr = clone.getBoundingClientRect(), rel = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { x: (r.left - cr.left) * scale, y: (r.top - cr.top) * scale, w: r.width * scale, h: r.height * scale }; };
+                const logoBox = rel(clone.querySelector('.ms-logo')), marksBox = rel(clone.querySelector('.ms-table tbody'));
+                let canvas;
+                for (let attempt = 0; attempt < 3; attempt++) { // if the logo or the marks came out empty, draw it again
+                    canvas = await h2c(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, width: 820, windowWidth: 820, imageTimeout: 30000 });
+                    if (!looksBlank(canvas, logoBox, .01) && !looksBlank(canvas, marksBox, .004)) break;
+                    await new Promise(r => setTimeout(r, 400));
+                }
                 return await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('Image could not be created')), 'image/png'));
             } finally { stage.remove(); }
         }
@@ -2229,7 +2436,7 @@
         // ================= BACKUP / RESTORE =================
         const BACKUP_TYPE = 'result-publisher-backup';
         function downloadBackup() {
-            const keys = ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', 'teachers', ...TABLES], data = {};
+            const keys = ['madrasa', 'announcements', 'portal', 'grades', 'fields', 'classSigns', 'teachers', 'assistants', ...TABLES], data = {};
             keys.forEach(k => { data[k] = clone(appState[k]); });
             const file = { type: BACKUP_TYPE, version: 1, exportedAt: new Date().toISOString(), institution: appState.madrasa.name, data };
             const a = document.createElement('a');
@@ -2261,6 +2468,7 @@
                 const m = obj(D.madrasa), fields = Array.isArray(D.fields) && D.fields.some(x => x && x.id === 'admissionNo') ? D.fields.filter(x => x && x.id).map(x => ({ id: S(x.id), label: S(x.label), show: !!x.show })) : appState.fields;
                 Object.assign(appState, { madrasa: { ...appState.madrasa, ...m, name: S(m.name).trim() || appState.madrasa.name },
                     announcements: Array.isArray(D.announcements) ? D.announcements.map(S) : [], portal: { ...appState.portal, ...obj(D.portal) },
+                    assistants: (Array.isArray(D.assistants) ? D.assistants : []).slice(0, 8).map(x => ({ id: S(x && x.id) || newAsstId(), title: S(x && x.title).slice(0, 60), name: S(x && x.name).slice(0, 80), sign: x && typeof x.sign === 'string' && x.sign.startsWith('data:image/') ? x.sign : '', show: !!(x && x.show) })),
                     teachers: (Array.isArray(D.teachers) ? D.teachers : []).filter(x => x && /^[A-Za-z0-9_-]{24,64}$/.test(S(x.token))).map(x => ({ id: S(x.id) || 'T_' + Math.random().toString(36).slice(2, 9), name: S(x.name) || 'Teacher', token: S(x.token), subjectIds: (Array.isArray(x.subjectIds) ? x.subjectIds.map(S) : []).filter(id => subjects.some(b => b.id === id)), active: x.active !== false, attendance: x.attendance !== false, createdAt: S(x.createdAt) })),
                     classSigns: Object.fromEntries(Object.entries(obj(D.classSigns)).filter(([id, v]) => typeof v === 'string' && v.startsWith('data:image/') && classes.some(c => c.id === id))),
                     grades: D.grades && Array.isArray(D.grades.scale) ? D.grades : appState.grades, fields, exams, classes, subjects, students, results });
@@ -2657,6 +2865,7 @@
                 result: { attendanceDays: Number.isFinite(Number(cur.attendanceDays)) ? Number(cur.attendanceDays) : 0, marks, grades: Object.fromEntries(mySubs.map(s => [s.id, isAb(marks[s.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exactPct(Number(marks[s.id]) || 0, Number(s.maxMarks)), !subOk(marks, s), G)])) },
                 summary: { obtained, max: maxPer, percentage: pctOf(obtained, maxPer), passed, grade: gradeOf(myPct, !passed, G) },
                 position: appState.portal.showPosition !== false ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
+                assistants: (appState.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })),
                 exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exactPct(oObt, oMax), failedCount > 0, G) }
             };
         }
@@ -2681,12 +2890,13 @@
             try {
                 await new Promise(r => setTimeout(r, 50));
                 // logos/signatures are big text strings: turn each into one short blob link so hundreds of pages stay light
-                const blobFor = async u => { if (!u || !u.startsWith('data:')) return u || ''; if (!cache.has(u)) { try { const b = URL.createObjectURL(await (await fetch(u)).blob()); blobs.push(b); cache.set(u, b); } catch (e) { cache.set(u, u); } } return cache.get(u); };
+                const blobFor = async u => { if (!u || !(u.startsWith('data:') || u.startsWith('/'))) return u || ''; if (!cache.has(u)) { try { const b = URL.createObjectURL(await (await fetch(u)).blob()); blobs.push(b); cache.set(u, b); } catch (e) { cache.set(u, u); } } return cache.get(u); };
                 const m0 = appState.madrasa, logo0 = (m0.logo || '').trim();
                 const madrasa = { ...m0, logo: await blobFor(logo0 ? await trimImage(logo0) : ''), headSign: await blobFor(m0.headSign) };
                 for (const d of list) d.cls.teacherSign = await blobFor(d.cls.teacherSign);
+                const assistants = []; for (const a of (list[0].assistants || [])) assistants.push({ ...a, sign: await blobFor(a.sign) });
                 root = document.createElement('div'); root.id = 'print-root';
-                root.innerHTML = list.map((d, i) => `<div class="ms-sheet ms-bulk">${marksheetHTML({ ...d, madrasa }, 'b' + i)}</div>`).join('');
+                root.innerHTML = list.map((d, i) => `<div class="ms-sheet ms-bulk">${marksheetHTML({ ...d, madrasa, assistants }, 'b' + i)}</div>`).join('');
                 document.body.appendChild(root); document.body.classList.add('print-bulk');
                 await Promise.all([...root.querySelectorAll('img')].slice(0, 2).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
                 const old = document.title;
@@ -2718,6 +2928,7 @@
             e.preventDefault();
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
+            const lb = e.target.querySelector('button[type=submit]'), lbHtml = lb ? lb.innerHTML : ''; if (lb) { lb.disabled = true; lb.innerHTML = '<span class="btn-spin"></span>Signing in...'; }
             try {
                 const { token: t } = await api('/login', { method: 'POST', body: { slug: TENANT, username, password } });
                 token = t; localStorage.setItem(TOKEN_KEY, t);
@@ -2726,12 +2937,13 @@
                 document.getElementById('admin-login-screen').classList.add('hidden');
                 document.getElementById('admin-dashboard').classList.remove('hidden');
                 switchAdminTab('overview');
+                showAppLoader('Loading your data...');
                 await loadAdminState();
                 showToast("Welcome to the Admin Panel", "success");
             } catch (err) {
                 isAdminAuthenticated = false;
                 showToast(err.message, "error");
-            }
+            } finally { hideAppLoader(); if (lb) { lb.disabled = false; lb.innerHTML = lbHtml; } }
         }
 
         function handleAdminLogout() {
@@ -2772,6 +2984,24 @@
             if (tabId === 'setup') renderSetup();
         }
 
+        // ---- Overview form: unsaved changes (logo, name, signature, colour...) survive any background refresh ----
+        let profileDirty = false, pendingLogoCropped = false, entryDirty = false, suppressEntryReload = false;
+        function markProfileDirty() { profileDirty = true; }
+        const logoValue = () => pendingLogo !== null ? pendingLogo : (appState.madrasa.logo || '');
+        function appNameInput() { const i = document.getElementById('setting-app-name'); document.getElementById('app-name-count').textContent = i.value.length + '/12'; }
+        function renderProfileForm() {
+            const m = appState.madrasa, g = id => document.getElementById(id);
+            if (!profileDirty) {
+                pendingLogo = null; pendingAccent = null; pendingHeadSign = null; pendingLogoCropped = false;
+                g('setting-madrasa-name').value = m.name; g('setting-madrasa-subtitle').value = m.subtitle;
+                g('setting-app-name').value = m.appName || ''; appNameInput();
+                const lg = m.logo || '';
+                g('setting-madrasa-logo').value = lg.startsWith('data:') ? '' : lg;
+                g('setting-madrasa-logo').placeholder = lg.startsWith('data:') ? 'Using the uploaded image' : 'https://example.com/logo.png';
+                g('setting-share-text').value = m.shareText || ''; g('setting-head-title').value = m.headTitle || ''; g('setting-head-name').value = m.headName || '';
+            }
+            applyAccent(accentValue()); renderAccentPicker(); setLogoPreview(logoValue()); renderHeadSign(); renderAssistants();
+        }
         function renderAllAdminData() {
             // Overview stats
             document.getElementById('stat-students').textContent = appState.students.length;
@@ -2779,24 +3009,13 @@
             document.getElementById('stat-exams').textContent = appState.exams.filter(e => e.isPublic).length;
             document.getElementById('stat-results').textContent = appState.results.length;
 
-            // Settings inputs
-            document.getElementById('setting-madrasa-name').value = appState.madrasa.name;
-            document.getElementById('setting-madrasa-subtitle').value = appState.madrasa.subtitle;
-            pendingLogo = null; pendingAccent = null; applyAccent(appState.madrasa.accent || ''); renderAccentPicker();
-            const lg = appState.madrasa.logo || '';
-            document.getElementById('setting-madrasa-logo').value = lg.startsWith('data:') ? '' : lg;
-            document.getElementById('setting-madrasa-logo').placeholder = lg.startsWith('data:') ? 'Using the uploaded image' : 'https://example.com/logo.png';
-            setLogoPreview(lg);
-            document.getElementById('setting-share-text').value = appState.madrasa.shareText || '';
-            document.getElementById('setting-head-title').value = appState.madrasa.headTitle || '';
-            document.getElementById('setting-head-name').value = appState.madrasa.headName || '';
-            pendingHeadSign = null; renderHeadSign();
+            renderProfileForm();
 
             updateCounts();
             renderAdminAnnouncements();
             renderAdminExams();
             renderAdminClasses();
-            populateClassDropdowns();
+            suppressEntryReload = entryDirty; populateClassDropdowns(); suppressEntryReload = false; // keep marks that are still being typed
             renderAdminSubjects();
             renderAdminStudents();
             renderStudentForm();
@@ -2809,17 +3028,21 @@
         // ================= TAB 1: SETTINGS & ANNOUNCEMENTS =================
         function saveMadrasaSettings(e) {
             e.preventDefault();
-            appState.madrasa.name = document.getElementById('setting-madrasa-name').value.trim();
-            appState.madrasa.subtitle = document.getElementById('setting-madrasa-subtitle').value.trim();
-            appState.madrasa.logo = pendingLogo !== null ? pendingLogo : normalizeLogoUrl(document.getElementById('setting-madrasa-logo').value);
-            pendingLogo = null;
-            appState.madrasa.shareText = document.getElementById('setting-share-text').value.trim();
-            appState.madrasa.headTitle = document.getElementById('setting-head-title').value.trim();
-            appState.madrasa.headName = document.getElementById('setting-head-name').value.trim();
-            if (pendingHeadSign !== null) appState.madrasa.headSign = pendingHeadSign;
-            if (pendingAccent !== null) appState.madrasa.accent = pendingAccent;
-            pendingAccent = null;
-            pendingHeadSign = null; renderHeadSign();
+            const m = appState.madrasa, g = id => document.getElementById(id);
+            m.name = g('setting-madrasa-name').value.trim();
+            m.subtitle = g('setting-madrasa-subtitle').value.trim();
+            m.appName = g('setting-app-name').value.trim().slice(0, 12);
+            const cur = m.logo || '', urlIn = normalizeLogoUrl(g('setting-madrasa-logo').value);
+            m.logo = pendingLogo !== null ? pendingLogo : (urlIn ? urlIn : (cur.startsWith('data:') ? cur : '')); // an uploaded logo is never wiped by an empty link box
+            if (pendingLogo !== null) m.logoCropped = !!pendingLogoCropped && !!pendingLogo; else if (urlIn && urlIn !== cur) m.logoCropped = false;
+            m.shareText = g('setting-share-text').value.trim();
+            m.headTitle = g('setting-head-title').value.trim();
+            m.headName = g('setting-head-name').value.trim();
+            if (pendingHeadSign !== null) m.headSign = pendingHeadSign;
+            if (pendingAccent !== null) m.accent = pendingAccent;
+            appState.assistants = (appState.assistants || []).filter(a => a.title || a.name || a.sign);
+            pendingLogo = null; pendingAccent = null; pendingHeadSign = null; pendingLogoCropped = false; profileDirty = false;
+            renderProfileForm();
             saveState();
             showToast("Institution profile updated!", "success");
         }
@@ -2859,6 +3082,7 @@
             renderAdminAnnouncements();
             showToast("Announcement removed.", "info");
         }
+
 
         // ================= TAB 2: EXAMS, CLASSES & SUBJECTS =================
         function createExam(e) {
@@ -3167,6 +3391,8 @@
         }
 
         function loadMarksEntrySheet() {
+            if (suppressEntryReload) return;
+            entryDirty = false;
             const examId = document.getElementById('entry-exam-select').value;
             const classId = document.getElementById('entry-class-select').value;
             const studentId = document.getElementById('entry-student-select').value;
@@ -3286,6 +3512,7 @@
                 if (inp.closest('tr').querySelector('.entry-absent').checked) marksObj[subId] = 'AB';
                 else if (inp.value !== '') marksObj[subId] = Number(inp.value);
             });
+            entryDirty = false;
             const pendingN = inputs.length - Object.keys(marksObj).length;
             if (!Object.keys(marksObj).length && !appState.results.some(r => r.examId === examId && r.studentId === studentId)) { showToast('Enter at least one subject mark to save.', 'error'); return; }
 
@@ -3326,10 +3553,11 @@
         document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('table.rtable tbody').forEach(tb => labelObserver.observe(tb, { childList: true })));
 
         // Initialize Application on Load
-        window.addEventListener('DOMContentLoaded', async () => {
+        async function bootApp() {
             ['ge-modal', 'sp-modal', 'tl-modal', 'student-edit-modal', 'fab'].forEach(id => { const el = document.getElementById(id); if (el) document.body.appendChild(el); }); // dialogs must work on every screen
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
             document.querySelectorAll('select').forEach(enhanceSelect);
+            const mew = document.getElementById('marks-entry-workspace'); if (mew) { mew.addEventListener('input', () => { entryDirty = true; }); mew.addEventListener('change', () => { entryDirty = true; }); }
             ['acad', 'stu', 'setup'].forEach(g => showSub(g, subState[g]));
             [['stat-students', () => { switchAdminTab('students'); showSub('stu', 'dir'); }], ['stat-classes', () => { switchAdminTab('academics'); showSub('acad', 'classes'); }],
              ['stat-exams', () => { switchAdminTab('academics'); showSub('acad', 'exams'); }], ['stat-results', () => switchAdminTab('marks')]].forEach(([id, fn]) => {
@@ -3353,6 +3581,10 @@
                     switchAdminTab('overview');
                 } catch (e) { token = ''; localStorage.removeItem(TOKEN_KEY); isAdminAuthenticated = false; switchView('admin'); }
             }
+        }
+        window.addEventListener('DOMContentLoaded', async () => {
+            setTimeout(hideAppLoader, 20000); // safety: never leave the loading screen up forever
+            try { await bootApp(); } catch (e) { console.error(e); } finally { hideAppLoader(); }
         });
     </script>
 </body>
