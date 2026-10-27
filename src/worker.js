@@ -64,15 +64,17 @@ h1{font-size:20px;margin:0 0 6px}h2{font-size:14px;font-weight:600;color:#64748b
 }
 
 // ---------- database: schema + automatic upgrade from the old single-institution version ----------
+const CLASS_STATS_SQL = 'CREATE TABLE IF NOT EXISTS class_stats (tenant_id INTEGER NOT NULL, exam_id TEXT NOT NULL, class_id TEXT NOT NULL, rev INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL, PRIMARY KEY (tenant_id, exam_id, class_id))';
 const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-  "CREATE TABLE IF NOT EXISTS tenants (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, admin_user TEXT NOT NULL, admin_salt TEXT NOT NULL, admin_hash TEXT NOT NULL, admin_ver INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active', plan TEXT NOT NULL DEFAULT 'standard', paid_until TEXT NOT NULL DEFAULT '', max_students INTEGER NOT NULL DEFAULT 500, contact TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '')",
+  "CREATE TABLE IF NOT EXISTS tenants (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, admin_user TEXT NOT NULL, admin_salt TEXT NOT NULL, admin_hash TEXT NOT NULL, admin_ver INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active', plan TEXT NOT NULL DEFAULT 'standard', paid_until TEXT NOT NULL DEFAULT '', max_students INTEGER NOT NULL DEFAULT 500, contact TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '', rev INTEGER NOT NULL DEFAULT 0, arev INTEGER NOT NULL DEFAULT 0)",
   "CREATE TABLE IF NOT EXISTS settings (tenant_id INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (tenant_id, key))",
   "CREATE TABLE IF NOT EXISTS exams (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, is_public INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (tenant_id, id))",
   "CREATE TABLE IF NOT EXISTS classes (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, working_days INTEGER NOT NULL DEFAULT 200, teacher_title TEXT NOT NULL DEFAULT '', teacher_name TEXT NOT NULL DEFAULT '', PRIMARY KEY (tenant_id, id))",
   "CREATE TABLE IF NOT EXISTS subjects (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, class_id TEXT NOT NULL, name TEXT NOT NULL, max_marks INTEGER NOT NULL, pass_marks INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (tenant_id, id))",
   "CREATE TABLE IF NOT EXISTS students (tenant_id INTEGER NOT NULL, id TEXT NOT NULL, admission_no TEXT NOT NULL, name TEXT NOT NULL, father_name TEXT NOT NULL DEFAULT '', class_id TEXT NOT NULL, extra TEXT NOT NULL DEFAULT '{}', PRIMARY KEY (tenant_id, id), UNIQUE (tenant_id, admission_no))",
   "CREATE TABLE IF NOT EXISTS results (tenant_id INTEGER NOT NULL, exam_id TEXT NOT NULL, student_id TEXT NOT NULL, attendance_days INTEGER NOT NULL DEFAULT 0, marks TEXT NOT NULL DEFAULT '{}', PRIMARY KEY (tenant_id, exam_id, student_id))",
+  CLASS_STATS_SQL,
   "CREATE INDEX IF NOT EXISTS idx_subjects_class ON subjects(tenant_id, class_id)",
   "CREATE INDEX IF NOT EXISTS idx_students_class ON students(tenant_id, class_id)",
   "CREATE INDEX IF NOT EXISTS idx_results_student ON results(tenant_id, student_id)"
@@ -119,9 +121,22 @@ async function ensureTenancy(db, env) {
       await db.batch(stmts);
     }
   }
+  await migrate(db);
   tenancyReady = true;
 }
-const getDefaultSlug = async db => (await db.prepare("SELECT value FROM meta WHERE key='default_slug'").first())?.value || '';
+// one-time, automatic upgrade for databases created before revisions existed
+async function migrate(db) {
+  try {
+    const v = (await db.prepare("SELECT value FROM meta WHERE key='schema_ver'").first())?.value;
+    if (Number(v) >= 2) return;
+    const { results } = await db.prepare('PRAGMA table_info(tenants)').all(), stmts = [];
+    for (const c of ['rev', 'arev']) if (!results.some(r => r.name === c)) stmts.push(db.prepare(`ALTER TABLE tenants ADD COLUMN ${c} INTEGER NOT NULL DEFAULT 0`));
+    stmts.push(db.prepare(CLASS_STATS_SQL), db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_ver', '2')"));
+    await db.batch(stmts);
+  } catch (e) { /* another request upgraded it at the same moment */ }
+}
+let defSlugMemo = { v: '', at: 0 };
+const getDefaultSlug = async db => { if (Date.now() - defSlugMemo.at < 30000) return defSlugMemo.v; const v = (await db.prepare("SELECT value FROM meta WHERE key='default_slug'").first())?.value || ''; defSlugMemo = { v, at: Date.now() }; return v; };
 const tenantBySlug = (db, slug) => db.prepare('SELECT * FROM tenants WHERE slug=?').bind(cleanSlug(slug)).first();
 
 // ---------- per-institution data ----------
@@ -162,6 +177,15 @@ const DEF = {
   fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }],
 };
 // ---- public views get the logo as a small cacheable image link instead of a big embedded copy ----
+// Each request reads the institution's row (1 row) anyway. Its revision number says if anything public changed,
+// so data loaded earlier by this server instance is reused only while the revision is identical: always fresh, never delayed.
+const MEMO = new Map();
+const memo = t => {
+  let m = MEMO.get(t.id);
+  if (!m || m.rev !== (t.rev || 0)) { m = { rev: t.rev || 0, v: {} }; MEMO.delete(t.id); if (MEMO.size >= 24) MEMO.delete(MEMO.keys().next().value); MEMO.set(t.id, m); }
+  return m.v;
+};
+const jsonStr = (str, s = 200) => new Response(str, { status: s, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 const hashStr = x => { let h = 5381; for (let i = 0; i < x.length; i += 7) h = ((h << 5) + h + x.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + x.length.toString(36); };
 const logoRef = (t, logo) => logo && (logo.startsWith('data:') || /^https:\/\//i.test(logo)) ? `/${t.slug}/logo?v=${hashStr(logo)}` : (logo || '');
 const pubMadrasa = (t, m, withSign) => { const { headSign, ...rest } = m; return { ...rest, logo: logoRef(t, m.logo), ...(withSign ? { headSign } : {}) }; };
@@ -180,16 +204,20 @@ const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0)
 const exact = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, never the rounded one
 const subPassed = (m, x) => !absent(m?.[x.id]) && (Number(m?.[x.id]) || 0) >= x.passingMarks;
 
-async function adminState(db, tid) {
-  const [ex, cl, su, st, re] = await db.batch(['exams', 'classes', 'subjects', 'students', 'results'].map(t => db.prepare(`SELECT * FROM ${t} WHERE tenant_id=?`).bind(tid)));
-  return {
-    ...(await settings(db, tid)),
+async function adminState(db, t) {
+  const tid = t.id, [ex, cl, su, st, re] = await db.batch(['exams', 'classes', 'subjects', 'students', 'results'].map(x => db.prepare(`SELECT * FROM ${x} WHERE tenant_id=?`).bind(tid)));
+  const body = {
+    ...(await settings(db, tid)), rev: t.rev || 0, arev: t.arev || 0,
     exams: ex.results.map(r => ({ id: r.id, name: r.name, isPublic: !!r.is_public })),
     classes: cl.results.map(r => ({ id: r.id, name: r.name, totalWorkingDays: r.working_days, teacherTitle: r.teacher_title || '', teacherName: r.teacher_name || '' })),
     subjects: su.results.map(r => ({ id: r.id, classId: r.class_id, name: r.name, maxMarks: r.max_marks, passingMarks: r.pass_marks, active: r.active !== 0 })),
     students: st.results.map(r => ({ id: r.id, admissionNo: r.admission_no, name: r.name, fatherName: r.father_name, classId: r.class_id, extra: JSON.parse(r.extra || '{}') })),
-    results: re.results.map(r => ({ examId: r.exam_id, studentId: r.student_id, attendanceDays: r.attendance_days, marks: JSON.parse(r.marks) })),
+    institution: { slug: t.slug, plan: t.plan, maxStudents: t.max_students, paidUntil: t.paid_until },
+    results: '@@RESULTS@@',
   };
+  // marks were checked when saved, so they go out as they are stored (no parse + rebuild = much less CPU)
+  const raw = '[' + re.results.map(r => `{"examId":${JSON.stringify(r.exam_id)},"studentId":${JSON.stringify(r.student_id)},"attendanceDays":${Number(r.attendance_days)},"marks":${r.marks || '{}'}}`).join(',') + ']';
+  return JSON.stringify(body).replace('"@@RESULTS@@"', () => raw);
 }
 
 async function sync(db, t, body) {
@@ -250,35 +278,59 @@ async function sync(db, t, body) {
     }
     if (a) { if (!Array.isArray(a) || a.length > 30) throw new Error('Too many announcements'); put('announcements', a.map(x => str(x, 500))); }
   }
-  if (stmts.length) await db.batch(stmts); // atomic
+  if (!stmts.length) return { rev: t.rev || 0, arev: t.arev || 0 };
+  // revision numbers: arev = anything changed (admin copies), rev = anything a parent can see
+  let pub = ['classes', 'exams', 'subjects', 'students'].some(k => up[k]?.length || del[k]?.length);
+  if (!pub && up.settings) pub = Object.keys(up.settings).some(k => k !== 'teachers');
+  if (!pub) {
+    const exIds = [...new Set([...(up.results || []).map(r => String(r.examId)), ...(del.results || []).map(k => String(k).split('|')[0])])];
+    if (exIds.length) {
+      const { results } = await db.prepare(`SELECT id FROM exams WHERE tenant_id=? AND is_public=1 AND id IN (${exIds.map(() => '?').join(',')})`).bind(tid, ...exIds.slice(0, 90)).all();
+      pub = results.length > 0;
+    }
+  }
+  if (del.exams?.length) stmts.push(db.prepare(`DELETE FROM class_stats WHERE tenant_id=? AND exam_id IN (${del.exams.map(() => '?').join(',')})`).bind(tid, ...del.exams.slice(0, 90)));
+  if (del.classes?.length) stmts.push(db.prepare(`DELETE FROM class_stats WHERE tenant_id=? AND class_id IN (${del.classes.map(() => '?').join(',')})`).bind(tid, ...del.classes.slice(0, 90)));
+  stmts.push(db.prepare(`UPDATE tenants SET arev=arev+1${pub ? ', rev=rev+1' : ''} WHERE id=? RETURNING rev, arev`).bind(tid));
+  const out = await db.batch(stmts); // atomic
+  return out[out.length - 1].results[0] || {};
 }
 
 async function publicInfo(db, t) {
-  const set = await settings(db, t.id, ['madrasa', 'announcements', 'portal', 'fields']), st = tenantState(t);
+  const st = tenantState(t), c = memo(t);
+  if (st === 'active' && c.info) return jsonStr(c.info);
+  const set = await settings(db, t.id, ['madrasa', 'announcements', 'portal', 'fields']);
   if (st !== 'active') return json({ madrasa: { ...pubMadrasa(t, set.madrasa), shareText: '' }, announcements: [], portal: { enabled: false, message: publicBlockedMsg, showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
   const { results } = set.portal.enabled ? await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(t.id).all() : { results: [] };
-  return json({ madrasa: pubMadrasa(t, set.madrasa), announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
+  c.info = JSON.stringify({ rev: t.rev || 0, madrasa: pubMadrasa(t, set.madrasa), announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
+  return jsonStr(c.info);
 }
 
 async function publicResult(db, t, url) {
   const tid = t.id, state = tenantState(t);
   if (state !== 'active') return json({ error: publicBlockedMsg, blocked: true }, 403);
-  const set = await settings(db, tid, ['madrasa', 'portal', 'grades', 'fields', 'classSigns', 'assistants']);
+  const c = memo(t);
+  const set = c.res || (c.res = await settings(db, tid, ['madrasa', 'portal', 'grades', 'fields', 'classSigns', 'assistants']));
   if (!set.portal.enabled) return fail(set.portal.message || 'Results are not available yet.', 403);
   const examId = url.searchParams.get('exam') || '', adm = (url.searchParams.get('adm') || '').trim().toUpperCase();
   if (!examId || !adm) return fail('Exam and admission number are required');
-  const exam = await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND id=? AND is_public=1').bind(tid, examId).first();
+  const pubExams = c.pubExams || (c.pubExams = (await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(tid).all()).results);
+  const exam = pubExams.find(e => e.id === examId);
   if (!exam) return fail('This examination is not available', 404);
   const st = await db.prepare('SELECT * FROM students WHERE tenant_id=? AND admission_no=?').bind(tid, adm).first();
   if (!st) return fail(`No student found with ${set.fields[0]?.label || 'Admission No'}: ${adm}`, 404);
-  const [cl, su, mine, mates] = await db.batch([
-    db.prepare('SELECT name,working_days,teacher_title,teacher_name FROM classes WHERE tenant_id=? AND id=?').bind(tid, st.class_id),
-    db.prepare('SELECT * FROM subjects WHERE tenant_id=? AND class_id=? ORDER BY rowid').bind(tid, st.class_id),
-    db.prepare('SELECT r.exam_id, r.attendance_days, r.marks, e.name FROM results r JOIN exams e ON e.tenant_id=r.tenant_id AND e.id=r.exam_id WHERE r.tenant_id=? AND r.student_id=? AND e.is_public=1 ORDER BY e.rowid').bind(tid, st.id),
-    db.prepare('SELECT r.student_id, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?').bind(tid, examId, st.class_id),
-  ]);
-  const c = cl.results[0], subs = su.results.map(x => ({ id: x.id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks, active: x.active !== 0 }));
-  const cur = mine.results.find(r => r.exam_id === examId);
+  const ck = 'cls:' + st.class_id;
+  if (!c[ck]) {
+    const [cl, su] = await db.batch([
+      db.prepare('SELECT name,working_days,teacher_title,teacher_name FROM classes WHERE tenant_id=? AND id=?').bind(tid, st.class_id),
+      db.prepare('SELECT * FROM subjects WHERE tenant_id=? AND class_id=? ORDER BY rowid').bind(tid, st.class_id),
+    ]);
+    c[ck] = { c: cl.results[0], subs: su.results.map(x => ({ id: x.id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks, active: x.active !== 0 })) };
+  }
+  const { c: cls0, subs } = c[ck];
+  const { results: mineRows } = await db.prepare('SELECT exam_id, attendance_days, marks FROM results WHERE tenant_id=? AND student_id=?').bind(tid, st.id).all();
+  const nameOf = new Map(pubExams.map(e => [e.id, e.name])), mine = pubExams.map(e => ({ ...e, row: mineRows.find(r => r.exam_id === e.id) })).filter(x => x.row);
+  const cur = mineRows.find(r => r.exam_id === examId);
   if (!cur) return fail(`Result not yet uploaded for ${st.name} (${adm}) in the selected exam.`, 404);
   // A subject counts only if it is switched on for the class and marks exist for it; hidden subjects are skipped everywhere.
   const take = m => subs.filter(x => x.active && m?.[x.id] !== undefined);
@@ -289,18 +341,29 @@ async function publicResult(db, t, url) {
   const mySubs = take(marks), maxPer = maxOf(mySubs);
   const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(x => subPassed(marks, x));
   const percentage = pctOf(obtained, maxPer), G = set.grades, myPct = exact(obtained, maxPer);
-  const pcts = mates.results.map(r => JSON.parse(r.marks)).filter(complete).map(m => { const l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
-  const exams = mine.results.filter(r => complete(JSON.parse(r.marks))).map(r => {
-    const m = JSON.parse(r.marks), l = take(m), o = sumMarks(m, l), mx = maxOf(l), ok = l.length > 0 && l.every(x => subPassed(m, x));
-    return { name: r.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exact(o, mx), !ok, G) };
+  // class ranking: one saved row per exam+class (valid while the revision is unchanged); rebuilt once, then reused by everyone
+  let pcts = null;
+  if (set.portal.showPosition) {
+    const sr = await db.prepare('SELECT rev, data FROM class_stats WHERE tenant_id=? AND exam_id=? AND class_id=?').bind(tid, examId, st.class_id).first();
+    if (sr && sr.rev === (t.rev || 0)) pcts = JSON.parse(sr.data);
+    else {
+      const { results: mates } = await db.prepare('SELECT r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?').bind(tid, examId, st.class_id).all();
+      pcts = mates.map(r => JSON.parse(r.marks)).filter(complete).map(m => { const l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
+      try { await db.prepare('INSERT INTO class_stats (tenant_id, exam_id, class_id, rev, data) VALUES (?, ?, ?, ?, ?) ON CONFLICT(tenant_id, exam_id, class_id) DO UPDATE SET rev=excluded.rev, data=excluded.data').bind(tid, examId, st.class_id, t.rev || 0, JSON.stringify(pcts)).run(); } catch (e) { /* ranking still works without the saved copy */ }
+    }
+  }
+  const exams = mine.filter(x => complete(JSON.parse(x.row.marks))).map(x => {
+    const m = JSON.parse(x.row.marks), l = take(m), o = sumMarks(m, l), mx = maxOf(l), ok = l.length > 0 && l.every(y => subPassed(m, y));
+    return { name: x.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exact(o, mx), !ok, G) };
   });
   const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    madrasa: pubMadrasa(t, set.madrasa, true), assistants: (set.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })), exam, cls: { name: c?.name || 'N/A', totalWorkingDays: c?.working_days || 200, teacherTitle: c?.teacher_title || '', teacherName: c?.teacher_name || '', teacherSign: set.classSigns?.[st.class_id] || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
+    rev: t.rev || 0,
+    madrasa: pubMadrasa(t, set.madrasa, true), assistants: (set.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })), exam, cls: { name: cls0?.name || 'N/A', totalWorkingDays: cls0?.working_days || 200, teacherTitle: cls0?.teacher_title || '', teacherName: cls0?.teacher_name || '', teacherSign: set.classSigns?.[st.class_id] || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
-    position: set.portal.showPosition ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
+    position: set.portal.showPosition && pcts ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
     exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
 }
@@ -310,12 +373,12 @@ async function entryApi(req, env, url, slug, token) {
   const db = env.DB, t = await tenantBySlug(db, slug);
   if (!t) return fail('Institution not found', 404);
   if (tenantState(t) !== 'active') return fail(publicBlockedMsg, 403);
-  const set = await settings(db, t.id, ['madrasa', 'teachers']); let tc = null;
+  const set = await settings(db, t.id, ['teachers']), mad = memo(t).madrasa || (memo(t).madrasa = (await settings(db, t.id, ['madrasa'])).madrasa); let tc = null;
   for (const x of set.teachers) if ((await safeEq(token, x.token, env.JWT_SECRET)) && !tc) tc = x;
   if (!tc || tc.active === false) return fail('This link is not valid or has been switched off. Please ask the administrator for a new link.', 403);
   const tid = t.id, picked = new Set(tc.subjectIds || []);
   const [ex, cl, su] = await db.batch([
-    db.prepare('SELECT id,name FROM exams WHERE tenant_id=? ORDER BY rowid').bind(tid),
+    db.prepare('SELECT id,name,is_public FROM exams WHERE tenant_id=? ORDER BY rowid').bind(tid),
     db.prepare('SELECT id,name,working_days FROM classes WHERE tenant_id=? ORDER BY rowid').bind(tid),
     db.prepare('SELECT id,class_id,name,max_marks,pass_marks FROM subjects WHERE tenant_id=? AND active<>0 ORDER BY rowid').bind(tid),
   ]);
@@ -324,7 +387,7 @@ async function entryApi(req, env, url, slug, token) {
   const subOf = id => subs.find(x => x.id === id);
   if (req.method === 'GET' && !url.searchParams.get('subject')) {
     const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
-    return json({ teacher: tc.name, madrasa: { name: set.madrasa.name, logo: logoRef(t, set.madrasa.logo), accent: set.madrasa.accent || '' }, exams: ex.results, attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
+    return json({ teacher: tc.name, madrasa: { name: mad.name, logo: logoRef(t, mad.logo), accent: mad.accent || '' }, exams: ex.results.map(e => ({ id: e.id, name: e.name })), attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
       subjects: subs.map(x => ({ id: x.id, classId: x.class_id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks })),
       students: stu.filter(x => classIds.has(x.class_id)).map(x => ({ id: x.id, classId: x.class_id, admissionNo: x.admission_no, name: x.name })) });
   }
@@ -346,11 +409,12 @@ async function entryApi(req, env, url, slug, token) {
       let att = -1;
       if (!(v === '' || v === null || v === undefined)) { att = Number(v); if (!Number.isInteger(att) || att < 0 || att > days) throw new Error(`Days present for ${avalid.get(sid)} must be a whole number from 0 to ${days}.`); }
       const old = ahave.get(sid), m = old ? JSON.parse(old.marks) : {};
+      if ((old ? old.attendance_days : -1) === att) continue; // nothing changed for this student: nothing is written
       if (att < 0 && !Object.keys(m).length) { if (old) adel.push(exam.id + '|' + sid); } else aup.push({ examId: exam.id, studentId: sid, attendanceDays: att, marks: m });
       an++;
     }
     const astmts = [...(adel.length ? deletes(db, tid, 'results', adel) : []), ...(aup.length ? upserts(db, tid, 'results', aup) : [])];
-    if (astmts.length) await db.batch(astmts);
+    if (astmts.length) { astmts.push(db.prepare(`UPDATE tenants SET arev=arev+1${exam.is_public ? ', rev=rev+1' : ''} WHERE id=?`).bind(tid)); await db.batch(astmts); }
     return json({ ok: true, saved: an });
   }
   const sub = subOf(subjectId);
@@ -368,11 +432,13 @@ async function entryApi(req, env, url, slug, token) {
     else if (absent(v)) m[sub.id] = 'AB';
     else { const x = Number(v); if (!Number.isFinite(x) || x < 0 || x > sub.max_marks) throw new Error(`Marks for ${valid.get(sid)} must be between 0 and ${sub.max_marks}.`); m[sub.id] = Math.round(x * 100) / 100; }
     const att = old ? old.attendance_days : -1;
+    if (old && JSON.stringify(m) === JSON.stringify(JSON.parse(old.marks))) continue; // same marks as before: nothing is written
+    if (!old && !Object.keys(m).length) continue;
     if (!Object.keys(m).length && att < 0) { if (old) del.push(exam.id + '|' + sid); } else up.push({ examId: exam.id, studentId: sid, attendanceDays: att, marks: m });
     n++;
   }
   const stmts = [...(del.length ? deletes(db, tid, 'results', del) : []), ...(up.length ? upserts(db, tid, 'results', up) : [])];
-  if (stmts.length) await db.batch(stmts);
+  if (stmts.length) { stmts.push(db.prepare(`UPDATE tenants SET arev=arev+1${exam.is_public ? ', rev=rev+1' : ''} WHERE id=?`).bind(tid)); await db.batch(stmts); }
   return json({ ok: true, saved: n });
 }
 
@@ -464,7 +530,7 @@ async function superApi(req, env, p, url) {
     if (!m[2] && req.method === 'DELETE') {
       const b = await req.json().catch(() => ({}));
       if (cleanSlug(b.confirm) !== t.slug) throw new Error('Type the institution address to confirm deletion.');
-      const del = ['settings', 'exams', 'classes', 'subjects', 'students', 'results'].map(x => db.prepare(`DELETE FROM ${x} WHERE tenant_id=?`).bind(id));
+      const del = ['settings', 'exams', 'classes', 'subjects', 'students', 'results', 'class_stats'].map(x => db.prepare(`DELETE FROM ${x} WHERE tenant_id=?`).bind(id));
       await db.batch([...del, db.prepare('DELETE FROM tenants WHERE id=?').bind(id), db.prepare("DELETE FROM meta WHERE key='default_slug' AND value=?").bind(t.slug)]);
       return json({ ok: true });
     }
@@ -473,6 +539,7 @@ async function superApi(req, env, p, url) {
     const b = await req.json(), slug = cleanSlug(b.slug);
     if (slug && !(await tenantBySlug(db, slug))) throw new Error('Institution not found');
     if (slug) await db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('default_slug', ?)").bind(slug).run(); else await db.prepare("DELETE FROM meta WHERE key='default_slug'").run();
+    defSlugMemo = { v: slug || '', at: Date.now() };
     return json({ ok: true, defaultSlug: slug });
   }
   if (p === '/api/super/account' && req.method === 'POST') {
@@ -495,10 +562,11 @@ async function api(req, env, url, p) {
     if (!env.JWT_SECRET) return fail('Server is not configured yet: add the JWT_SECRET secret in Cloudflare settings.', 500);
     await ensureTenancy(env.DB, env);
     const db = env.DB, defSlug = await getDefaultSlug(db);
-    let m = p.match(/^\/api\/t\/([a-z0-9-]+)\/(public|result)$/);
+    let m = p.match(/^\/api\/t\/([a-z0-9-]+)\/(public|result|rev)$/);
     if (!m && (p === '/api/public' || p === '/api/result') && defSlug) m = [p, defSlug, p.slice(5)]; // old links / cached pages keep working
     if (m && req.method === 'GET') {
       const t = await tenantBySlug(db, m[1]); if (!t) return fail('Institution not found', 404);
+      if (m[2] === 'rev') return json({ rev: t.rev || 0, active: tenantState(t) === 'active' }); // tiny check: has anything public changed?
       return m[2] === 'public' ? publicInfo(db, t) : publicResult(db, t, url);
     }
     const em = p.match(/^\/api\/t\/([a-z0-9-]+)\/entry\/([A-Za-z0-9_-]{24,64})$/);
@@ -514,9 +582,13 @@ async function api(req, env, url, p) {
     if (p.startsWith('/api/super/')) { if (!(await superAuth(req, env))) return fail('Session expired. Please log in again.', 401); return await superApi(req, env, p, url); }
     if (p.startsWith('/api/admin/')) {
       const a = await tenantAuth(req, env); if (a.status) return json({ error: a.msg, ...(a.blocked ? { blocked: true } : {}) }, a.status);
-      if (p === '/api/admin/state' && req.method === 'GET') return json({ ...(await adminState(db, a.t.id)), institution: { slug: a.t.slug, plan: a.t.plan, maxStudents: a.t.max_students, paidUntil: a.t.paid_until } });
+      if (p === '/api/admin/state' && req.method === 'GET') {
+        const have = url.searchParams.get('arev'), inst = { slug: a.t.slug, plan: a.t.plan, maxStudents: a.t.max_students, paidUntil: a.t.paid_until };
+        if (have !== null && Number(have) === (a.t.arev || 0)) return json({ unchanged: true, arev: a.t.arev || 0, rev: a.t.rev || 0, institution: inst }); // nothing changed: the device copy is current
+        return jsonStr(await adminState(db, a.t));
+      }
       if (p === '/api/admin/account' && req.method === 'POST') return changeTenantAccount(env, a.t, await req.json());
-      if (p === '/api/admin/sync' && req.method === 'POST') { await sync(db, a.t, await req.json()); return json({ ok: true }); }
+      if (p === '/api/admin/sync' && req.method === 'POST') { const r = await sync(db, a.t, await req.json()); return json({ ok: true, rev: r.rev, arev: r.arev }); }
     }
     return fail('Not found', 404);
   } catch (e) {
@@ -529,12 +601,12 @@ async function api(req, env, url, p) {
 async function servePage(req, env, url, route, slug) {
   const res = await env.ASSETS.fetch(new Request(new URL('/', req.url), { method: 'GET' }));
   if (!res.ok || !(res.headers.get('content-type') || '').includes('text/html')) return res;
-  let appTitle = 'Results', name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route, blocked = '';
+  let revStr = '', appTitle = 'Results', name = BRAND, desc = 'Publish and check exam results online.', img = url.origin + '/icons/icon-512.png', status = 200, ogUrl = url.origin + '/', r = route, blocked = '';
   if (slug) {
     const t = await tenantBySlug(env.DB, slug);
     if (!t) { r = 'notfound'; status = 404; slug = ''; }
     else {
-      const m = (await settings(env.DB, t.id, ['madrasa'])).madrasa, lg = m.logo || '', ts = tenantState(t); appTitle = shortName(m.appName, m.name || t.name);
+      const c = memo(t), m = c.madrasa || (c.madrasa = (await settings(env.DB, t.id, ['madrasa'])).madrasa), lg = m.logo || '', ts = tenantState(t); appTitle = shortName(m.appName, m.name || t.name); revStr = String(t.rev || 0);
       if (ts !== 'active') {
         if (r !== 'admin') return blockedPage(m.name || t.name, ts === 'expired' ? 'Portal unavailable' : 'Account suspended', publicBlockedMsg);
         blocked = blockedMsg(ts); // admin address: page loads, but only a platform-owner support session can get past the notice
@@ -551,13 +623,13 @@ async function servePage(req, env, url, route, slug) {
     .on('title', { element(e) { e.setInnerContent(name); } })
     .on('meta[name="description"]', meta(desc)).on('meta[property="og:title"]', meta(name)).on('meta[property="og:description"]', meta(desc))
     .on('meta[property="og:image"]', meta(img)).on('meta[property="og:url"]', meta(ogUrl)).on('meta[property="og:site_name"]', meta(name))
-    .on('meta[name="apple-mobile-web-app-title"]', meta(appTitle)).on('meta[name="blocked"]', meta(blocked)).on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
+    .on('meta[name="apple-mobile-web-app-title"]', meta(appTitle)).on('meta[name="rev"]', meta(revStr)).on('meta[name="blocked"]', meta(blocked)).on('meta[name="tenant"]', meta(slug || '')).on('meta[name="route"]', meta(r))
     .on('link[rel="manifest"]', { element(e) { if (slug) e.setAttribute('href', `/${slug}/manifest.webmanifest`); } })
     .transform(new Response(res.body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...(r === 'entry' ? { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } : {}) } }));
 }
 async function tenantAsset(env, url, slug, kind, defSlug) {
   const t = await tenantBySlug(env.DB, slug); if (!t) return new Response('Not found', { status: 404 });
-  const m = (await settings(env.DB, t.id, ['madrasa'])).madrasa;
+  const c = memo(t), m = c.madrasa || (c.madrasa = (await settings(env.DB, t.id, ['madrasa'])).madrasa);
   if (kind === 'logo') {
     if (/^https:\/\//i.test(m.logo || '')) { // an online logo link: fetch it once and serve it from here
       try {
@@ -593,8 +665,23 @@ async function handle(req, env) {
   return servePage(req, env, url, route, slug);
 }
 
+function trackDb(db, acc) {
+  const wrap = stmt => new Proxy(stmt, { get(target, k) {
+    if (k === '__raw') return target;
+    if (k === 'bind') return (...a) => wrap(target.bind(...a));
+    if (k === 'first') return async () => { const r = await target.all(); acc.q++; acc.r += r.meta?.rows_read || 0; acc.w += r.meta?.rows_written || 0; return r.results[0] ?? null; };
+    if (k === 'all' || k === 'run' || k === 'raw') return async (...a) => { const r = await target[k](...a); acc.q++; acc.r += r?.meta?.rows_read || 0; acc.w += r?.meta?.rows_written || 0; return r; };
+    const v = target[k]; return typeof v === 'function' ? v.bind(target) : v;
+  } });
+  return { prepare: q => wrap(db.prepare(q)), exec: (...a) => db.exec(...a), batch: async arr => { const r = await db.batch(arr.map(x => x.__raw || x)); acc.q++; r.forEach(x => { acc.r += x?.meta?.rows_read || 0; acc.w += x?.meta?.rows_written || 0; }); return r; } };
+}
 export default {
   async fetch(req, env) {
-    try { return await handle(req, env); } catch (e) { return fail(e.message, 500); }
+    try {
+      if (!env.DEBUG_ROWS) return await handle(req, env);
+      const acc = { q: 0, r: 0, w: 0 }, res = await handle(req, { ...env, DB: trackDb(env.DB, acc) }), out = new Response(res.body, res);
+      out.headers.set('X-Via-Worker', '1'); out.headers.set('X-DB-Queries', String(acc.q)); out.headers.set('X-Rows-Read', String(acc.r)); out.headers.set('X-Rows-Written', String(acc.w));
+      return out;
+    } catch (e) { return fail(e.message, 500); }
   },
 };
