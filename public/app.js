@@ -530,6 +530,108 @@
             document.querySelectorAll(`.subtab-btn[data-group="${group}"]`).forEach(b => b.classList.toggle('active', b.dataset.sub === id));
             updateFab();
         }
+        // ================= INSTITUTION OVERVIEW (worked out on this device from the data the admin already has) =================
+        const OV = { exam: '', allSubs: false };
+        function ovPick(v) { OV.exam = v; OV.allSubs = false; renderInstOverview(); }
+        function ovCompute(examId) {
+            const G = appState.grades, all = examId === '__ALL__';
+            const clsOf = new Map(appState.classes.map(c => [c.id, c])), subsBy = new Map(appState.classes.map(c => [c.id, appState.subjects.filter(s => s.classId === c.id && isActive(s))]));
+            const resBy = new Map(appState.results.map(r => [r.examId + '|' + r.studentId, r]));
+            const exams = all ? appState.exams : appState.exams.filter(e => e.id === examId);
+            const per = appState.students.map(st => {
+                const subs = subsBy.get(st.classId) || [], maxAll = subs.reduce((a, s) => a + Number(s.maxMarks), 0);
+                let obtained = 0, max = 0, failedExams = 0, done = 0, partial = 0, absent = 0, attSum = 0, attN = 0;
+                exams.forEach(ex => {
+                    const r = resBy.get(ex.id + '|' + st.id); if (!r || !subs.length) return;
+                    const m = r.marks || {}; if (subs.some(s => m[s.id] === undefined)) { partial++; return; } // blank = marks still pending
+                    done++; obtained += sumMarks(m, subs); max += maxAll;
+                    if (subs.some(s => isAb(m[s.id]) || Number(m[s.id]) < Number(s.passingMarks))) failedExams++;
+                    absent += subs.filter(s => isAb(m[s.id])).length;
+                    const days = Number((clsOf.get(st.classId) || {}).totalWorkingDays) || 0; if (Number(r.attendanceDays) >= 0 && days > 0) { attSum += Math.min(100, r.attendanceDays / days * 100); attN++; }
+                });
+                const status = done ? 'done' : partial ? 'partial' : 'none', pct = done ? exactPct(obtained, max) : 0, passed = done > 0 && failedExams === 0;
+                return { st, status, pct, passed, absent, att: attN ? attSum / attN : null, grade: done ? gradeOf(pct, !passed, G).grade : '' };
+            });
+            const done = per.filter(x => x.status === 'done'), partial = per.filter(x => x.status === 'partial').length, none = per.filter(x => x.status === 'none').length;
+            const passed = done.filter(x => x.passed).length, failed = done.length - passed, mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+            const byPct = [...done].sort((a, b) => b.pct - a.pct), attList = done.filter(x => x.att !== null).map(x => x.att);
+            const gradeOrder = [...G.scale].sort((a, b) => b.min - a.min).map(x => x.grade).concat([G.fail.grade]), gradeCount = Object.fromEntries(gradeOrder.map(g => [g, 0]));
+            done.forEach(x => { gradeCount[x.grade] = (gradeCount[x.grade] || 0) + 1; });
+            const classRows = appState.classes.map(c => {
+                const list = per.filter(x => x.st.classId === c.id), d = list.filter(x => x.status === 'done'), p = d.filter(x => x.passed).length;
+                return { name: c.name, total: list.length, done: d.length, passed: p, failed: d.length - p, passPct: pctOf(p, d.length), avg: Math.round(mean(d.map(x => x.pct)) * 10) / 10, pending: list.length - d.length };
+            });
+            const subjectRows = [];
+            if (!all && exams[0]) appState.classes.forEach(c => (subsBy.get(c.id) || []).forEach(s => {
+                let entered = 0, pass = 0, ab = 0, sum = 0, n = 0, hi = null;
+                appState.students.filter(x => x.classId === c.id).forEach(st => {
+                    const r = resBy.get(exams[0].id + '|' + st.id), v = r && r.marks ? r.marks[s.id] : undefined; if (v === undefined) return;
+                    entered++; if (isAb(v)) { ab++; return; }
+                    const num = Number(v); n++; sum += exactPct(num, Number(s.maxMarks)); if (num >= Number(s.passingMarks)) pass++; if (hi === null || num > hi) hi = num;
+                });
+                if (entered) subjectRows.push({ cls: c.name, name: s.name, entered, pass, fail: entered - pass, ab, passPct: pctOf(pass, entered), avg: Math.round(sum / Math.max(1, n) * 10) / 10, hi, max: s.maxMarks });
+            }));
+            return { total: per.length, done: done.length, partial, none, passed, failed, passPct: pctOf(passed, done.length), failPct: pctOf(failed, done.length), avg: Math.round(mean(done.map(x => x.pct)) * 10) / 10,
+                hi: byPct[0], lo: byPct[byPct.length - 1], absentStudents: done.filter(x => x.absent > 0).length, attAvg: attList.length ? Math.round(mean(attList) * 10) / 10 : null,
+                gradeOrder, gradeCount, classRows, subjectRows, top: byPct.slice(0, 5), all };
+        }
+        function renderInstOverview() {
+            const box = document.getElementById('ov-body'), sel = document.getElementById('ov-exam'); if (!box || !sel) return;
+            const exams = appState.exams;
+            if (!OV.exam || (OV.exam !== '__ALL__' && !exams.some(e => e.id === OV.exam))) { // default: the newest exam that has any marks
+                const hasRes = e => appState.results.some(r => r.examId === e.id), withRes = [...exams].reverse().find(e => e.isPublic && hasRes(e)) || [...exams].reverse().find(hasRes); OV.exam = withRes ? withRes.id : (exams.length ? exams[exams.length - 1].id : '__ALL__');
+            }
+            sel.innerHTML = (exams.length > 1 ? '<option value="__ALL__">All exams (combined)</option>' : '') + exams.map(e => `<option value="${esc(e.id)}">${esc(e.name)}${e.isPublic ? '' : ' (not published)'}</option>`).join('');
+            if (!exams.length) sel.innerHTML = '<option value="">No exams yet</option>'; else if (exams.length === 1 && OV.exam === '__ALL__') OV.exam = exams[0].id;
+            sel.value = OV.exam;
+            if (!appState.students.length || !exams.length) { box.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">Add classes, students and an exam, then enter marks &mdash; the overview of the whole institution appears here.</p>'; return; }
+            const d = ovCompute(OV.exam), cardTone = { g: 'text-emerald-700', r: 'text-red-600', a: 'text-amber-600', s: 'text-slate-800', b: 'text-sky-700' };
+            const kpi = (k, label, val, sub, tone) => `<div class="p-3 rounded-xl border border-slate-200 bg-slate-50"><p class="text-[10px] font-bold uppercase text-slate-400 leading-tight">${label}</p><p data-k="${k}" class="text-2xl font-bold mt-1 ${cardTone[tone || 's']}">${val}</p>${sub ? `<p class="text-[11px] text-slate-500 mt-0.5 truncate">${sub}</p>` : ''}</div>`;
+            const seg = (n, cls, label) => n ? `<div class="${cls} h-full" style="width:${(n / d.total * 100).toFixed(2)}%" title="${label}: ${n}"></div>` : '';
+            const complete = pctOf(d.done, d.total), barColor = p => p >= 75 ? 'bg-emerald-500' : p >= 50 ? 'bg-amber-400' : 'bg-red-500';
+            const maxGrade = Math.max(1, ...Object.values(d.gradeCount));
+            const subs = OV.allSubs ? d.subjectRows : d.subjectRows.slice(0, 10);
+            box.innerHTML = `
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                    ${kpi('total', 'Total students', d.total, `${appState.classes.length} classes &bull; ${appState.subjects.filter(isActive).length} subjects`)}
+                    ${kpi('appeared', 'Result complete', d.done, `of ${d.total} students`, 'b')}
+                    ${kpi('passed', 'Passed', d.passed, `${d.passPct}% of complete`, 'g')}
+                    ${kpi('failed', 'Failed', d.failed, `${d.failPct}% of complete`, 'r')}
+                    ${kpi('passpct', 'Pass percentage', d.passPct + '%', '', 'g')}
+                    ${kpi('avg', 'Average marks', d.avg + '%', 'of complete results')}
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                    ${kpi('hi', 'Highest', d.hi ? Math.round(d.hi.pct * 10) / 10 + '%' : '-', d.hi ? esc(d.hi.st.name) : '', 'g')}
+                    ${kpi('lo', 'Lowest', d.lo ? Math.round(d.lo.pct * 10) / 10 + '%' : '-', d.lo ? esc(d.lo.st.name) : '', 'r')}
+                    ${kpi('absent', 'With absent (AB)', d.absentStudents, 'students')}
+                    ${kpi('att', 'Average attendance', d.attAvg === null ? '-' : d.attAvg + '%', d.attAvg === null ? 'not entered yet' : '')}
+                    ${kpi('partial', 'Marks incomplete', d.partial, 'some subjects pending', 'a')}
+                    ${kpi('none', 'Not entered', d.none, 'no marks yet', 's')}
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1.5"><p class="text-xs font-bold uppercase text-slate-600">Results at a glance</p><p class="text-xs text-slate-500">${complete}% of students have complete marks</p></div>
+                    <div class="flex h-4 rounded-full overflow-hidden bg-slate-100">${seg(d.passed, 'bg-emerald-500', 'Passed')}${seg(d.failed, 'bg-red-500', 'Failed')}${seg(d.partial, 'bg-amber-400', 'Incomplete')}${seg(d.none, 'bg-slate-300', 'Not entered')}</div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-600">
+                        <span><i class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1"></i>Passed ${d.passed}</span><span><i class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1"></i>Failed ${d.failed}</span>
+                        <span><i class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-1"></i>Incomplete ${d.partial}</span><span><i class="inline-block w-2.5 h-2.5 rounded-full bg-slate-300 mr-1"></i>Not entered ${d.none}</span></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Grade distribution</p>
+                        <div class="space-y-1.5">${d.gradeOrder.map(g => { const n = d.gradeCount[g] || 0; return `<div class="flex items-center gap-2 text-xs"><span class="w-8 font-bold text-slate-700 shrink-0">${esc(g)}</span><div class="flex-1 h-4 bg-slate-100 rounded overflow-hidden"><div class="h-full ${g === appState.grades.fail.grade ? 'bg-red-500' : 'bg-emerald-500'}" style="width:${(n / maxGrade * 100).toFixed(1)}%"></div></div><span class="w-8 text-right text-slate-600">${n}</span></div>`; }).join('')}</div></div>
+                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Top 5 students</p>
+                        ${d.top.length ? `<ol class="space-y-1.5">${d.top.map((x, i) => `<li class="flex items-center gap-2 text-sm"><span class="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">${i + 1}</span><span class="min-w-0 flex-1 truncate"><span class="font-semibold text-slate-800">${esc(x.st.name)}</span> <span class="text-slate-400 text-xs">${esc((appState.classes.find(c => c.id === x.st.classId) || {}).name || '')}</span></span><span class="font-bold text-slate-700 shrink-0">${Math.round(x.pct * 10) / 10}%</span><span class="text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full px-2 py-0.5 shrink-0">${esc(x.grade)}</span></li>`).join('')}</ol>` : '<p class="text-xs text-slate-400">No complete results yet.</p>'}
+                    </div>
+                </div>
+                <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Class-wise performance</p>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs text-left min-w-[560px]"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Class</th><th class="px-2 py-2 text-center">Students</th><th class="px-2 py-2 text-center">Complete</th><th class="px-2 py-2 text-center">Passed</th><th class="px-2 py-2 text-center">Failed</th><th class="px-3 py-2 w-36">Pass %</th><th class="px-2 py-2 text-center">Avg %</th><th class="px-2 py-2 text-center">Pending</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">${d.classRows.map(c => `<tr><td class="px-3 py-2 font-semibold text-slate-800">${esc(c.name)}</td><td class="px-2 py-2 text-center">${c.total}</td><td class="px-2 py-2 text-center">${c.done}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${c.passed}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${c.failed}</td><td class="px-3 py-2"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${barColor(c.passPct)}" style="width:${c.done ? c.passPct : 0}%"></div></div><span class="w-10 text-right font-semibold">${c.done ? c.passPct + '%' : '-'}</span></div></td><td class="px-2 py-2 text-center">${c.done ? c.avg + '%' : '-'}</td><td class="px-2 py-2 text-center ${c.pending ? 'text-amber-600 font-semibold' : 'text-slate-400'}">${c.pending}</td></tr>`).join('')}</tbody></table></div>
+                </div>
+                ${d.all ? '' : `<div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Subject-wise performance</p>
+                    ${d.subjectRows.length ? `<div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs text-left min-w-[560px]"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Class</th><th class="px-2 py-2">Subject</th><th class="px-2 py-2 text-center">Entered</th><th class="px-2 py-2 text-center">Passed</th><th class="px-2 py-2 text-center">Failed</th><th class="px-3 py-2 w-36">Pass %</th><th class="px-2 py-2 text-center">Avg %</th><th class="px-2 py-2 text-center">Highest</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">${subs.map(s => `<tr><td class="px-3 py-2 text-slate-500">${esc(s.cls)}</td><td class="px-2 py-2 font-semibold text-slate-800">${esc(s.name)}</td><td class="px-2 py-2 text-center">${s.entered}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${s.pass}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${s.fail}${s.ab ? ` <span class="text-[10px] text-slate-400">(${s.ab} AB)</span>` : ''}</td><td class="px-3 py-2"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${barColor(s.passPct)}" style="width:${s.passPct}%"></div></div><span class="w-10 text-right font-semibold">${s.passPct}%</span></div></td><td class="px-2 py-2 text-center">${s.avg}%</td><td class="px-2 py-2 text-center">${s.hi === null ? '-' : s.hi + '/' + s.max}</td></tr>`).join('')}</tbody></table></div>
+                    ${d.subjectRows.length > 10 ? `<button type="button" onclick="OV.allSubs = !OV.allSubs; renderInstOverview()" class="mt-2 text-xs font-semibold text-emerald-700 underline">${OV.allSubs ? 'Show fewer' : `Show all ${d.subjectRows.length} subjects`}</button>` : ''}` : '<p class="text-xs text-slate-400">No subject marks entered for this exam yet.</p>'}
+                </div>`}`;
+        }
         function updateCounts() {
             const set = (id, n) => { const e = document.getElementById(id); if (e) e.textContent = `(${n})`; };
             set('cnt-exams', appState.exams.length); set('cnt-classes', appState.classes.length);
@@ -1934,6 +2036,7 @@
             document.getElementById('stat-classes').textContent = appState.classes.length;
             document.getElementById('stat-exams').textContent = appState.exams.filter(e => e.isPublic).length;
             document.getElementById('stat-results').textContent = appState.results.length;
+            renderInstOverview();
 
             renderProfileForm();
 
