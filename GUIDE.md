@@ -1,83 +1,42 @@
-# Madrasa RMS: Go-Live Guide (Cloudflare Workers + D1)
+# Result Publisher - multi-institution guide
 
-One Cloudflare Worker serves the website (`public/`) and the API (`/api/*`), with a D1 (SQLite) database. The free plan is enough for a madrasa.
+One website, many institutions. Each institution has its own address, admin login and private data.
 
-## Project layout
-| File | Purpose |
+| Address | What it is |
 |---|---|
-| `public/index.html` | The app (mobile-first, installable PWA) |
-| `public/styles.css` | Compiled Tailwind (rebuild with `npm run css`) |
-| `public/manifest.webmanifest`, `public/sw.js`, `public/icons/` | PWA: manifest, offline cache, app icons |
-| `src/worker.js` | Backend API |
-| `schema.sql` | Database tables |
-| `wrangler.toml` | Cloudflare config |
+| `https://YOURSITE/super` | **Your** platform console (create / suspend / renew institutions) |
+| `https://YOURSITE/<name>` | An institution's public results page (share this with students & parents) |
+| `https://YOURSITE/<name>/admin` | That institution's admin login (give to their staff only) |
+| `https://YOURSITE/` | Landing page - or one institution if you choose a "Main address" |
 
-## 1. Prerequisites
-1. Free account at https://dash.cloudflare.com/sign-up
-2. Node.js 18+ (https://nodejs.org)
-3. In the project folder: `npm install`
-4. `npx wrangler login` (opens the browser to authorise)
+## 1. Upgrade your live site (Cloudflare Pages)
+1. **Add two secrets** in your Pages project -> Settings -> Variables and Secrets (Production):
+   `SUPER_USER` (Text, e.g. `owner`) and `SUPER_PASSWORD` (Secret, a strong password only you know).
+   Keep `JWT_SECRET`. (`ADMIN_USER` / `ADMIN_PASSWORD` are only used once, during the automatic upgrade.)
+2. **GitHub**: replace/add these files, commit, wait for the build:
+   `src/worker.js` · `public/index.html` · `public/sw.js` · `public/styles.css` · `public/manifest.webmanifest` · `public/_routes.json` (new) · `schema.sql`
+3. **Deployments -> Retry deployment** so the new secrets apply.
+4. Open any page once. The database upgrades itself: your current institution becomes institution #1 with all its data, its admin login, and keeps working at your existing link (it is set as the "Main address").
+   D1 keeps 30 days of Time Travel history, so you can always roll back from the D1 dashboard.
 
-## 2. Create the database
-```bash
-npx wrangler d1 create madrasa-rms
-```
-Copy the printed `database_id` into `wrangler.toml` (replace `PASTE_YOUR_DATABASE_ID_HERE`). Then create the tables on the live database:
-```bash
-npx wrangler d1 execute madrasa-rms --remote --file=schema.sql
-```
+## 2. Adding a customer
+1. Go to `/super`, log in, tap the **+** button.
+2. Enter the institution name (the web address is filled in for you), admin username and password (one is generated), plan, "paid until" date, student limit.
+3. Tap **Create institution**. A ready-made message appears with their public link, admin link, username and password - tap **Copy / Share** and send it on WhatsApp.
+4. Their admin logs in, sets up classes/subjects/students, and **turns the Public Portal ON** (Setup -> Public Portal).
 
-## 3. Set the admin password and signing key (secrets)
-```bash
-npx wrangler secret put ADMIN_PASSWORD   # type a strong password
-npx wrangler secret put JWT_SECRET       # type 40+ random characters
-```
-Change the username in `wrangler.toml` (`ADMIN_USER`) if you want something other than `admin`.
-Secrets are never stored in your files or in the browser code. Generate a random key with `openssl rand -hex 32`.
+## 3. Running the business
+- **Paid until** date passed, or **Suspend** -> their public page and admin page are replaced by a blocking message (no results, no login form). Set a new date / Activate to reopen. **Login as admin** from `/super` still opens their panel for support.
+- **Suspend / Activate** any time. **Student limit** blocks adding more students (shows a message to upgrade).
+- **Login as admin** opens their admin panel to help them (it works even if suspended).
+- **Reset password** gives a new password + a fresh message to send. Old sessions are signed out.
+- **Make main address**: the institution shown at `https://YOURSITE/`. Remove it to show the landing page instead (do this once you stop using the root link for your first institution).
+- **Delete** needs you to type the address; it permanently erases all that institution's data.
+- Admins see an amber reminder inside their panel 14 days before the paid-until date.
 
-## 4. Deploy
-```bash
-npm run deploy
-```
-You get a URL like `https://madrasa-rms.<your-subdomain>.workers.dev`. Open it, then click **Admin Portal** and sign in.
-
-## 5. First-time setup inside the app
-Admin → **Exams, Classes & Subjects**: add classes, subjects and exams → **Students**: add or CSV-import students → **Marks**: enter results. Tick *Publish* on an exam so students can see it.
-
-## 6. Custom domain (optional)
-Cloudflare dashboard → Workers & Pages → `madrasa-rms` → Settings → Domains & Routes → Add → Custom domain (the domain must be on Cloudflare DNS). HTTPS is automatic.
-
-## 7. Install as an app (PWA)
-- Android/Chrome: menu → *Install app* / *Add to Home screen*
-- iPhone/Safari: Share → *Add to Home Screen*
-
-## Updating later
-Edit files → `npm run deploy`. If you change `public/sw.js` caching, bump `CACHE = 'madrasa-rms-v2'`. If you add new Tailwind classes to `index.html`, `npm run deploy` rebuilds the CSS automatically.
-
-## Local testing
-Create `.dev.vars`:
-```
-ADMIN_PASSWORD=test1234
-JWT_SECRET=any-long-random-text
-```
-Then `npx wrangler d1 execute madrasa-rms --local --file=schema.sql` and `npm run dev` (http://localhost:8787).
-
-## Backups
-```bash
-npx wrangler d1 export madrasa-rms --remote --output=backup.sql
-```
-Run this before each exam season. D1 also has Time Travel (30-day point-in-time restore) on the dashboard.
-
-## Security notes
-- Students can only fetch **one result at a time** (exam + admission no.). The full student list is never sent to the public.
-- All admin routes need a signed token (12 h). Login is slowed after a wrong password. Add a Cloudflare rate-limiting rule on `/api/login` (Security → WAF → Rate limiting) for extra protection.
-- Because results are looked up by admission number only, anyone who guesses a number can see that result. If that's a concern, add a second factor (e.g. date of birth or a PIN) later.
-- Keep `ADMIN_PASSWORD` private; to rotate it, run `wrangler secret put ADMIN_PASSWORD` again (changing `JWT_SECRET` logs everyone out).
-
-## Troubleshooting
-| Problem | Fix |
-|---|---|
-| `Invalid username or password` | Secrets not set on the deployed Worker; redo step 3, then `npm run deploy` |
-| `D1_ERROR: no such table` | Run the `--remote` schema command in step 2 |
-| 500 / binding error | `database_id` in `wrangler.toml` is wrong or still the placeholder |
-| Old design still shows | Hard-refresh, or bump the `CACHE` version in `sw.js` |
+## 4. Good to know
+- Data is fully separated: every database query is locked to the logged-in institution.
+- Addresses: 3-40 letters/numbers/hyphens. Changing an address changes the link, so tell the client.
+- Installed phone apps are per institution (each opens its own address).
+- Add a Cloudflare rate-limiting rule on `/api/login` and `/api/super/login` for extra protection.
+- Payments are manual for now (you note "paid until"). Custom domains per institution and online payments can be added later.
