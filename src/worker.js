@@ -186,6 +186,7 @@ const memo = t => {
   return m.v;
 };
 const jsonStr = (str, s = 200) => new Response(str, { status: s, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+const GW = { m: 'M', male: 'M', boy: 'M', b: 'M', f: 'F', female: 'F', girl: 'F', g: 'F' }, gnorm = v => GW[String(v || '').trim().toLowerCase()] || '';
 const hashStr = x => { let h = 5381; for (let i = 0; i < x.length; i += 7) h = ((h << 5) + h + x.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + x.length.toString(36); };
 const logoRef = (t, logo) => logo && (logo.startsWith('data:') || /^https:\/\//i.test(logo)) ? `/${t.slug}/logo?v=${hashStr(logo)}` : (logo || '');
 const pubMadrasa = (t, m, withSign) => { const { headSign, ...rest } = m; return { ...rest, logo: logoRef(t, m.logo), ...(withSign ? { headSign } : {}) }; };
@@ -386,10 +387,10 @@ async function entryApi(req, env, url, slug, token) {
   const classIds = new Set(subs.map(x => x.class_id)), classes = cl.results.filter(c => classIds.has(c.id));
   const subOf = id => subs.find(x => x.id === id);
   if (req.method === 'GET' && !url.searchParams.get('subject')) {
-    const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
+    const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name,extra FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
     return json({ teacher: tc.name, madrasa: { name: mad.name, logo: logoRef(t, mad.logo), accent: mad.accent || '' }, exams: ex.results.map(e => ({ id: e.id, name: e.name })), attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
       subjects: subs.map(x => ({ id: x.id, classId: x.class_id, name: x.name, maxMarks: x.max_marks, passingMarks: x.pass_marks })),
-      students: stu.filter(x => classIds.has(x.class_id)).map(x => ({ id: x.id, classId: x.class_id, admissionNo: x.admission_no, name: x.name })) });
+      students: stu.filter(x => classIds.has(x.class_id)).map(x => ({ id: x.id, classId: x.class_id, admissionNo: x.admission_no, name: x.name, gender: gnorm((() => { try { return JSON.parse(x.extra || '{}').gender; } catch (e) { return ''; } })()) })) });
   }
   const isGet = req.method === 'GET'; let b = null;
   if (!isGet) { if (req.method !== 'POST') return fail('Not found', 404); b = await req.json(); }
