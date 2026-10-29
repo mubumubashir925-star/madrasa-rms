@@ -302,3 +302,16 @@
             background: #94a3b8; 
         }
     
+/* gender: Boy / Girl tap buttons and filter chips */
+.gt { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 999px; overflow: hidden; background: #fff; }
+.gt button { padding: 9px 22px; font-size: 13px; font-weight: 600; color: #64748b; min-width: 84px; }
+.gt button.on-m { background: #0369a1; color: #fff; } .gt button.on-f { background: #be185d; color: #fff; }
+.gchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gchip { padding: 5px 12px; border-radius: 999px; border: 1px solid #cbd5e1; background: #fff; font-size: 12px; color: #475569; font-weight: 600; }
+.gchip b { margin-left: 3px; color: #0f172a; }
+.gchip.on { background: rgb(var(--em-800)); border-color: rgb(var(--em-800)); color: #fff; } .gchip.on b { color: #fff; }
+@media print {
+    body.print-ov > *:not(#print-root) { display: none !important; }
+    body.print-ov #print-root { display: block; position: static; }
+    body.print-ov #print-root, body.print-ov #print-root * { visibility: visible; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

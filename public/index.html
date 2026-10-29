@@ -120,7 +120,7 @@
             <div id="te-loading" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 py-12 flex flex-col items-center gap-3 text-sm text-slate-500"><span class="se-spin"></span>Loading students...</div>
                             <div id="te-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="se-bar px-4 py-2.5 bg-emerald-900 text-white"><h4 id="te-title" class="font-bold text-sm truncate"></h4><p id="te-sub" class="se-bar-sub text-[11px] text-emerald-200 truncate"></p></div>
-                <div class="px-3 pt-3"><div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input type="search" placeholder="Search student name or admission no..." oninput="seFilter(this)" autocomplete="off" class="se-search w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-600"></div></div>
+                <div class="se-gchips gchips hidden" style="padding:12px 12px 0"></div><div class="px-3 pt-2"><div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input type="search" placeholder="Search student name or admission no..." oninput="seFilter(this)" autocomplete="off" class="se-search w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-600"></div></div>
                                 <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm mt-2"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="se-h-val py-2 px-1.5 text-center w-24">Marks</th><th class="se-h-ab py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table><p class="se-nomatch hidden text-center text-sm text-slate-400 py-4">No student matches your search.</p></div>
                 <div class="bg-slate-900 text-white p-3 m-3 rounded-xl sticky bottom-3 z-10 shadow-2xl">
                     <div class="flex items-center justify-between gap-3"><div class="se-summary text-xs leading-snug"></div><button type="button" id="te-save" onclick="teSave()" class="bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm shrink-0"><i class="fas fa-save"></i> Save</button></div>
@@ -304,6 +304,7 @@
                 <div id="edit-extra-fields" class="space-y-3.5"></div>
                 <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Class</label>
                     <select id="edit-class" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
+                <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Gender <span class="normal-case font-medium text-slate-400">(optional &mdash; tap again to clear)</span></label><div id="edit-gender-wrap"></div></div>
                 <div class="flex gap-2 pt-1">
                     <button type="button" onclick="closeStudentEdit()" class="flex-1 bg-slate-100 text-slate-700 font-semibold py-2.5 rounded-lg text-sm">Cancel</button>
                     <button type="submit" class="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm"><i class="fas fa-save mr-1"></i> Save Changes</button>
@@ -476,7 +477,7 @@
                         <div id="inst-overview" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                             <div class="px-4 md:px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-chart-pie text-emerald-700"></i> Institution Overview</h3>
-                                <select id="ov-exam" onchange="ovPick(this.value)" class="w-full sm:w-72 px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+                                <div class="flex gap-2 w-full sm:w-auto"><select id="ov-exam" onchange="ovPick(this.value)" class="flex-1 min-w-0 sm:w-72 px-3.5 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select><button type="button" onclick="printOverview()" class="abtn abtn-ok shrink-0 std-font"><i class="fas fa-file-pdf"></i> PDF</button></div>
                             </div>
                             <div id="ov-body" class="p-4 md:p-6 space-y-6"></div>
                         </div>
@@ -620,9 +621,10 @@
                                         <h3 class="font-bold text-slate-800"><i class="fas fa-file-csv text-amber-600 mr-1.5"></i> Bulk Import Students via CSV</h3>
                                         <p class="text-xs text-slate-500">Upload a .csv file to register multiple students simultaneously</p>
                                     </div>
+                                    <div class="flex flex-wrap gap-2 justify-end"><button onclick="exportStudentsCSV()" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 px-3 py-1.5 rounded-lg font-semibold"><i class="fas fa-file-export"></i> Export students .CSV</button>
                                     <button onclick="downloadSampleCSV()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition">
                                         <i class="fas fa-download"></i> Sample .CSV
-                                    </button>
+                                    </button></div>
                                 </div>
                                 <div class="p-4 md:p-6 flex-grow flex flex-col justify-between space-y-4">
                                     <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 md:p-6 text-center hover:border-emerald-600 transition bg-slate-50/50">
@@ -647,6 +649,7 @@
                         <!-- Student Directory Table -->
                         <div data-group="stu" data-sub="dir" class="subpanel bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                             <div class="list-tools" style="padding:10px 12px"><select id="student-list-filter-class" onchange="resetLimit('students')" class="px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium bg-white"></select><input type="search" id="student-list-search" oninput="resetLimit('students')" placeholder="Search name or ID..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></div>
+                            <div id="student-gchips" class="gchips" style="padding:0 12px 10px"></div>
                             <div id="admin-students-list" class="p-3 md:p-4 space-y-2"></div>
                         </div>
                     </div>
@@ -661,6 +664,7 @@
                                 <div class="flex-1"><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Class</label><select id="bulk-class" onchange="updateBulkInfo()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select></div>
                                 <button id="bulk-btn" onclick="printBulkMarksheets()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Download Marksheets PDF</button>
                             </div>
+                            <div id="bulk-gchips" class="gchips"></div>
                             <p id="bulk-info" class="text-xs text-slate-500"></p>
                         </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-5 flex flex-col md:flex-row gap-3 md:items-end">
@@ -669,6 +673,7 @@
                             <button onclick="printClassReport()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Download / Print PDF</button>
                         </div>
                         <p class="text-xs text-slate-500"><i class="fas fa-info-circle"></i> In the print window choose <b>Save as PDF</b> as the destination. Positions are ranked by total marks.</p>
+                        <div id="rep-gchips" class="gchips"></div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5 overflow-x-auto"><div id="class-print-area"></div></div>
                     </div>
 
@@ -830,7 +835,7 @@
                             <div id="sm-loading" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 py-12 flex flex-col items-center gap-3 text-sm text-slate-500"><span class="se-spin"></span>Loading students...</div>
                             <div id="sm-sheet" data-se class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div class="se-bar px-4 py-2.5 bg-emerald-900 text-white"><h4 id="sm-title" class="font-bold text-sm truncate"></h4><p id="sm-sub" class="se-bar-sub text-[11px] text-emerald-200 truncate"></p></div>
-                                <div class="px-3 pt-3"><div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input type="search" placeholder="Search student name or admission no..." oninput="seFilter(this)" autocomplete="off" class="se-search w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-600"></div></div>
+                                <div class="se-gchips gchips hidden" style="padding:12px 12px 0"></div><div class="px-3 pt-2"><div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input type="search" placeholder="Search student name or admission no..." oninput="seFilter(this)" autocomplete="off" class="se-search w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-600"></div></div>
                                 <div class="overflow-x-auto"><table class="w-full text-left border-collapse text-sm mt-2"><thead><tr class="bg-slate-100 text-[11px] uppercase text-slate-500 border-y border-slate-200"><th class="py-2 px-2 w-8">#</th><th class="py-2 px-1">Student</th><th class="se-h-val py-2 px-1.5 text-center w-24">Marks</th><th class="se-h-ab py-2 px-1.5 text-center w-12">Absent</th></tr></thead><tbody class="se-rows divide-y divide-slate-100"></tbody></table><p class="se-nomatch hidden text-center text-sm text-slate-400 py-4">No student matches your search.</p></div>
                                 <div class="bg-slate-900 text-white p-3 m-3 rounded-xl sticky bottom-3 z-10 shadow-2xl flex items-center justify-between gap-3"><div class="se-summary text-xs leading-snug"></div><button type="button" onclick="saveSubjectEntry()" class="bg-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm shrink-0"><i class="fas fa-save"></i> Save</button></div>
                             </div>

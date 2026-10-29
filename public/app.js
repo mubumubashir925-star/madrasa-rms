@@ -396,15 +396,35 @@
                     [{ on: `toggleClassSubject('${x.id}', ${!isActive(x)})`, cls: 'abtn-ok', icon: 'fa-eye', label: isActive(x) ? 'Skip' : 'Include' }, { on: `editSubject('${x.id}')`, cls: 'abtn-edit', icon: 'fa-pen', label: 'Edit' }, { on: `deleteSubject('${x.id}')`, cls: 'abtn-del', icon: 'fa-trash', label: 'Delete' }]);
             }).join('') + moreBtn('subjects', list.length - lim);
         }
+        // ================= GENDER (kept inside each student's extra data as "gender": "M" or "F"; nothing to migrate) =================
+        const GENDER_WORDS = { m: 'M', male: 'M', boy: 'M', b: 'M', 'ആൺ': 'M', 'ആണ്\u200d': 'M', 'ആൺകുട്ടി': 'M', 'ذكر': 'M', 'ولد': 'M', 'لڑکا': 'M', f: 'F', female: 'F', girl: 'F', g: 'F', 'പെൺ': 'F', 'പെണ്\u200d': 'F', 'പെൺകുട്ടി': 'F', 'أنثى': 'F', 'بنت': 'F', 'لڑکی': 'F' };
+        const normGender = v => GENDER_WORDS[String(v || '').trim().toLowerCase()] || '';
+        const genderOf = st => normGender((st.extra || {}).gender);
+        const genderName = g => g === 'M' ? 'Boy' : g === 'F' ? 'Girl' : '';
+        const genderBadge = st => { const g = genderOf(st); return g ? `<span class="font-semibold ${g === 'M' ? 'text-sky-700' : 'text-pink-700'}">${genderName(g)}</span>` : '<span class="text-slate-400">Not set</span>'; };
+        const genderMatch = (st, f) => f === 'ALL' || (f === 'U' ? !genderOf(st) : genderOf(st) === f);
+        const genderCounts = list => { let M = 0, F = 0, U = 0; list.forEach(s => { const g = genderOf(s); if (g === 'M') M++; else if (g === 'F') F++; else U++; }); return { all: list.length, M, F, U }; };
+        const GF = { students: 'ALL', ov: 'ALL', rep: 'ALL', bulk: 'ALL' }, GF_LABEL = { ALL: 'All', M: 'Boys', F: 'Girls', U: 'Students without gender' };
+        const GF_RENDER = { students: () => resetLimit('students'), ov: () => renderInstOverview(), rep: () => renderClassReport(), bulk: () => updateBulkInfo() };
+        function genderChips(key, c) {
+            const chip = (v, label, n) => `<button type="button" onclick="setGF('${key}', '${v}')" class="gchip ${GF[key] === v ? 'on' : ''}">${label} <b>${n}</b></button>`;
+            return chip('ALL', 'All', c.all) + chip('M', 'Boys', c.M) + chip('F', 'Girls', c.F) + (c.U && (c.M || c.F) ? chip('U', 'Not set', c.U) : '');
+        }
+        function setGF(key, v) { GF[key] = v; GF_RENDER[key](); }
+        function genderToggleHTML(id, value) { return `<div id="${id}" class="gt" data-value="${value || ''}"><button type="button" data-g="M" class="${value === 'M' ? 'on-m' : ''}" onclick="gtTap(this)">Boy</button><button type="button" data-g="F" class="${value === 'F' ? 'on-f' : ''}" onclick="gtTap(this)">Girl</button></div>`; }
+        function gtTap(btn) { const box = btn.parentElement, next = box.dataset.value === btn.dataset.g ? '' : btn.dataset.g; box.dataset.value = next; box.querySelectorAll('button').forEach(b => { b.classList.toggle('on-m', b.dataset.g === 'M' && next === 'M'); b.classList.toggle('on-f', b.dataset.g === 'F' && next === 'F'); }); }
+        const gtVal = id => { const e = document.getElementById(id); return e ? (e.dataset.value || '') : ''; };
+        function cycleGender(id) { const st = appState.students.find(x => x.id === id); if (!st) return; const next = { '': 'M', M: 'F', F: '' }[genderOf(st)]; st.extra = st.extra || {}; if (next) st.extra.gender = next; else delete st.extra.gender; saveState(); renderAllAdminData(); }
         function renderAdminStudents() {
             const fc = document.getElementById('student-list-filter-class').value || 'ALL', q = qOf('student-list-search'), el = document.getElementById('admin-students-list'), lim = listLimit.students || PAGE;
-            const list = appState.students.filter(x => (fc === 'ALL' || x.classId === fc) && (!q || x.name.toLowerCase().includes(q) || x.admissionNo.toLowerCase().includes(q) || Object.values(x.extra || {}).some(v => String(v).toLowerCase().includes(q)))).sort((a, b) => a.name.localeCompare(b.name));
+            const gch = document.getElementById('student-gchips'); if (gch) { const c = genderCounts(appState.students.filter(x => fc === 'ALL' || x.classId === fc)); gch.innerHTML = c.M || c.F ? genderChips('students', c) : ''; }
+            const list = appState.students.filter(x => (fc === 'ALL' || x.classId === fc) && genderMatch(x, GF.students) && (!q || x.name.toLowerCase().includes(q) || x.admissionNo.toLowerCase().includes(q) || Object.entries(x.extra || {}).filter(([k]) => k !== 'gender').some(([, v]) => String(v).toLowerCase().includes(q)))).sort((a, b) => a.name.localeCompare(b.name));
             if (!list.length) { el.innerHTML = emptyMsg(appState.students.length ? 'No matching student found.' : 'No students yet. Tap the + button to add one.'); return; }
             el.innerHTML = list.slice(0, lim).map(x => {
                 const c = appState.classes.find(k => k.id === x.classId), cn = c ? c.name : 'Unassigned';
                 const more = appState.fields.filter(f => f.id !== 'admissionNo' && fieldVal(x, f.id)).map(f => [f.label, esc(fieldVal(x, f.id))]);
-                return cardHTML('student:' + x.id, x.name, `${esc(x.admissionNo)} &bull; ${esc(cn)}`, [[admLabel(), esc(x.admissionNo)], ['Class', esc(cn)], ...more],
-                    [{ on: `jumpToStudentMarks('${x.id}', '${x.classId}')`, cls: 'abtn-ok', icon: 'fa-edit', label: 'Enter marks' }, { on: `openStudentEdit('${x.id}')`, cls: 'abtn-edit', icon: 'fa-pen', label: 'Edit' }, { on: `deleteStudent('${x.id}')`, cls: 'abtn-del', icon: 'fa-trash', label: 'Delete' }]);
+                return cardHTML('student:' + x.id, x.name, `${esc(x.admissionNo)} &bull; ${esc(cn)}`, [[admLabel(), esc(x.admissionNo)], ['Class', esc(cn)], ['Gender', genderBadge(x)], ...more],
+                    [{ on: `cycleGender('${x.id}')`, cls: 'abtn-gray', icon: genderOf(x) === 'M' ? 'fa-mars' : genderOf(x) === 'F' ? 'fa-venus' : 'fa-venus-mars', label: genderName(genderOf(x)) || 'Set gender' }, { on: `jumpToStudentMarks('${x.id}', '${x.classId}')`, cls: 'abtn-ok', icon: 'fa-edit', label: 'Enter marks' }, { on: `openStudentEdit('${x.id}')`, cls: 'abtn-edit', icon: 'fa-pen', label: 'Edit' }, { on: `deleteStudent('${x.id}')`, cls: 'abtn-del', icon: 'fa-trash', label: 'Delete' }]);
             }).join('') + moreBtn('students', list.length - lim);
         }
         function gotoSubjects(id) { switchAdminTab('academics'); showSub('acad', 'subjects'); document.getElementById('subject-filter-class').value = id; resetLimit('subjects'); window.scrollTo({ top: 0 }); }
@@ -440,15 +460,16 @@
         let lastStudentClass = '';
         function addStudent() {
             if (!appState.classes.length) { showToast('Create a class first.', 'error'); return; }
-            const extra = appState.fields.filter(f => f.id !== 'admissionNo'), f = document.getElementById('student-list-filter-class').value;
+            const extra = appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender'), f = document.getElementById('student-list-filter-class').value;
             const def = classOptions().some(o => o.v === lastStudentClass) ? lastStudentClass : (appState.classes.some(c => c.id === f) ? f : appState.classes[0].id);
-            openEdit('Add Student', [{ label: admLabel(), value: '', required: true }, { label: 'Full name', value: '', required: true }, ...extra.map(x => ({ label: x.label, value: '' })), { label: 'Class', type: 'select', options: classOptions(), value: def }],
+            openEdit('Add Student', [{ label: admLabel(), value: '', required: true }, { label: 'Full name', value: '', required: true }, ...extra.map(x => ({ label: x.label, value: '' })), { label: 'Class', type: 'select', options: classOptions(), value: def }, { label: 'Gender (optional)', type: 'gender', value: '' }],
                 v => {
                     const adm = v[0].toUpperCase(), classId = v[2 + extra.length];
                     if (!adm || !v[1]) return 'ID and name are required.'; if (!classId) return 'Choose a class.';
                     if (appState.students.some(x => x.admissionNo.toUpperCase() === adm)) return `${admLabel()} ${adm} already exists!`;
                     let fatherName = ''; const ex = {};
                     extra.forEach((x, i) => { const val = v[2 + i]; if (x.id === 'fatherName') fatherName = val; else if (val) ex[x.id] = val; });
+                    if (v[3 + extra.length]) ex.gender = v[3 + extra.length];
                     lastStudentClass = classId; appState.students.push({ id: 'ST_' + Date.now(), admissionNo: adm, name: v[1], fatherName, extra: ex, classId });
                 }, { again: addStudent, msg: 'Student added.' });
         }
@@ -533,12 +554,13 @@
         // ================= INSTITUTION OVERVIEW (worked out on this device from the data the admin already has) =================
         const OV = { exam: '', allSubs: false };
         function ovPick(v) { OV.exam = v; OV.allSubs = false; renderInstOverview(); }
-        function ovCompute(examId) {
+        function ovCompute(examId, gf) {
+            gf = gf || 'ALL';
             const G = appState.grades, all = examId === '__ALL__';
             const clsOf = new Map(appState.classes.map(c => [c.id, c])), subsBy = new Map(appState.classes.map(c => [c.id, appState.subjects.filter(s => s.classId === c.id && isActive(s))]));
             const resBy = new Map(appState.results.map(r => [r.examId + '|' + r.studentId, r]));
             const exams = all ? appState.exams : appState.exams.filter(e => e.id === examId);
-            const per = appState.students.map(st => {
+            const perAll = appState.students.map(st => {
                 const subs = subsBy.get(st.classId) || [], maxAll = subs.reduce((a, s) => a + Number(s.maxMarks), 0);
                 let obtained = 0, max = 0, failedExams = 0, done = 0, partial = 0, absent = 0, attSum = 0, attN = 0;
                 exams.forEach(ex => {
@@ -552,48 +574,64 @@
                 const status = done ? 'done' : partial ? 'partial' : 'none', pct = done ? exactPct(obtained, max) : 0, passed = done > 0 && failedExams === 0;
                 return { st, status, pct, passed, absent, att: attN ? attSum / attN : null, grade: done ? gradeOf(pct, !passed, G).grade : '' };
             });
+            const per = perAll.filter(x => genderMatch(x.st, gf));
+            const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0, r1 = n => Math.round(n * 10) / 10;
+            const agg = list => { const dn = list.filter(x => x.status === 'done'), p = dn.filter(x => x.passed).length; return { total: list.length, done: dn.length, passed: p, failed: dn.length - p, passPct: pctOf(p, dn.length), avg: r1(mean(dn.map(x => x.pct))), hi: dn.length ? r1(Math.max(...dn.map(x => x.pct))) : null }; };
             const done = per.filter(x => x.status === 'done'), partial = per.filter(x => x.status === 'partial').length, none = per.filter(x => x.status === 'none').length;
-            const passed = done.filter(x => x.passed).length, failed = done.length - passed, mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+            const passed = done.filter(x => x.passed).length, failed = done.length - passed;
             const byPct = [...done].sort((a, b) => b.pct - a.pct), attList = done.filter(x => x.att !== null).map(x => x.att);
             const gradeOrder = [...G.scale].sort((a, b) => b.min - a.min).map(x => x.grade).concat([G.fail.grade]), gradeCount = Object.fromEntries(gradeOrder.map(g => [g, 0]));
             done.forEach(x => { gradeCount[x.grade] = (gradeCount[x.grade] || 0) + 1; });
+            const genderRows = [['M', 'Boys'], ['F', 'Girls'], ['U', 'Not set']].map(([k, label]) => ({ k, label, ...agg(perAll.filter(x => genderMatch(x.st, k))) })).filter(r => r.total);
             const classRows = appState.classes.map(c => {
-                const list = per.filter(x => x.st.classId === c.id), d = list.filter(x => x.status === 'done'), p = d.filter(x => x.passed).length;
-                return { name: c.name, total: list.length, done: d.length, passed: p, failed: d.length - p, passPct: pctOf(p, d.length), avg: Math.round(mean(d.map(x => x.pct)) * 10) / 10, pending: list.length - d.length };
+                const a = agg(per.filter(x => x.st.classId === c.id)), b = agg(perAll.filter(x => x.st.classId === c.id && genderOf(x.st) === 'M')), g = agg(perAll.filter(x => x.st.classId === c.id && genderOf(x.st) === 'F'));
+                return { name: c.name, total: a.total, boys: b.total, girls: g.total, done: a.done, passed: a.passed, failed: a.failed, passPct: a.passPct, avg: a.avg, pending: a.total - a.done, bDone: b.done, bPassed: b.passed, bPct: b.passPct, gDone: g.done, gPassed: g.passed, gPct: g.passPct };
             });
             const subjectRows = [];
             if (!all && exams[0]) appState.classes.forEach(c => (subsBy.get(c.id) || []).forEach(s => {
                 let entered = 0, pass = 0, ab = 0, sum = 0, n = 0, hi = null;
-                appState.students.filter(x => x.classId === c.id).forEach(st => {
+                appState.students.filter(x => x.classId === c.id && genderMatch(x, gf)).forEach(st => {
                     const r = resBy.get(exams[0].id + '|' + st.id), v = r && r.marks ? r.marks[s.id] : undefined; if (v === undefined) return;
                     entered++; if (isAb(v)) { ab++; return; }
                     const num = Number(v); n++; sum += exactPct(num, Number(s.maxMarks)); if (num >= Number(s.passingMarks)) pass++; if (hi === null || num > hi) hi = num;
                 });
-                if (entered) subjectRows.push({ cls: c.name, name: s.name, entered, pass, fail: entered - pass, ab, passPct: pctOf(pass, entered), avg: Math.round(sum / Math.max(1, n) * 10) / 10, hi, max: s.maxMarks });
+                if (entered) subjectRows.push({ cls: c.name, name: s.name, entered, pass, fail: entered - pass, ab, passPct: pctOf(pass, entered), avg: r1(sum / Math.max(1, n)), hi, max: s.maxMarks });
             }));
-            return { total: per.length, done: done.length, partial, none, passed, failed, passPct: pctOf(passed, done.length), failPct: pctOf(failed, done.length), avg: Math.round(mean(done.map(x => x.pct)) * 10) / 10,
-                hi: byPct[0], lo: byPct[byPct.length - 1], absentStudents: done.filter(x => x.absent > 0).length, attAvg: attList.length ? Math.round(mean(attList) * 10) / 10 : null,
-                gradeOrder, gradeCount, classRows, subjectRows, top: byPct.slice(0, 5), all };
+            return { total: per.length, done: done.length, partial, none, passed, failed, passPct: pctOf(passed, done.length), failPct: pctOf(failed, done.length), avg: r1(mean(done.map(x => x.pct))),
+                hi: byPct[0], lo: byPct[byPct.length - 1], absentStudents: done.filter(x => x.absent > 0).length, attAvg: attList.length ? r1(mean(attList)) : null,
+                gradeOrder, gradeCount, classRows, subjectRows, genderRows, counts: genderCounts(appState.students), top: byPct.slice(0, 5), all };
         }
         function renderInstOverview() {
             const box = document.getElementById('ov-body'), sel = document.getElementById('ov-exam'); if (!box || !sel) return;
             const exams = appState.exams;
-            if (!OV.exam || (OV.exam !== '__ALL__' && !exams.some(e => e.id === OV.exam))) { // default: the newest exam that has any marks
+            if (!OV.exam || (OV.exam !== '__ALL__' && !exams.some(e => e.id === OV.exam))) { // default: the newest published exam that has marks
                 const hasRes = e => appState.results.some(r => r.examId === e.id), withRes = [...exams].reverse().find(e => e.isPublic && hasRes(e)) || [...exams].reverse().find(hasRes); OV.exam = withRes ? withRes.id : (exams.length ? exams[exams.length - 1].id : '__ALL__');
             }
             sel.innerHTML = (exams.length > 1 ? '<option value="__ALL__">All exams (combined)</option>' : '') + exams.map(e => `<option value="${esc(e.id)}">${esc(e.name)}${e.isPublic ? '' : ' (not published)'}</option>`).join('');
             if (!exams.length) sel.innerHTML = '<option value="">No exams yet</option>'; else if (exams.length === 1 && OV.exam === '__ALL__') OV.exam = exams[0].id;
             sel.value = OV.exam;
             if (!appState.students.length || !exams.length) { box.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">Add classes, students and an exam, then enter marks &mdash; the overview of the whole institution appears here.</p>'; return; }
-            const d = ovCompute(OV.exam), cardTone = { g: 'text-emerald-700', r: 'text-red-600', a: 'text-amber-600', s: 'text-slate-800', b: 'text-sky-700' };
+            const gc = genderCounts(appState.students), hasGender = !!(gc.M || gc.F);
+            if (!hasGender) GF.ov = 'ALL';
+            const gf = GF.ov, d = ovCompute(OV.exam, gf), cardTone = { g: 'text-emerald-700', r: 'text-red-600', a: 'text-amber-600', s: 'text-slate-800', b: 'text-sky-700' };
             const kpi = (k, label, val, sub, tone) => `<div class="p-3 rounded-xl border border-slate-200 bg-slate-50"><p class="text-[10px] font-bold uppercase text-slate-400 leading-tight">${label}</p><p data-k="${k}" class="text-2xl font-bold mt-1 ${cardTone[tone || 's']}">${val}</p>${sub ? `<p class="text-[11px] text-slate-500 mt-0.5 truncate">${sub}</p>` : ''}</div>`;
-            const seg = (n, cls, label) => n ? `<div class="${cls} h-full" style="width:${(n / d.total * 100).toFixed(2)}%" title="${label}: ${n}"></div>` : '';
+            const seg = (n, cls, label) => d.total && n ? `<div class="${cls} h-full" style="width:${(n / d.total * 100).toFixed(2)}%" title="${label}: ${n}"></div>` : '';
             const complete = pctOf(d.done, d.total), barColor = p => p >= 75 ? 'bg-emerald-500' : p >= 50 ? 'bg-amber-400' : 'bg-red-500';
-            const maxGrade = Math.max(1, ...Object.values(d.gradeCount));
-            const subs = OV.allSubs ? d.subjectRows : d.subjectRows.slice(0, 10);
+            const maxGrade = Math.max(1, ...Object.values(d.gradeCount)), subs = OV.allSubs ? d.subjectRows : d.subjectRows.slice(0, 10);
+            const pbar = (p, on) => `<div class="flex items-center gap-2"><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${barColor(p)}" style="width:${on ? p : 0}%"></div></div><span class="w-10 text-right font-semibold">${on ? p + '%' : '-'}</span></div>`;
+            const gTone = k => k === 'M' ? 'text-sky-700' : k === 'F' ? 'text-pink-700' : 'text-slate-500';
+            const chips = hasGender ? `<div class="flex flex-wrap items-center gap-2"><span class="text-xs font-bold uppercase text-slate-500">Show</span><div class="gchips">${genderChips('ov', gc)}</div></div>`
+                : `<p class="text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2"><i class="fas fa-venus-mars mr-1"></i> Set each student&rsquo;s <b>Boy / Girl</b> (Students tab, or a Gender column in the CSV) to see boys-vs-girls figures and filters here.</p>`;
+            const note = gf !== 'ALL' ? `<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">Showing <b>${GF_LABEL[gf]}</b> only &mdash; every figure below is for ${GF_LABEL[gf].toLowerCase()}.</p>` : '';
+            const gTable = hasGender && d.genderRows.length ? `<div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Boys vs Girls</p>
+                <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs text-left min-w-[520px]"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Group</th><th class="px-2 py-2 text-center">Students</th><th class="px-2 py-2 text-center">Complete</th><th class="px-2 py-2 text-center">Passed</th><th class="px-2 py-2 text-center">Failed</th><th class="px-3 py-2 w-36">Pass %</th><th class="px-2 py-2 text-center">Avg %</th><th class="px-2 py-2 text-center">Highest</th></tr></thead>
+                <tbody class="divide-y divide-slate-100">${d.genderRows.map(r => `<tr><td class="px-3 py-2 font-bold ${gTone(r.k)}">${r.label}</td><td class="px-2 py-2 text-center">${r.total}</td><td class="px-2 py-2 text-center">${r.done}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${r.passed}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${r.failed}</td><td class="px-3 py-2">${pbar(r.passPct, r.done)}</td><td class="px-2 py-2 text-center">${r.done ? r.avg + '%' : '-'}</td><td class="px-2 py-2 text-center">${r.hi === null ? '-' : r.hi + '%'}</td></tr>`).join('')}</tbody></table></div>
+                ${gf !== 'ALL' ? '<p class="text-[11px] text-slate-400 mt-1">This table always compares everyone, whatever filter is chosen above.</p>' : ''}</div>` : '';
+            const showG = hasGender && gf === 'ALL', cell = (n, dn, p) => dn ? `${p}% <span class="text-slate-400">(${n}/${dn})</span>` : '-';
             box.innerHTML = `
+                ${chips}${note}
                 <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                    ${kpi('total', 'Total students', d.total, `${appState.classes.length} classes &bull; ${appState.subjects.filter(isActive).length} subjects`)}
+                    ${kpi('total', gf === 'ALL' ? 'Total students' : GF_LABEL[gf], d.total, hasGender ? `${gc.M} boys &bull; ${gc.F} girls${gc.U ? ` &bull; ${gc.U} not set` : ''}` : `${appState.classes.length} classes &bull; ${appState.subjects.filter(isActive).length} subjects`)}
                     ${kpi('appeared', 'Result complete', d.done, `of ${d.total} students`, 'b')}
                     ${kpi('passed', 'Passed', d.passed, `${d.passPct}% of complete`, 'g')}
                     ${kpi('failed', 'Failed', d.failed, `${d.failPct}% of complete`, 'r')}
@@ -615,22 +653,60 @@
                         <span><i class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1"></i>Passed ${d.passed}</span><span><i class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mr-1"></i>Failed ${d.failed}</span>
                         <span><i class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-1"></i>Incomplete ${d.partial}</span><span><i class="inline-block w-2.5 h-2.5 rounded-full bg-slate-300 mr-1"></i>Not entered ${d.none}</span></div>
                 </div>
+                ${gTable}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Grade distribution</p>
                         <div class="space-y-1.5">${d.gradeOrder.map(g => { const n = d.gradeCount[g] || 0; return `<div class="flex items-center gap-2 text-xs"><span class="w-8 font-bold text-slate-700 shrink-0">${esc(g)}</span><div class="flex-1 h-4 bg-slate-100 rounded overflow-hidden"><div class="h-full ${g === appState.grades.fail.grade ? 'bg-red-500' : 'bg-emerald-500'}" style="width:${(n / maxGrade * 100).toFixed(1)}%"></div></div><span class="w-8 text-right text-slate-600">${n}</span></div>`; }).join('')}</div></div>
-                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Top 5 students</p>
+                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Top 5 students${gf !== 'ALL' ? ' (' + GF_LABEL[gf].toLowerCase() + ')' : ''}</p>
                         ${d.top.length ? `<ol class="space-y-1.5">${d.top.map((x, i) => `<li class="flex items-center gap-2 text-sm"><span class="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">${i + 1}</span><span class="min-w-0 flex-1 truncate"><span class="font-semibold text-slate-800">${esc(x.st.name)}</span> <span class="text-slate-400 text-xs">${esc((appState.classes.find(c => c.id === x.st.classId) || {}).name || '')}</span></span><span class="font-bold text-slate-700 shrink-0">${Math.round(x.pct * 10) / 10}%</span><span class="text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full px-2 py-0.5 shrink-0">${esc(x.grade)}</span></li>`).join('')}</ol>` : '<p class="text-xs text-slate-400">No complete results yet.</p>'}
                     </div>
                 </div>
                 <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Class-wise performance</p>
-                    <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs text-left min-w-[560px]"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Class</th><th class="px-2 py-2 text-center">Students</th><th class="px-2 py-2 text-center">Complete</th><th class="px-2 py-2 text-center">Passed</th><th class="px-2 py-2 text-center">Failed</th><th class="px-3 py-2 w-36">Pass %</th><th class="px-2 py-2 text-center">Avg %</th><th class="px-2 py-2 text-center">Pending</th></tr></thead>
-                        <tbody class="divide-y divide-slate-100">${d.classRows.map(c => `<tr><td class="px-3 py-2 font-semibold text-slate-800">${esc(c.name)}</td><td class="px-2 py-2 text-center">${c.total}</td><td class="px-2 py-2 text-center">${c.done}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${c.passed}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${c.failed}</td><td class="px-3 py-2"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${barColor(c.passPct)}" style="width:${c.done ? c.passPct : 0}%"></div></div><span class="w-10 text-right font-semibold">${c.done ? c.passPct + '%' : '-'}</span></div></td><td class="px-2 py-2 text-center">${c.done ? c.avg + '%' : '-'}</td><td class="px-2 py-2 text-center ${c.pending ? 'text-amber-600 font-semibold' : 'text-slate-400'}">${c.pending}</td></tr>`).join('')}</tbody></table></div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs text-left ${showG ? 'min-w-[760px]' : 'min-w-[560px]'}"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Class</th><th class="px-2 py-2 text-center">Students</th><th class="px-2 py-2 text-center">Complete</th><th class="px-2 py-2 text-center">Passed</th><th class="px-2 py-2 text-center">Failed</th><th class="px-3 py-2 w-36">Pass %</th>${showG ? '<th class="px-2 py-2 text-center text-sky-700">Boys pass</th><th class="px-2 py-2 text-center text-pink-700">Girls pass</th>' : ''}<th class="px-2 py-2 text-center">Avg %</th><th class="px-2 py-2 text-center">Pending</th></tr></thead>
+                        <tbody class="divide-y divide-slate-100">${d.classRows.map(c => `<tr><td class="px-3 py-2 font-semibold text-slate-800">${esc(c.name)}</td><td class="px-2 py-2 text-center">${c.total}${hasGender ? `<div class="text-[10px] text-slate-400">${c.boys}B &middot; ${c.girls}G</div>` : ''}</td><td class="px-2 py-2 text-center">${c.done}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${c.passed}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${c.failed}</td><td class="px-3 py-2">${pbar(c.passPct, c.done)}</td>${showG ? `<td class="px-2 py-2 text-center">${cell(c.bPassed, c.bDone, c.bPct)}</td><td class="px-2 py-2 text-center">${cell(c.gPassed, c.gDone, c.gPct)}</td>` : ''}<td class="px-2 py-2 text-center">${c.done ? c.avg + '%' : '-'}</td><td class="px-2 py-2 text-center ${c.pending ? 'text-amber-600 font-semibold' : 'text-slate-400'}">${c.pending}</td></tr>`).join('')}</tbody></table></div>
                 </div>
                 ${d.all ? '' : `<div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Subject-wise performance</p>
                     ${d.subjectRows.length ? `<div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs text-left min-w-[560px]"><thead class="bg-slate-100 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Class</th><th class="px-2 py-2">Subject</th><th class="px-2 py-2 text-center">Entered</th><th class="px-2 py-2 text-center">Passed</th><th class="px-2 py-2 text-center">Failed</th><th class="px-3 py-2 w-36">Pass %</th><th class="px-2 py-2 text-center">Avg %</th><th class="px-2 py-2 text-center">Highest</th></tr></thead>
-                        <tbody class="divide-y divide-slate-100">${subs.map(s => `<tr><td class="px-3 py-2 text-slate-500">${esc(s.cls)}</td><td class="px-2 py-2 font-semibold text-slate-800">${esc(s.name)}</td><td class="px-2 py-2 text-center">${s.entered}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${s.pass}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${s.fail}${s.ab ? ` <span class="text-[10px] text-slate-400">(${s.ab} AB)</span>` : ''}</td><td class="px-3 py-2"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${barColor(s.passPct)}" style="width:${s.passPct}%"></div></div><span class="w-10 text-right font-semibold">${s.passPct}%</span></div></td><td class="px-2 py-2 text-center">${s.avg}%</td><td class="px-2 py-2 text-center">${s.hi === null ? '-' : s.hi + '/' + s.max}</td></tr>`).join('')}</tbody></table></div>
+                        <tbody class="divide-y divide-slate-100">${subs.map(s => `<tr><td class="px-3 py-2 text-slate-500">${esc(s.cls)}</td><td class="px-2 py-2 font-semibold text-slate-800">${esc(s.name)}</td><td class="px-2 py-2 text-center">${s.entered}</td><td class="px-2 py-2 text-center text-emerald-700 font-semibold">${s.pass}</td><td class="px-2 py-2 text-center text-red-600 font-semibold">${s.fail}${s.ab ? ` <span class="text-[10px] text-slate-400">(${s.ab} AB)</span>` : ''}</td><td class="px-3 py-2">${pbar(s.passPct, true)}</td><td class="px-2 py-2 text-center">${s.avg}%</td><td class="px-2 py-2 text-center">${s.hi === null ? '-' : s.hi + '/' + s.max}</td></tr>`).join('')}</tbody></table></div>
                     ${d.subjectRows.length > 10 ? `<button type="button" onclick="OV.allSubs = !OV.allSubs; renderInstOverview()" class="mt-2 text-xs font-semibold text-emerald-700 underline">${OV.allSubs ? 'Show fewer' : `Show all ${d.subjectRows.length} subjects`}</button>` : ''}` : '<p class="text-xs text-slate-400">No subject marks entered for this exam yet.</p>'}
                 </div>`}`;
+        }
+        // ---- PDF of the overview (opens the print window: choose "Save as PDF") ----
+        function ovPrintHTML(d, examName, gf) {
+            const m = appState.madrasa, ink = '#0f172a', ac = 'rgb(var(--em-800))', hasGender = !!(d.counts.M || d.counts.F), showG = hasGender && gf === 'ALL';
+            const box = (l, v, c) => `<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;text-align:center"><div style="font-size:8.5px;text-transform:uppercase;color:#64748b">${l}</div><div style="font-size:17px;font-weight:700;color:${c || ink}">${v}</div></div>`;
+            const th = t => `<th style="padding:5px 6px;background:rgb(var(--em-900));color:#fff;font-size:9px;text-transform:uppercase;text-align:center">${t}</th>`;
+            const td = (t, x) => `<td style="padding:5px 6px;border-bottom:1px solid #e2e8f0;font-size:10.5px;text-align:center;${x || ''}">${t}</td>`, tdl = t => td(t, 'text-align:left;font-weight:600');
+            const pc = p => p >= 75 ? '#10b981' : p >= 50 ? '#fbbf24' : '#ef4444';
+            const bar = (p, on) => `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;min-width:56px"><div style="height:7px;width:${on ? p : 0}%;background:${pc(p)}"></div></div><span style="width:34px;text-align:right;font-weight:600">${on ? p + '%' : '-'}</span></div>`;
+            const sec = (t, body) => `<div style="margin-top:12px;break-inside:avoid"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#475569;margin-bottom:5px">${t}</div>${body}</div>`;
+            const table = (head, rows) => `<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0"><thead><tr>${head.map(th).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+            const seg = (n, c) => d.total && n ? `<div style="width:${n / d.total * 100}%;background:${c};height:12px"></div>` : '';
+            const gcol = k => k === 'M' ? '#0369a1' : k === 'F' ? '#be185d' : '#64748b', maxGrade = Math.max(1, ...Object.values(d.gradeCount));
+            const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), cell = (n, dn, p) => dn ? `${p}% (${n}/${dn})` : '-';
+            return `<style>@media print { #print-root tr { break-inside: avoid; } #print-root thead { display: table-header-group; } }</style>
+            <div style="font-family:system-ui,Arial,sans-serif;color:${ink};padding:6mm 4mm">
+                <div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid ${ac};padding-bottom:8px">${m.logo ? `<img src="${esc(m.logo)}" style="height:54px;width:auto;max-width:90px;object-fit:contain" alt="">` : ''}<div><div style="font-size:18px;font-weight:800;text-transform:uppercase;color:${ac}">${esc(m.name)}</div>${m.subtitle ? `<div style="font-size:10px;color:#475569">${esc(m.subtitle)}</div>` : ''}</div></div>
+                <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div style="font-size:14px;font-weight:700">Institution Overview &mdash; ${esc(examName)}${gf !== 'ALL' ? ' &mdash; ' + GF_LABEL[gf] + ' only' : ''}</div><div style="font-size:9px;color:#64748b;white-space:nowrap">Generated ${date}</div></div>
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px">${box('Students', d.total, ink)}${box('Result complete', d.done, '#0369a1')}${box('Passed', d.passed, 'rgb(var(--em-700))')}${box('Failed', d.failed, '#dc2626')}${box('Pass %', d.passPct + '%', 'rgb(var(--em-700))')}${box('Average', d.avg + '%', ink)}</div>
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">${box('Highest', d.hi ? Math.round(d.hi.pct * 10) / 10 + '%' : '-', '#059669')}${box('Lowest', d.lo ? Math.round(d.lo.pct * 10) / 10 + '%' : '-', '#dc2626')}${box('With absent', d.absentStudents, ink)}${box('Attendance', d.attAvg === null ? '-' : d.attAvg + '%', ink)}${box('Incomplete', d.partial, '#b45309')}${box('Not entered', d.none, '#475569')}</div>
+                ${sec('Results at a glance', `<div style="display:flex;border-radius:6px;overflow:hidden;background:#e2e8f0">${seg(d.passed, '#10b981')}${seg(d.failed, '#ef4444')}${seg(d.partial, '#fbbf24')}${seg(d.none, '#cbd5e1')}</div><div style="font-size:9px;color:#475569;margin-top:4px">Passed ${d.passed} &bull; Failed ${d.failed} &bull; Incomplete ${d.partial} &bull; Not entered ${d.none}</div>`)}
+                ${hasGender && d.genderRows.length ? sec('Boys vs Girls', table(['Group', 'Students', 'Complete', 'Passed', 'Failed', 'Pass %', 'Avg %', 'Highest'], d.genderRows.map(r => `<tr>${td(r.label, `text-align:left;font-weight:700;color:${gcol(r.k)}`)}${td(r.total)}${td(r.done)}${td(r.passed, 'color:#047857;font-weight:600')}${td(r.failed, 'color:#dc2626;font-weight:600')}${td(bar(r.passPct, r.done))}${td(r.done ? r.avg + '%' : '-')}${td(r.hi === null ? '-' : r.hi + '%')}</tr>`).join(''))) : ''}
+                ${sec('Grade distribution', `<table style="width:100%;border-collapse:collapse">${d.gradeOrder.map(g => { const n = d.gradeCount[g] || 0; return `<tr><td style="width:36px;font-size:10.5px;font-weight:700;padding:2px 0">${esc(g)}</td><td><div style="height:9px;background:#e2e8f0;border-radius:4px;overflow:hidden"><div style="height:9px;width:${(n / maxGrade * 100).toFixed(1)}%;background:${g === appState.grades.fail.grade ? '#ef4444' : 'rgb(var(--em-600))'}"></div></div></td><td style="width:30px;text-align:right;font-size:10.5px">${n}</td></tr>`; }).join('')}</table>`)}
+                ${sec('Class-wise performance', table(['Class', 'Students', 'Complete', 'Passed', 'Failed', 'Pass %'].concat(showG ? ['Boys pass', 'Girls pass'] : [], ['Avg %', 'Pending']), d.classRows.map(c => `<tr>${tdl(esc(c.name))}${td(c.total + (hasGender ? `<div style="font-size:8.5px;color:#94a3b8">${c.boys}B &middot; ${c.girls}G</div>` : ''))}${td(c.done)}${td(c.passed, 'color:#047857;font-weight:600')}${td(c.failed, 'color:#dc2626;font-weight:600')}${td(bar(c.passPct, c.done))}${showG ? td(cell(c.bPassed, c.bDone, c.bPct)) + td(cell(c.gPassed, c.gDone, c.gPct)) : ''}${td(c.done ? c.avg + '%' : '-')}${td(c.pending, c.pending ? 'color:#b45309;font-weight:600' : '')}</tr>`).join('')))}
+                ${d.all ? '' : sec('Subject-wise performance', d.subjectRows.length ? table(['Class', 'Subject', 'Entered', 'Passed', 'Failed', 'Pass %', 'Avg %', 'Highest'], d.subjectRows.map(s => `<tr>${td(esc(s.cls), 'text-align:left;color:#64748b')}${tdl(esc(s.name))}${td(s.entered)}${td(s.pass, 'color:#047857;font-weight:600')}${td(s.fail + (s.ab ? ` (${s.ab} AB)` : ''), 'color:#dc2626;font-weight:600')}${td(bar(s.passPct, true))}${td(s.avg + '%')}${td(s.hi === null ? '-' : s.hi + '/' + s.max)}</tr>`).join('')) : '<div style="font-size:10px;color:#94a3b8">No subject marks entered for this exam yet.</div>')}
+                ${sec('Top 5 students' + (gf !== 'ALL' ? ' (' + GF_LABEL[gf].toLowerCase() + ')' : ''), d.top.length ? table(['#', 'Student', 'Class', 'Percentage', 'Grade'], d.top.map((x, i) => `<tr>${td(i + 1)}${tdl(esc(x.st.name))}${td(esc((appState.classes.find(c => c.id === x.st.classId) || {}).name || ''))}${td(Math.round(x.pct * 10) / 10 + '%', 'font-weight:700')}${td(esc(x.grade))}</tr>`).join('')) : '<div style="font-size:10px;color:#94a3b8">No complete results yet.</div>')}
+                <div style="margin-top:14px;font-size:8.5px;color:#94a3b8;text-align:center">Complete = marks entered for every subject. Pass = no absent mark and every subject at or above its pass mark. Generated from the institution&rsquo;s live data.</div>
+            </div>`;
+        }
+        function printOverview() {
+            if (!appState.students.length || !appState.exams.length) { showToast('Nothing to print yet.', 'info'); return; }
+            const gf = GF.ov, d = ovCompute(OV.exam, gf), ex = appState.exams.find(e => e.id === OV.exam), name = OV.exam === '__ALL__' ? 'All exams (combined)' : (ex ? ex.name : '');
+            const root = document.createElement('div'); root.id = 'print-root'; root.innerHTML = ovPrintHTML(d, name, gf);
+            document.body.appendChild(root); document.body.classList.add('print-ov');
+            const old = document.title; document.title = fileSafe('Overview_' + (appState.madrasa.name || '') + '_' + name + (gf !== 'ALL' ? '_' + GF_LABEL[gf] : '')).replace(/ /g, '_');
+            const done = () => { document.title = old; document.body.classList.remove('print-ov'); root.remove(); window.removeEventListener('afterprint', done); };
+            window.addEventListener('afterprint', done); setTimeout(() => window.print(), 150);
         }
         function updateCounts() {
             const set = (id, n) => { const e = document.getElementById(id); if (e) e.textContent = `(${n})`; };
@@ -644,6 +720,7 @@
             document.getElementById('ge-title').textContent = title;
             const lbl = t => `<label class="block text-xs font-bold uppercase text-slate-600 mb-1">${esc(t)}</label>`;
             document.getElementById('ge-fields').innerHTML = fields.map((f, i) => {
+                if (f.type === 'gender') return `<div>${lbl(f.label)}${genderToggleHTML('ge-g-' + i, f.value)}</div>`;
                 if (f.type === 'sign') return `<div>${lbl(f.label)}<div class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 bg-slate-50"><div id="ge-sign-${i}" class="w-28 h-14 shrink-0 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden"></div><div class="flex flex-col sm:flex-row gap-1.5 ml-auto"><button type="button" id="ge-sign-btn-${i}" class="abtn abtn-ok" onclick="geSignEdit(${i})">Sign</button><button type="button" id="ge-sign-rm-${i}" class="abtn abtn-gray hidden" onclick="geSignRemove(${i})">Remove</button></div></div></div>`;
                 if (f.type === 'checkbox') return `<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="ge-f-${i}" ${f.value ? 'checked' : ''} class="w-5 h-5 accent-emerald-700"> ${esc(f.label)}</label>`;
                 if (f.type === 'select') return `<div>${lbl(f.label)}<select id="ge-f-${i}" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm bg-white">${f.options.map(o => `<option value="${esc(o.v)}" ${o.v === f.value ? 'selected' : ''}>${esc(o.t)}</option>`).join('')}</select></div>`;
@@ -660,7 +737,7 @@
         async function submitEdit(e) {
             e.preventDefault();
             const wantAgain = !!(e.submitter && e.submitter.dataset.again);
-            const vals = geFields.map((f, i) => { if (f.type === 'sign') return f.sign || ''; const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : (f.type === 'select' || f.type === 'textarea') ? el.value : el.value.trim(); });
+            const vals = geFields.map((f, i) => { if (f.type === 'gender') return gtVal('ge-g-' + i); if (f.type === 'sign') return f.sign || ''; const el = document.getElementById('ge-f-' + i); return f.type === 'checkbox' ? el.checked : f.type === 'number' ? Number(el.value) : (f.type === 'select' || f.type === 'textarea') ? el.value : el.value.trim(); });
             let err = geSave(vals); if (err && typeof err.then === 'function') err = await err;
             if (typeof err === 'string') { showToast(err, 'error'); return; }
             const again = wantAgain ? geOpts.again : null, msg = geOpts.msg || 'Changes saved.', custom = !!geOpts.custom;
@@ -1535,6 +1612,7 @@
         }
         function renderClassReport() {
             const area = document.getElementById('class-print-area');
+            const rgc = document.getElementById('rep-gchips'); if (rgc) { const rc = document.getElementById('rep-class').value, c = genderCounts(appState.students.filter(s => rc === 'ALL' || s.classId === rc)); rgc.innerHTML = c.M || c.F ? genderChips('rep', c) : ''; }
             const examId = document.getElementById('rep-exam').value, classId = document.getElementById('rep-class').value;
             if (!examId || !appState.classes.length) { area.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">Create an exam and a class first.</p>'; return; }
             if (classId === 'ALL') {
@@ -1552,7 +1630,7 @@
             const exams = all ? appState.exams : appState.exams.filter(e => e.id === examId);
             const subs = appState.subjects.filter(s => s.classId === classId && isActive(s));
             const maxPer = subs.reduce((a, s) => a + Number(s.maxMarks), 0);
-            const students = appState.students.filter(s => s.classId === classId);
+            const students = appState.students.filter(s => s.classId === classId && genderMatch(s, GF.rep));
             const rows = students.map(st => {
                 const per = exams.map(ex => { const r = appState.results.find(r => r.examId === ex.id && r.studentId === st.id);
                     if (!r) return null; const ap = subs.filter(s => r.marks[s.id] !== undefined);
@@ -1577,13 +1655,14 @@
                 + `<td class="${td} font-bold">${r.pend ? '-' : r.o + '/' + r.max}</td><td class="${td}">${r.pend ? '-' : r.p + '%'}</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td} font-semibold ${r.pend ? 'text-amber-600' : r.failN ? 'text-red-600' : 'text-emerald-700'}">${r.pend ? 'PENDING' : all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
             const passed = done.filter(r => r.failN === 0).length, failed = done.length - passed, pendingN = rows.length - done.length;
             const stat = (l, v, c) => `<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;color:#64748b">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div></div>`;
+            const gStat = GF.rep !== 'ALL' ? '' : ['M', 'F'].map(g => { const gl = done.filter(r => genderOf(r.st) === g), gp = gl.filter(r => r.failN === 0).length; return gl.length ? stat(genderName(g) + 's passed', `${gp}/${gl.length} (${pctOf(gp, gl.length)}%)`, g === 'M' ? '#0369a1' : '#be185d') : ''; }).join('');
             const overview = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-bottom:10px">`
                 + stat('Total Students', students.length, '#0f172a') + stat('Appeared', done.length, '#0f172a') + stat('Passed', passed, 'rgb(var(--em-700))') + stat('Failed', failed, '#dc2626')
-                + stat('Pass %', pctOf(passed, done.length) + '%', 'rgb(var(--em-700))') + stat('Fail %', pctOf(failed, done.length) + '%', '#dc2626') + (pendingN ? stat('Pending', pendingN, '#b45309') : '') + `</div>`;
+                + stat('Pass %', pctOf(passed, done.length) + '%', 'rgb(var(--em-700))') + stat('Fail %', pctOf(failed, done.length) + '%', '#dc2626') + (pendingN ? stat('Pending', pendingN, '#b45309') : '') + gStat + `</div>`;
             const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail) &bull; AB = absent`;
             const sign = (title, name, img) => `<div style="text-align:center"><div style="border-bottom:1px solid #94a3b8;height:40px;margin-bottom:4px;display:flex;align-items:flex-end;justify-content:center">${img ? `<img src="${esc(img)}" style="max-height:38px;max-width:80%;object-fit:contain" alt="">` : ''}</div>${name ? `<div style="font-weight:700;font-size:12px">${esc(name)}</div>` : ''}<div style="font-size:11px;color:#475569">${esc(title)}</div></div>`;
             const html = `<div class="text-center mb-3"><h2 class="text-lg font-bold uppercase font-serif">${esc(appState.madrasa.name)}</h2>
-                <p class="text-sm font-semibold">${all ? 'All Exams (Cumulative)' : esc(exams[0] ? exams[0].name : '')} &bull; ${esc(cls.name)}</p>
+                <p class="text-sm font-semibold">${all ? 'All Exams (Cumulative)' : esc(exams[0] ? exams[0].name : '')} &bull; ${esc(cls.name)}${GF.rep !== 'ALL' ? ' &bull; ' + GF_LABEL[GF.rep] : ''}</p>
                 <p class="text-xs text-slate-500 mt-1">${new Date().toLocaleDateString('en-GB')}</p></div>` + overview
                 + (rows.length ? `<table class="min-w-full text-xs border-collapse"><thead><tr><th class="${th}">Pos</th><th class="${th}">${esc(admLabel())}</th><th class="${th} text-left">Name</th>${cols}<th class="${th}">Attendance</th><th class="${th}">Total</th><th class="${th}">%</th><th class="${th}">Grade</th><th class="${th}">${all ? 'Exams' : 'Result'}</th></tr></thead><tbody>${body}</tbody></table><p class="text-[10px] text-slate-500 mt-2">Grade key: ${key}</p>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:28px;padding:0 30px">${sign(cls.teacherTitle || 'Class Teacher', cls.teacherName, (appState.classSigns || {})[cls.id])}${sign(appState.madrasa.headTitle || 'Principal', appState.madrasa.headName, appState.madrasa.headSign)}</div>`
@@ -1598,7 +1677,7 @@
             const att = !!sub.att;
             return students.map((st, i) => {
                 const v = getMark(st.id), ab = !att && v === 'AB', val = (v === undefined || ab) ? '' : v;
-                return `<tr data-sid="${esc(st.id)}" data-orig="${esc(ab ? 'AB' : val)}" data-q="${esc((st.name + ' ' + st.admissionNo).toLowerCase())}"><td class="py-2 px-2 text-slate-400 text-xs">${i + 1}</td>
+                return `<tr data-sid="${esc(st.id)}" data-g="${st.gender !== undefined ? (st.gender || 'U') : (genderOf(st) || 'U')}" data-orig="${esc(ab ? 'AB' : val)}" data-q="${esc((st.name + ' ' + st.admissionNo).toLowerCase())}"><td class="py-2 px-2 text-slate-400 text-xs">${i + 1}</td>
                     <td class="py-2 px-1"><div class="font-semibold text-slate-800 text-sm leading-tight">${esc(st.name)}</div><div class="text-[11px] text-slate-400">${esc(st.admissionNo)}</div></td>
                     <td class="py-2 px-1.5"><input type="number" inputmode="${att ? 'numeric' : 'decimal'}" step="${att ? 1 : 'any'}" min="0" max="${sub.maxMarks}" data-max="${sub.maxMarks}" data-pass="${sub.passingMarks}" data-prev="${esc(val)}" value="${esc(val)}" ${ab ? 'disabled' : ''} placeholder="-" oninput="seInput(this)" onkeydown="seEnter(event, this)" enterkeyhint="next" class="se-input w-full px-2 py-2.5 border border-slate-300 rounded-lg text-center font-bold text-slate-800 focus:ring-2 focus:ring-emerald-600 outline-none"></td>
                     ${att ? '' : `<td class="py-2 px-1.5 text-center"><label class="inline-flex flex-col items-center gap-0.5 text-[10px] font-bold text-red-700 cursor-pointer"><input type="checkbox" class="se-ab w-5 h-5 accent-red-600" onchange="seAbsent(this)" ${ab ? 'checked' : ''}>AB</label></td>`}</tr>`;
@@ -1632,10 +1711,19 @@
             if (i > -1 && i < all.length - 1) all[i + 1].focus(); else el.blur();
         }
         function seFilter(inp) {
-            const box = inp.closest('[data-se]'), q = inp.value.trim().toLowerCase(); let shown = 0;
-            box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => { const hit = !q || tr.dataset.q.includes(q); tr.style.display = hit ? '' : 'none'; if (hit) shown++; });
-            box.querySelector('.se-nomatch').classList.toggle('hidden', shown > 0 || !q);
+            const box = inp.closest('[data-se]'), q = inp.value.trim().toLowerCase(), gf = box.dataset.gf || 'ALL'; let shown = 0;
+            box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => { const hit = (!q || tr.dataset.q.includes(q)) && (gf === 'ALL' || tr.dataset.g === gf); tr.style.display = hit ? '' : 'none'; if (hit) shown++; });
+            box.querySelector('.se-nomatch').classList.toggle('hidden', shown > 0 || (!q && gf === 'ALL'));
         }
+        function seGenderBar(box, students) {
+            const bar = box.querySelector('.se-gchips'); box.dataset.gf = 'ALL'; if (!bar) return;
+            const g = s => s.gender !== undefined ? s.gender : genderOf(s), c = { M: students.filter(s => g(s) === 'M').length, F: students.filter(s => g(s) === 'F').length };
+            c.U = students.length - c.M - c.F;
+            if (!c.M && !c.F) { bar.classList.add('hidden'); return; }
+            bar.classList.remove('hidden');
+            bar.innerHTML = [['ALL', 'All', students.length], ['M', 'Boys', c.M], ['F', 'Girls', c.F]].concat(c.U ? [['U', 'Not set', c.U]] : []).map(([v, l, n]) => `<button type="button" class="gchip ${v === 'ALL' ? 'on' : ''}" data-v="${v}" onclick="seSetGF(this)">${l} <b>${n}</b></button>`).join('');
+        }
+        function seSetGF(btn) { const box = btn.closest('[data-se]'); box.dataset.gf = btn.dataset.v; box.querySelectorAll('.se-gchips .gchip').forEach(b => b.classList.toggle('on', b === btn)); seFilter(box.querySelector('.se-search')); }
         function seRefresh(box, dirty) {
             const att = box.dataset.mode === 'att'; let total = 0, entered = 0, pass = 0, fail = 0, ab = 0, sum = 0, days = 0;
             box.querySelectorAll('.se-rows tr[data-sid]').forEach(tr => {
@@ -1697,6 +1785,7 @@
             seHead(box, att, att ? `Attendance \u2014 ${cls.name}` : `${sub.name} \u2014 ${cls.name}`,
                 att ? `${ex.name} \u00b7 Total working days: ${sub.maxMarks} \u00b7 ${students.length} students` : `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`);
             box.querySelector('.se-rows').innerHTML = seRows(students, sub, att ? id => { const r = byStu.get(id); return r && r.attendanceDays >= 0 ? r.attendanceDays : undefined; } : id => ((byStu.get(id) || {}).marks || {})[sub.id]);
+            seGenderBar(box, students);
             box.dataset.dirty = ''; seRefresh(box); box.classList.remove('hidden');
         }
         function saveSubjectEntry() {
@@ -1846,6 +1935,7 @@
                 seHead(box, att, att ? `Attendance \u2014 ${cls.name}` : `${sub.name} \u2014 ${cls ? cls.name : ''}`,
                     att ? `${ex.name} \u00b7 Total working days: ${sub.maxMarks} \u00b7 ${students.length} students` : `${ex.name} \u00b7 Max ${sub.maxMarks} \u00b7 Pass ${sub.passingMarks} \u00b7 ${students.length} students`);
                 box.querySelector('.se-rows').innerHTML = seRows(students, sub, att ? id => r.att[id] : id => r.marks[id]);
+                seGenderBar(box, students);
                 teEl('te-saved').textContent = ''; seRefresh(box); teLoading(false); box.classList.remove('hidden');
             } catch (e) { if (seq !== TE.seq) return; teLoading(false); box.classList.add('hidden'); teMsg(e.message, false); }
         }
@@ -1902,11 +1992,12 @@
             const classes = cid === 'ALL' ? appState.classes : appState.classes.filter(c => c.id === cid);
             const natural = (a, b) => String(a.admissionNo).localeCompare(String(b.admissionNo), undefined, { numeric: true, sensitivity: 'base' });
             const list = [], missing = [];
-            if (ex) classes.forEach(c => appState.students.filter(s => s.classId === c.id).sort(natural).forEach(st => { const d = buildMarksheetData(ex, st); (d ? list : missing).push(d || st); }));
+            if (ex) classes.forEach(c => appState.students.filter(s => s.classId === c.id && genderMatch(s, GF.bulk)).sort(natural).forEach(st => { const d = buildMarksheetData(ex, st); (d ? list : missing).push(d || st); }));
             return { ex, classes, list, missing };
         }
         function updateBulkInfo() {
             const el = document.getElementById('bulk-info'); if (!el) return;
+            const bgc = document.getElementById('bulk-gchips'); if (bgc) { const c = genderCounts(appState.students); bgc.innerHTML = c.M || c.F ? genderChips('bulk', c) : ''; }
             const { ex, list, missing } = bulkSelection();
             el.textContent = !ex ? 'Create an exam and a class first.' : `${list.length} marksheet${list.length === 1 ? '' : 's'} will be created` + (missing.length ? ` (${missing.length} student${missing.length === 1 ? '' : 's'} without complete marks for this exam will be skipped).` : '.') + ' In the print window choose "Save as PDF".';
         }
@@ -1928,7 +2019,7 @@
                 document.body.appendChild(root); document.body.classList.add('print-bulk');
                 await Promise.all([...root.querySelectorAll('img')].slice(0, 2).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
                 const old = document.title;
-                document.title = fileSafe(`Marksheets_${classes.length === 1 ? classes[0].name : 'All Classes'}_${ex.name}`).replace(/ /g, '_');
+                document.title = fileSafe(`Marksheets_${classes.length === 1 ? classes[0].name : 'All Classes'}_${ex.name}${GF.bulk !== 'ALL' ? '_' + GF_LABEL[GF.bulk] : ''}`).replace(/ /g, '_');
                 const done = () => { document.title = old; document.body.classList.remove('print-bulk'); root.remove(); blobs.forEach(u => URL.revokeObjectURL(u)); window.removeEventListener('afterprint', done); };
                 window.addEventListener('afterprint', done);
                 setTimeout(() => window.print(), 100);
@@ -2281,7 +2372,8 @@
             document.getElementById('edit-adm-no').value = st.admissionNo;
             document.getElementById('edit-name').value = st.name;
             document.getElementById('edit-class').innerHTML = appState.classes.map(c => `<option value="${esc(c.id)}" ${c.id === st.classId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-            document.getElementById('edit-extra-fields').innerHTML = appState.fields.filter(f => f.id !== 'admissionNo').map(f =>
+            document.getElementById('edit-gender-wrap').innerHTML = genderToggleHTML('edit-gender', genderOf(st));
+            document.getElementById('edit-extra-fields').innerHTML = appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender').map(f =>
                 `<div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">${esc(f.label)}</label><input type="text" id="edit-f-${esc(f.id)}" value="${esc(fieldVal(st, f.id))}" maxlength="200" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm"></div>`).join('');
             document.getElementById('student-edit-modal').classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
@@ -2301,10 +2393,11 @@
             if (classId !== st.classId && appState.results.some(r => r.studentId === st.id) &&
                 !confirm('This student already has marks. Marks were entered for the old class subjects and will not count in the new class. Continue?')) return;
             const extra = { ...(st.extra || {}) };
-            appState.fields.filter(f => f.id !== 'admissionNo').forEach(f => {
+            appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender').forEach(f => {
                 const v = (document.getElementById('edit-f-' + f.id)?.value || '').trim();
                 if (f.id === 'fatherName') st.fatherName = v; else if (v) extra[f.id] = v; else delete extra[f.id];
             });
+            const gv = gtVal('edit-gender'); if (gv) extra.gender = gv; else delete extra.gender;
             Object.assign(st, { admissionNo, name, classId, extra });
             saveState();
             renderAllAdminData();
@@ -2336,16 +2429,25 @@
         }
 
         function downloadSampleCSV() {
-            const labels = appState.fields.filter(f => f.id !== 'admissionNo').map(f => f.label);
+            const labels = appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender').map(f => f.label);
             const cls = appState.classes[0] ? appState.classes[0].name : 'Class 1';
-            const sample = n => [n === 1 ? 'ADM108' : 'ADM109', n === 1 ? 'Hassan Ali' : 'Maryam Bibi', ...labels.map(l => 'Sample ' + l), cls];
-            const csv = [[admLabel(), 'Name', ...labels, 'ClassName'], sample(1), sample(2)].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+            const sample = n => [n === 1 ? 'ADM108' : 'ADM109', n === 1 ? 'Hassan Ali' : 'Maryam Bibi', ...labels.map(l => 'Sample ' + l), cls, n === 1 ? 'Boy' : 'Girl'];
+            const csv = [[admLabel(), 'Name', ...labels, 'ClassName', 'Gender'], sample(1), sample(2)].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
             const link = document.createElement("a");
             link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
             link.download = "students_sample.csv";
             document.body.appendChild(link); link.click(); link.remove();
         }
 
+        function exportStudentsCSV() { // edit gender in Excel / Sheets, then upload the same file again: gender of existing students is filled in
+            if (!appState.students.length) { showToast('No students to export yet.', 'info'); return; }
+            const fields = appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender'), q = c => `"${String(c ?? '').replace(/"/g, '""')}"`;
+            const nat = (a, b) => String(a.admissionNo).localeCompare(String(b.admissionNo), undefined, { numeric: true, sensitivity: 'base' });
+            const rows = [[admLabel(), 'Name', ...fields.map(f => f.label), 'ClassName', 'Gender']];
+            appState.classes.forEach(c => appState.students.filter(s => s.classId === c.id).sort(nat).forEach(s => rows.push([s.admissionNo, s.name, ...fields.map(f => fieldVal(s, f.id)), c.name, genderName(genderOf(s))])));
+            const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' })); link.download = fileSafe('students_' + (appState.madrasa.name || 'list')).replace(/ /g, '_') + '.csv';
+            document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+        }
         function processCSVUpload() {
             const fileInput = document.getElementById('csv-file-input');
             if (!fileInput.files || fileInput.files.length === 0) { showToast("Please select a .CSV file first.", "error"); return; }
@@ -2356,6 +2458,7 @@
                 const norm = x => String(x).toLowerCase().replace(/[^a-z0-9]/g, '');
                 const targetOf = h => {
                     const n = norm(h);
+                    if (['gender', 'sex', 'boygirl', 'mf', 'malefemale'].includes(n)) return 'gender';
                     if (['admissionno', 'admissionnumber', 'admno', 'rollno', 'rollnumber'].includes(n) || n === norm(admLabel())) return 'admissionNo';
                     if (['name', 'fullname', 'studentname'].includes(n)) return 'name';
                     if (['classname', 'class'].includes(n)) return 'class';
@@ -2365,24 +2468,27 @@
                 };
                 let targets = parseCSVLine(lines[0]).map(targetOf), start = 1;
                 if (!targets.includes('admissionNo') || !targets.includes('name')) { targets = ['admissionNo', 'name', 'fatherName', 'class']; start = 0; }
-                let imported = 0, skipped = 0;
+                let imported = 0, skipped = 0, genderSet = 0, genderBad = 0;
                 for (let i = start; i < lines.length; i++) {
                     const cols = parseCSVLine(lines[i]), rec = {};
                     targets.forEach((t, j) => { if (t && cols[j] !== undefined) rec[t] = cols[j]; });
                     const admNo = (rec.admissionNo || '').toUpperCase();
                     if (!admNo || !rec.name) continue;
-                    if (appState.students.some(s => s.admissionNo.toUpperCase() === admNo)) { skipped++; continue; }
+                    const gnorm = normGender(rec.gender); if (rec.gender && !gnorm) genderBad++;
+                    const dup = appState.students.find(s => s.admissionNo.toUpperCase() === admNo);
+                    if (dup) { skipped++; if (gnorm && genderOf(dup) !== gnorm) { dup.extra = dup.extra || {}; dup.extra.gender = gnorm; genderSet++; } continue; } // a repeated student is not added again, but his/her gender is filled in
                     const className = rec.class || (appState.classes[0] && appState.classes[0].name) || 'General';
                     let target = appState.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
                     if (!target) { target = { id: 'CLS_' + Date.now() + '_' + i, name: className, totalWorkingDays: 200 }; appState.classes.push(target); }
                     const extra = {};
-                    appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'fatherName').forEach(f => { if (rec[f.id]) extra[f.id] = rec[f.id]; });
+                    appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'fatherName' && f.id !== 'gender').forEach(f => { if (rec[f.id]) extra[f.id] = rec[f.id]; });
+                    if (gnorm) extra.gender = gnorm;
                     appState.students.push({ id: 'ST_' + Date.now() + '_' + i, admissionNo: admNo, name: rec.name, fatherName: rec.fatherName || '', extra, classId: target.id });
                     imported++;
                 }
                 fileInput.value = '';
                 saveState(); renderAllAdminData();
-                showToast(`CSV Import Complete: ${imported} added, ${skipped} duplicates skipped.`, "success");
+                showToast(`CSV Import Complete: ${imported} added, ${skipped} duplicates skipped${genderSet ? `, gender updated for ${genderSet}` : ''}.${genderBad ? ` ${genderBad} Gender value(s) not understood (use Boy / Girl).` : ''}`, genderBad ? 'info' : 'success');
             };
             reader.readAsText(fileInput.files[0]);
         }
