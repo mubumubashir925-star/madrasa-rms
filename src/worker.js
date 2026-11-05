@@ -202,6 +202,7 @@ const settings = async (db, tid, keys) => {
 const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
 const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
 const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0), 0);
+const denseRank = (list, v) => { let n = 0, prev = null; for (const p of list.filter(q => q > v + 1e-9).sort((a, b) => b - a)) if (prev === null || p < prev - 1e-9) { n++; prev = p; } return n + 1; }; // equal percentage = same position, and the next position is never skipped (3 on 1st -> next is 2nd)
 const exact = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, never the rounded one
 const subPassed = (m, x) => !absent(m?.[x.id]) && (Number(m?.[x.id]) || 0) >= x.passingMarks;
 
@@ -421,7 +422,7 @@ async function publicResult(db, t, url) {
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
     summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
-    position: set.portal.showPosition && pcts ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
+    position: set.portal.showPosition && pcts ? { rank: denseRank(pcts, myPct), of: pcts.length } : null,
     exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
 }
