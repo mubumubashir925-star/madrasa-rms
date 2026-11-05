@@ -354,6 +354,7 @@
 
         // ---- toppers (shown only after results are published) ----
         const ORD = ['', '1st', '2nd', '3rd'], TOP_MEDAL = ['', '&#129351;', '&#129352;', '&#129353;'], TOP_PILL = ['', 'bg-amber-100 text-amber-800', 'bg-slate-200 text-slate-700', 'bg-orange-100 text-orange-800'];
+        const clsLabel = n => { n = String(n || '').trim(); return /^\d/.test(n) ? 'Class ' + n : n; }; // "2" -> "Class 2" (names like "Hifz" stay as they are)
         function topGroups(list) { const g = []; for (const x of list) { let b = g.find(y => y.rank === x.rank); if (!b) g.push(b = { rank: x.rank, items: [] }); b.items.push(x); } return g; }
         // same rule as the server: complete results, all subjects passed, equal percentage = same place, no place skipped
         function topsOf(examId) {
@@ -372,47 +373,83 @@
             for (const x of cand) { if (prev === null || x.pct < prev - 1e-9) { place++; prev = x.pct; } if (place > 3) break; top.push({ rank: place, name: x.name, cls: x.cls, pct: Math.round(x.pct * 100) / 100 }); }
             return top;
         }
-        const topsHTML = examId => { const t = topsOf(examId); return t.length ? topGroups(t).map(g => `<div class="text-right"><span class="font-bold">${ORD[g.rank]}</span>: ${g.items.map(x => `${esc(x.name)} <span class="text-slate-400">(${esc(x.cls)}, ${esc(x.pct)}%)</span>`).join('<br>')}</div>`).join('') : '<span class="text-slate-400">Not available yet</span>'; };
+        const topsHTML = examId => { const t = topsOf(examId); return t.length ? topGroups(t).map(g => `<div class="text-right"><span class="font-bold">${ORD[g.rank]}</span>: ${g.items.map(x => `${esc(x.name)} <span class="text-slate-400">(${esc(clsLabel(x.cls))}, ${esc(x.pct)}%)</span>`).join('<br>')}</div>`).join('') : '<span class="text-slate-400">Not available yet</span>'; };
 
         // ---- toppers as a picture: download or share (drawn on a canvas, nothing leaves the phone) ----
         async function makeToppersImage() {
             const sel = document.getElementById('search-exam-select').value, list = (appState.toppers || {})[sel] || [];
             if (!list.length) throw new Error('No toppers to show');
             const ex = appState.exams.find(e => e.id === sel), m = appState.madrasa || {}, groups = topGroups(list);
-            const W = 1080, pad = 64, accent = /^#[0-9a-f]{6}$/i.test(m.accent || '') ? m.accent : '#064e3b', F = '"Plus Jakarta Sans", "Noto Sans Malayalam", "Noto Sans Arabic", "Segoe UI", Arial, sans-serif';
-            try { await document.fonts.ready; } catch (e) { }
+            const W = 1080, SC = 1.5, pad = 76, cw = W - pad * 2, F = '"Plus Jakarta Sans", "Noto Sans Malayalam", "Noto Sans Arabic", "Segoe UI", Arial, sans-serif', SCRIPT = 'Playball, "Brush Script MT", cursive';
+            const acc = /^#[0-9a-f]{6}$/i.test(m.accent || '') ? m.accent : '#064e3b';
+            const hx = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+            const mix = (h, t, a) => { const c = hx(h), d = hx(t); return '#' + c.map((v, i) => Math.round(v + (d[i] - v) * a).toString(16).padStart(2, '0')).join(''); };
+            const rgba = (h, a) => { const c = hx(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; };
+            try { await Promise.all(['500 28px "Plus Jakarta Sans"', '700 28px "Plus Jakarta Sans"', '800 28px "Plus Jakarta Sans"', '40px Playball'].map(f => document.fonts.load(f))); await document.fonts.ready; } catch (e) { }
             const logo = typeof m.logo === 'string' && m.logo.startsWith('/') && !m.logo.startsWith('//') ? await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = m.logo; }) : null;
-            const headH = logo ? 330 : 250, gH = 90, rH = 100, gap = 30, footH = 130;
-            const H = headH + 30 + groups.reduce((a, g) => a + gH + g.items.length * rH + gap, 0) + footH;
-            const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+            // ---- layout (all heights known first, so the picture is exactly as tall as its content) ----
+            const nameBase = logo ? 292 : 118, subBase = nameBase + 44, divBase = (m.subtitle ? subBase : nameBase) + 46, topBase = divBase + 104, pillTop = topBase + 36, pillH = 60, headH = pillTop + pillH + 58;
+            const rowH = 110, cardHead = 120, cardPadB = 20, gapC = 36, footH = 300;
+            const H = headH + 60 + groups.reduce((a, g) => a + cardHead + g.items.length * rowH + cardPadB + gapC, 0) + footH;
+            const c = document.createElement('canvas'); c.width = Math.round(W * SC); c.height = Math.round(H * SC); const x = c.getContext('2d'); x.scale(SC, SC);
             const rr = (px, py, w, h, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); };
             const fit = (t, maxW) => { t = String(t); if (x.measureText(t).width <= maxW) return t; while (t.length > 1 && x.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1); return t + '\u2026'; };
-            x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-            x.fillStyle = accent; x.fillRect(0, 0, W, headH); x.fillStyle = '#f59e0b'; x.fillRect(0, headH, W, 10);
-            let y = 70;
-            if (logo) { x.save(); x.beginPath(); x.arc(W / 2, 110, 70, 0, Math.PI * 2); x.closePath(); x.fillStyle = '#fff'; x.fill(); x.clip(); const k = Math.max(140 / logo.width, 140 / logo.height); x.drawImage(logo, W / 2 - logo.width * k / 2, 110 - logo.height * k / 2, logo.width * k, logo.height * k); x.restore(); y = 235; }
-            x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.fillStyle = '#ffffff';
-            let fs = 46; x.font = `700 ${fs}px ${F}`; while (x.measureText(m.name || '').width > W - pad * 2 && fs > 24) { fs -= 2; x.font = `700 ${fs}px ${F}`; }
-            x.fillText(m.name || '', W / 2, y); y += 60;
-            x.fillStyle = '#fbbf24'; x.font = `800 38px ${F}`; x.fillText('\u2605  TOPPERS  \u2605', W / 2, y); y += 46;
-            x.fillStyle = '#d1fae5'; x.font = `600 28px ${F}`; x.fillText(fit(ex ? ex.name : '', W - pad * 2), W / 2, y);
-            y = headH + 30;
-            const fills = ['', '#fde68a', '#e2e8f0', '#fed7aa'], inks = ['', '#92400e', '#334155', '#9a3412'];
-            for (const g of groups) {
-                const k = Math.min(g.rank, 3), label = (ORD[g.rank] || g.rank + 'th') + ' place';
-                x.font = `800 32px ${F}`; const pw = x.measureText(label).width + 56;
-                rr(pad, y + 14, pw, 58, 29); x.fillStyle = fills[k]; x.fill();
-                x.fillStyle = inks[k]; x.textAlign = 'left'; x.fillText(label, pad + 28, y + 54); y += gH;
-                for (const it of g.items) {
-                    x.textAlign = 'right'; x.fillStyle = accent; x.font = `800 38px ${F}`; const pct = it.pct + '%'; x.fillText(pct, W - pad, y + 46); const pwid = x.measureText(pct).width;
-                    x.textAlign = 'left'; x.fillStyle = '#0f172a'; x.font = `700 36px ${F}`; x.fillText(fit(it.name, W - pad * 2 - pwid - 40), pad, y + 40);
-                    x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText(fit(it.cls, W - pad * 2 - pwid - 40), pad, y + 78);
-                    x.fillStyle = '#e2e8f0'; x.fillRect(pad, y + rH - 4, W - pad * 2, 2); y += rH;
-                }
-                y += gap;
+            const spaced = (t, px, y, sp, align) => { const ch = [...String(t)], w = ch.reduce((a, q) => a + x.measureText(q).width + sp, -sp); let cx = align === 'center' ? px - w / 2 : px; x.textAlign = 'left'; for (const q of ch) { x.fillText(q, cx, y); cx += x.measureText(q).width + sp; } return w; };
+            const goldH = (x0, x1) => { const g = x.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, '#9a6b12'); g.addColorStop(.3, '#f6dd85'); g.addColorStop(.55, '#d4a017'); g.addColorStop(.8, '#f6dd85'); g.addColorStop(1, '#9a6b12'); return g; };
+            const ornament = (cy, half) => { x.fillStyle = goldH(W / 2 - half, W / 2 + half); x.fillRect(W / 2 - half, cy - 1, half - 26, 2.5); x.fillRect(W / 2 + 26, cy - 1, half - 26, 2.5); x.save(); x.translate(W / 2, cy); x.rotate(Math.PI / 4); x.fillStyle = '#e8b923'; x.fillRect(-7, -7, 14, 14); x.restore(); };
+            // ---- page + header ----
+            x.fillStyle = '#fffdf8'; x.fillRect(0, 0, W, H);
+            const hg = x.createLinearGradient(0, 0, 0, headH); hg.addColorStop(0, mix(acc, '#000000', .12)); hg.addColorStop(1, mix(acc, '#000000', .5)); x.fillStyle = hg; x.fillRect(0, 0, W, headH);
+            const glow = x.createRadialGradient(W / 2, 140, 10, W / 2, 140, 640); glow.addColorStop(0, 'rgba(255,255,255,.22)'); glow.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = glow; x.fillRect(0, 0, W, headH);
+            x.fillStyle = 'rgba(255,255,255,.05)'; x.beginPath(); x.arc(-40, headH - 30, 230, 0, 7); x.fill(); x.beginPath(); x.arc(W + 30, 40, 200, 0, 7); x.fill();
+            x.fillStyle = goldH(0, W); x.fillRect(0, headH, W, 12); x.fillStyle = rgba('#d4a017', .55); x.fillRect(0, headH + 18, W, 3);
+            if (logo) {
+                const cy = 150; x.save(); x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 22; x.shadowOffsetY = 8; x.beginPath(); x.arc(W / 2, cy, 86, 0, 7); x.fillStyle = goldH(W / 2 - 86, W / 2 + 86); x.fill(); x.restore();
+                x.beginPath(); x.arc(W / 2, cy, 78, 0, 7); x.fillStyle = '#ffffff'; x.fill();
+                x.save(); x.beginPath(); x.arc(W / 2, cy, 70, 0, 7); x.clip(); const k = Math.min(128 / logo.width, 128 / logo.height); x.drawImage(logo, W / 2 - logo.width * k / 2, cy - logo.height * k / 2, logo.width * k, logo.height * k); x.restore();
             }
-            x.textAlign = 'center'; x.fillStyle = '#94a3b8'; x.font = `500 24px ${F}`;
-            x.fillText('Check your result online', W / 2, H - 70); x.fillStyle = accent; x.font = `700 26px ${F}`; x.fillText(fit(location.host + location.pathname.replace(/\/$/, ''), W - pad * 2), W / 2, H - 34);
+            x.save(); x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 10; x.shadowOffsetY = 3;
+            x.textAlign = 'center'; x.fillStyle = '#ffffff'; let fs = 54; x.font = `800 ${fs}px ${F}`; while (x.measureText((m.name || '').toUpperCase()).width > cw - 20 && fs > 26) { fs -= 2; x.font = `800 ${fs}px ${F}`; }
+            x.fillText((m.name || '').toUpperCase(), W / 2, nameBase);
+            if (m.subtitle) { x.shadowBlur = 0; x.fillStyle = 'rgba(255,255,255,.78)'; x.font = `500 25px ${F}`; x.fillText(fit(m.subtitle, cw), W / 2, subBase); }
+            x.restore();
+            ornament(divBase, 250);
+            x.save(); x.font = `800 86px ${F}`; x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 14; x.shadowOffsetY = 4;
+            const tg = x.createLinearGradient(0, topBase - 70, 0, topBase + 6); tg.addColorStop(0, '#fff3b8'); tg.addColorStop(.5, '#f6c744'); tg.addColorStop(1, '#c58a12'); x.fillStyle = tg; spaced('TOPPERS', W / 2, topBase, 14, 'center'); x.restore();
+            const exName = ex ? ex.name : ''; x.font = `700 28px ${F}`; const pw = Math.min(cw, x.measureText(exName).width + 100);
+            rr(W / 2 - pw / 2, pillTop, pw, pillH, pillH / 2); x.fillStyle = 'rgba(255,255,255,.1)'; x.fill(); x.lineWidth = 2.5; x.strokeStyle = '#e8b923'; x.stroke();
+            x.fillStyle = '#fde68a'; x.textAlign = 'center'; x.fillText(fit(exName, pw - 60), W / 2, pillTop + 39);
+            // ---- place cards ----
+            const MED = { 1: ['#fff6c8', '#f7c948', '#a8741a'], 2: ['#ffffff', '#d3d9e3', '#6b7787'], 3: ['#ffe6cf', '#e29a5c', '#85461a'] }, BAR = { 1: '#f0b400', 2: '#94a3b8', 3: '#c2571a' }, INK = { 1: '#7a4a02', 2: '#334155', 3: '#6b3410' }, LAB = ['', 'FIRST PLACE', 'SECOND PLACE', 'THIRD PLACE'];
+            let y = headH + 60;
+            for (const g of groups) {
+                const k = Math.min(g.rank, 3), cardH = cardHead + g.items.length * rowH + cardPadB;
+                x.save(); x.shadowColor = 'rgba(15,23,42,.14)'; x.shadowBlur = 30; x.shadowOffsetY = 10; rr(pad, y, cw, cardH, 30); x.fillStyle = '#ffffff'; x.fill(); x.restore();
+                x.save(); rr(pad, y, cw, cardH, 30); x.clip(); x.fillStyle = BAR[k]; x.fillRect(pad, y, 14, cardH); x.restore();
+                rr(pad, y, cw, cardH, 30); x.lineWidth = 2; x.strokeStyle = rgba(BAR[k], .4); x.stroke();
+                const mx = pad + 92, my = y + 62, r = 41, mg = x.createRadialGradient(mx - r * .35, my - r * .4, r * .1, mx, my, r); mg.addColorStop(0, MED[k][0]); mg.addColorStop(.6, MED[k][1]); mg.addColorStop(1, MED[k][2]);
+                x.beginPath(); x.arc(mx, my, r, 0, 7); x.fillStyle = mg; x.fill(); x.lineWidth = 4; x.strokeStyle = MED[k][2]; x.stroke(); x.beginPath(); x.arc(mx, my, r - 9, 0, 7); x.lineWidth = 2; x.strokeStyle = 'rgba(255,255,255,.75)'; x.stroke();
+                x.fillStyle = INK[k]; x.textAlign = 'center'; x.font = `800 46px ${F}`; x.fillText(String(g.rank), mx, my + 16);
+                x.fillStyle = INK[k]; x.font = `800 30px ${F}`; spaced(LAB[k] || (g.rank + 'TH PLACE'), pad + 156, my + 11, 4, 'left');
+                let ry = y + cardHead;
+                for (const it of g.items) {
+                    x.fillStyle = '#eef2f7'; x.fillRect(pad + 40, ry, cw - 80, 2);
+                    const pct = it.pct + '%'; x.font = `800 38px ${F}`; const pwid = x.measureText(pct).width + 54, px = pad + cw - 40 - pwid;
+                    rr(px, ry + 22, pwid, 64, 32); x.fillStyle = rgba(acc, .1); x.fill(); x.lineWidth = 2; x.strokeStyle = rgba(acc, .35); x.stroke();
+                    x.fillStyle = acc; x.textAlign = 'center'; x.fillText(pct, px + pwid / 2, ry + 66);
+                    x.textAlign = 'left'; x.fillStyle = '#0f172a'; x.font = `700 38px ${F}`; x.fillText(fit(it.name, px - (pad + 52) - 24), pad + 52, ry + 54);
+                    x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText(fit(clsLabel(it.cls), px - (pad + 52) - 24), pad + 52, ry + 90);
+                    ry += rowH;
+                }
+                y += cardH + gapC;
+            }
+            // ---- closing ----
+            ornament(y + 22, 210);
+            x.textAlign = 'center'; x.fillStyle = acc; x.font = `400 78px ${SCRIPT}`; x.fillText('Congratulations!', W / 2, y + 128);
+            x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText('Wishing every topper continued success', W / 2, y + 178);
+            x.fillStyle = '#b8860b'; x.font = `800 22px ${F}`; spaced((m.name || '').toUpperCase().slice(0, 48), W / 2, y + 232, 5, 'center');
+            // ---- gold frame ----
+            x.lineWidth = 7; x.strokeStyle = goldH(0, W); x.strokeRect(20, 20, W - 40, H - 40); x.lineWidth = 2; x.strokeStyle = rgba('#b8860b', .65); x.strokeRect(36, 36, W - 72, H - 72);
             const blob = await new Promise(r => c.toBlob(r, 'image/png'));
             if (!blob) throw new Error('Could not create the image');
             const nm = 'toppers-' + String((ex && ex.name) || 'result').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) + '.png';
@@ -435,7 +472,7 @@
             const show = !!p.enabled && p.showToppers !== false && !(Number(p.opensAt) > pubNow()) && list.length > 0;
             card.classList.toggle('hidden', !show); if (!show) return;
             const ex = appState.exams.find(e => e.id === sel); document.getElementById('toppers-exam').textContent = ex ? ex.name : '';
-            document.getElementById('toppers-list').innerHTML = topGroups(list).map(g => `<div class="px-4 md:px-6 py-3"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${TOP_PILL[Math.min(g.rank, 3)]}">${TOP_MEDAL[Math.min(g.rank, 3)]} ${ORD[g.rank] || g.rank + 'th'} place</span></div>${g.items.map(x => `<div class="flex items-center gap-3 py-1.5"><div class="min-w-0 flex-1"><div class="font-semibold text-slate-800 truncate">${esc(x.name)}</div><div class="text-xs text-slate-500">${esc(x.cls)}</div></div><div class="font-bold text-emerald-800">${esc(x.pct)}%</div></div>`).join('')}</div>`).join('');
+            document.getElementById('toppers-list').innerHTML = topGroups(list).map(g => `<div class="px-4 md:px-6 py-3"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${TOP_PILL[Math.min(g.rank, 3)]}">${TOP_MEDAL[Math.min(g.rank, 3)]} ${ORD[g.rank] || g.rank + 'th'} place</span></div>${g.items.map(x => `<div class="flex items-center gap-3 py-1.5"><div class="min-w-0 flex-1"><div class="font-semibold text-slate-800 truncate">${esc(x.name)}</div><div class="text-xs text-slate-500">${esc(clsLabel(x.cls))}</div></div><div class="font-bold text-emerald-800">${esc(x.pct)}%</div></div>`).join('')}</div>`).join('');
         }
 
         async function handleResultSearch(e) {
@@ -1556,13 +1593,41 @@
             for (let i = 0; i < d.length; i += 16) { n++; if (d[i + 3] > 20 && (d[i] < 235 || d[i + 1] < 235 || d[i + 2] < 235)) ink++; }
             return ink / n < minFrac;
         }
+        // iPhones/iPads (Safari) are strict about "tainted" canvases and reply "The operation is insecure". On those we start in a
+        // safe mode (every picture is first turned into inline data, the SVG watermark and hologram become plain CSS), and if the
+        // normal way fails on any other device it is retried once in the same safe mode.
+        const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isSecErr = e => /insecure|security/i.test(String(e && (e.name + ' ' + e.message)));
+        async function inlineImages(root) {
+            await Promise.all([...root.querySelectorAll('img')].map(async im => {
+                const u = im.getAttribute('src') || ''; if (!u || u.startsWith('data:')) return;
+                try {
+                    const r = await fetch(u, { credentials: 'same-origin' }); if (!r.ok) return; const b = await r.blob();
+                    im.src = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
+                    if (im.decode) await im.decode().catch(() => { });
+                } catch (e) { /* keep the original picture */ }
+            }));
+        }
+        function plainSecurity(root) {
+            root.querySelectorAll('.ms-wm').forEach(e => { e.style.backgroundImage = 'none'; });
+            root.querySelectorAll('.ms-seal').forEach(e => { e.innerHTML = '<div style="width:100%;height:100%;box-sizing:border-box;border-radius:50%;background:linear-gradient(135deg,#fbc2eb,#a6c1ee,#84fab0,#fef9d7,#ffd6a5);border:2px solid #b8923a;display:flex;align-items:center;justify-content:center;text-align:center;font:700 13px/1.15 Georgia,serif;color:#064e3b">Verified<br>Result</div>'; });
+        }
         async function renderMarksheetBlob() {
+            try { return await renderMarksheetBlobOnce(IS_IOS); }
+            catch (e) {
+                if (!IS_IOS && isSecErr(e)) { try { return await renderMarksheetBlobOnce(true); } catch (e2) { e = e2; } }
+                if (isSecErr(e)) throw new Error('This phone does not allow saving the image. Please use the PDF button.' + (e.step ? ' (code: ' + e.step + ')' : ''));
+                throw e;
+            }
+        }
+        async function renderMarksheetBlobOnce(safe) {
             const src = document.getElementById('printable-result'), stage = document.createElement('div');
             stage.style.cssText = 'position:fixed;left:-10000px;top:0;width:820px;pointer-events:none';
             const clone = src.cloneNode(true); clone.removeAttribute('id'); clone.classList.add('ms-export'); clone.style.width = '820px';
             stage.appendChild(clone); document.body.appendChild(stage); // copy of THIS result, taken before anything slow happens
             try {
                 const h2c = await loadHtml2Canvas();
+                if (safe) { plainSecurity(clone); await inlineImages(clone); }
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
                 await Promise.all([...clone.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => { }) : (i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))));
                 fixContainImages(clone);
@@ -1572,10 +1637,10 @@
                 let canvas;
                 for (let attempt = 0; attempt < 3; attempt++) { // if the logo or the marks came out empty, draw it again
                     canvas = await h2c(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, width: 820, windowWidth: 820, imageTimeout: 30000 });
-                    if (!looksBlank(canvas, logoBox, .01) && !looksBlank(canvas, marksBox, .004)) break;
+                    try { if (!looksBlank(canvas, logoBox, .01) && !looksBlank(canvas, marksBox, .004)) break; } catch (e) { e.step = 'check'; throw e; }
                     await new Promise(r => setTimeout(r, 400));
                 }
-                return await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('Image could not be created')), 'image/png'));
+                try { return await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('Image could not be created')), 'image/png')); } catch (e) { e.step = 'encode'; throw e; }
             } finally { stage.remove(); }
         }
         function prepareMarksheetImage(m) {
@@ -2571,6 +2636,56 @@
             document.body.appendChild(link); link.click(); link.remove();
         }
 
+        // ================= STUDENT LIST PDF (admin only: choose classes + columns, each class on its own page; print it for teachers) =================
+        function openStudentPdf() {
+            if (!appState.students.length) { showToast('No students yet.', 'info'); return; }
+            const old = document.getElementById('stu-pdf-modal'); if (old) old.remove();
+            const noClass = appState.students.filter(s => !appState.classes.some(c => c.id === s.classId)).length;
+            const cls = [...appState.classes.map(c => ({ id: c.id, name: c.name, n: appState.students.filter(s => s.classId === c.id).length })), ...(noClass ? [{ id: '__none__', name: 'Unassigned', n: noClass }] : [])].filter(c => c.n);
+            const cols = [{ id: '#', label: 'Sl. No', on: true }, { id: 'adm', label: admLabel(), on: true }, { id: 'name', label: 'Student name', on: true, lock: true }, { id: 'gender', label: 'Gender', on: false },
+                ...appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender').map(f => ({ id: 'f:' + f.id, label: f.label, on: f.show !== false }))];
+            const chk = (cls0, v, label, on, extra, lock) => `<label class="flex items-center gap-2 text-sm border border-slate-200 rounded-lg px-3 py-2 ${lock ? 'bg-slate-50' : 'cursor-pointer'}"><input type="checkbox" class="${cls0} w-4 h-4 accent-emerald-700" value="${esc(v)}" ${on ? 'checked' : ''} ${lock ? 'disabled' : ''}><span class="min-w-0 truncate">${esc(label)}</span>${extra || ''}</label>`;
+            const el = document.createElement('div'); el.id = 'stu-pdf-modal'; el.className = 'fixed inset-0 z-[100] bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4';
+            el.onclick = e => { if (e.target === el) el.remove(); };
+            el.innerHTML = `<div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] flex flex-col">
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between"><h3 class="font-bold text-slate-800"><i class="fas fa-file-pdf text-red-600 mr-2"></i>Student list PDF</h3><button type="button" class="text-slate-400 text-2xl leading-none px-1" onclick="document.getElementById('stu-pdf-modal').remove()">&times;</button></div>
+                <div class="p-5 overflow-y-auto space-y-5">
+                    <div><div class="flex items-center justify-between mb-2"><p class="text-xs font-bold uppercase text-slate-600">Classes</p><span class="text-xs"><button type="button" class="text-emerald-700 font-semibold" onclick="document.querySelectorAll('.spdf-class').forEach(i=>i.checked=true)">All</button> &middot; <button type="button" class="text-slate-500 font-semibold" onclick="document.querySelectorAll('.spdf-class').forEach(i=>i.checked=false)">None</button></span></div>
+                        <div class="grid grid-cols-2 gap-2">${cls.map(c => chk('spdf-class', c.id, c.name, true, `<span class="ml-auto text-xs text-slate-400">${c.n}</span>`)).join('')}</div>
+                        <p class="text-[11px] text-slate-500 mt-2">Every class starts on a new page with its own heading and student count.</p></div>
+                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">Details to include</p>
+                        <div class="grid grid-cols-2 gap-2">${cols.map(c => chk('spdf-col', c.id, c.label, c.on, '', c.lock)).join('')}</div></div>
+                </div>
+                <div class="px-5 py-4 border-t border-slate-200 flex gap-2"><button type="button" class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-semibold text-slate-600" onclick="document.getElementById('stu-pdf-modal').remove()">Cancel</button><button type="button" id="spdf-go" class="flex-1 px-4 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-sm font-bold" onclick="makeStudentPdf()"><i class="fas fa-print mr-1.5"></i> Create PDF</button></div></div>`;
+            document.body.appendChild(el);
+        }
+        async function makeStudentPdf() {
+            const ids = [...document.querySelectorAll('.spdf-class:checked')].map(i => i.value), picked = new Set([...document.querySelectorAll('.spdf-col:checked')].map(i => i.value)); picked.add('name');
+            if (!ids.length) { showToast('Select at least one class.', 'info'); return; }
+            const m = appState.madrasa, ac = 'rgb(var(--em-800))', ink = '#0f172a', date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            const nat = (a, b) => String(a.admissionNo).localeCompare(String(b.admissionNo), undefined, { numeric: true, sensitivity: 'base' });
+            const all = [{ id: '#', label: 'Sl. No', get: (s, i) => i + 1, c: 1 }, { id: 'adm', label: admLabel(), get: s => s.admissionNo, c: 1 }, { id: 'name', label: 'Student name', get: s => s.name, b: 1 }, { id: 'gender', label: 'Gender', get: s => genderName(genderOf(s)), c: 1 },
+                ...appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender').map(f => ({ id: 'f:' + f.id, label: f.label, get: s => fieldVal(s, f.id) }))];
+            const cols = all.filter(c => picked.has(c.id));
+            const th = c => `<th style="padding:6px 8px;background:${ac};color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.04em;text-align:${c.c ? 'center' : 'left'};border:1px solid ${ac}">${esc(c.label)}</th>`;
+            const pages = ids.map(id => {
+                const c = appState.classes.find(k => k.id === id), list = appState.students.filter(s => id === '__none__' ? !appState.classes.some(k => k.id === s.classId) : s.classId === id).sort(nat); if (!list.length) return '';
+                const title = c ? clsLabel(c.name) : 'Unassigned students', rows = list.map((s, i) => `<tr style="${i % 2 ? 'background:#f8fafc' : ''}">${cols.map(k => `<td style="padding:6px 8px;border:1px solid #cbd5e1;font-size:11.5px;${k.c ? 'text-align:center;' : ''}${k.b ? 'font-weight:600;' : ''}">${esc(k.get(s, i))}</td>`).join('')}</tr>`).join('');
+                return `<section class="stu-page" style="break-after:page;padding:4mm 2mm"><div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid ${ac};padding-bottom:8px">${m.logo ? `<img src="${esc(m.logo)}" style="height:54px;width:auto;max-width:90px;object-fit:contain" alt="">` : ''}<div><div style="font-size:18px;font-weight:800;text-transform:uppercase;color:${ac}">${esc(m.name || '')}</div>${m.subtitle ? `<div style="font-size:10px;color:#475569">${esc(m.subtitle)}</div>` : ''}</div></div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:12px 0 8px"><div style="font-size:15px;font-weight:800;color:${ink}">Student List &mdash; ${esc(title)}</div><div style="font-size:10px;color:#64748b">Total: <b style="color:${ink}">${list.length}</b> students &middot; ${date}</div></div>
+                    <table style="width:100%;border-collapse:collapse"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${rows}</tbody></table></section>`;
+            }).join('');
+            if (!pages) { showToast('The selected classes have no students.', 'info'); return; }
+            const modal = document.getElementById('stu-pdf-modal'); if (modal) modal.remove();
+            const root = document.createElement('div'); root.id = 'print-root';
+            root.innerHTML = `<style>@page{size:A4 portrait;margin:10mm}@media print{#print-root .stu-page:last-child{break-after:auto!important}#print-root tr{break-inside:avoid}#print-root thead{display:table-header-group}}</style><div style="font-family:system-ui,Arial,sans-serif;color:${ink}">${pages}</div>`;
+            document.body.appendChild(root); document.body.classList.add('print-ov');
+            try { await Promise.all([...root.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => { }) : 0)); } catch (e) { }
+            const only = ids.length === 1 ? (appState.classes.find(k => k.id === ids[0]) || { name: 'Unassigned' }).name : 'All classes', old = document.title;
+            document.title = fileSafe('Students_' + (m.name || '') + '_' + only).replace(/ /g, '_');
+            const done = () => { document.title = old; document.body.classList.remove('print-ov'); root.remove(); window.removeEventListener('afterprint', done); };
+            window.addEventListener('afterprint', done); setTimeout(() => window.print(), 150);
+        }
         function exportStudentsCSV() { // edit gender in Excel / Sheets, then upload the same file again: gender of existing students is filled in
             if (!appState.students.length) { showToast('No students to export yet.', 'info'); return; }
             const fields = appState.fields.filter(f => f.id !== 'admissionNo' && f.id !== 'gender'), q = c => `"${String(c ?? '').replace(/"/g, '""')}"`;

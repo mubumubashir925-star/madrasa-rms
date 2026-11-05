@@ -43,6 +43,9 @@ One website, many institutions. Each institution has its own address, admin logi
 - Toppers and class positions are calculated once, right after you publish (and never per visitor), so the first wave of parents is served from ready data.
 - Tip: set the time, press Save, and open the public link once yourself before the announced time to see the countdown.
 
+## 3c. Student list PDF (admin only)
+Students tab -> **PDF** button (next to the search box): tick the classes (all, some or one) and the details you want (Sl. No, admission no, name, gender, father/guardian and any extra fields), then **Create PDF** and choose "Save as PDF" (or print it for the class teachers). Every class starts on a new page with its heading and student count. Teacher links do not show or export any of this.
+
 ## 4. Good to know
 - Data is fully separated: every database query is locked to the logged-in institution.
 - Addresses: 3-40 letters/numbers/hyphens. Changing an address changes the link, so tell the client.

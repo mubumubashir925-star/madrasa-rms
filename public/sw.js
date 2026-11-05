@@ -1,4 +1,4 @@
-const CACHE = 'result-publisher-v13';
+const CACHE = 'result-publisher-v15';
 const SHELL = ['/styles.css', '/app.css', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', e => {
