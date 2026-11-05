@@ -46,6 +46,15 @@ One website, many institutions. Each institution has its own address, admin logi
 ## 3c. Student list PDF (admin only)
 Students tab -> **PDF** button (next to the search box): tick the classes (all, some or one) and the details you want (Sl. No, admission no, name, gender, father/guardian and any extra fields), then **Create PDF** and choose "Save as PDF" (or print it for the class teachers). Every class starts on a new page with its heading and student count. Teacher links do not show or export any of this.
 
+## 3d. Toppers & Posters (v16, admin only)
+Reports tab -> **Toppers & Posters**. Nothing here is shown on the public page; it is calculated on the admin's device and the poster is drawn there too.
+- **Toppers by**: *Marks* (academic) or *Attendance*.
+- **Level**: *Whole institution* (one poster) or *Class-wise* (one card + poster for every class, or pick a single class).
+- **Examination**: any one exam, or *Overall (all exams together)*.
+- **Names shown per place** (5 / 10 / 20 / all): attendance often has many students tied on 100%. All of them share 1st place; the poster lists the first N (alphabetically) and adds "+ N more with the same attendance".
+- Each card has **Download poster** and **Share** (WhatsApp etc.), with the institution name/logo and a "Congratulations!" closing, in the same design as the public Toppers poster.
+- Rules: Marks = complete result and every subject passed. Attendance = days present / the class's working days (percentage, so classes with different working days are comparable). Equal percentage = same place, no place skipped. *Overall* counts a student only if he/she has a result (or attendance) in every exam that has data for the class.
+
 ## 4. Good to know
 - Data is fully separated: every database query is locked to the logged-in institution.
 - Addresses: 3-40 letters/numbers/hyphens. Changing an address changes the link, so tell the client.

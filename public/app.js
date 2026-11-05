@@ -379,7 +379,13 @@
         async function makeToppersImage() {
             const sel = document.getElementById('search-exam-select').value, list = (appState.toppers || {})[sel] || [];
             if (!list.length) throw new Error('No toppers to show');
-            const ex = appState.exams.find(e => e.id === sel), m = appState.madrasa || {}, groups = topGroups(list);
+            const ex = appState.exams.find(e => e.id === sel), m = appState.madrasa || {};
+            return drawPosterImage({ groups: topGroups(list), pill: ex ? ex.name : '', fileBase: 'toppers-' + String((ex && ex.name) || 'result'), shareTitle: (m.name || '') + ' - Toppers' + (ex ? ' - ' + ex.name : '') });
+        }
+        // one poster painter for every topper poster (public marks toppers, and the admin class / attendance posters).
+        // o = { groups:[{rank,items,more}], pill, kicker?, value?(it), sub?(it), closing?, moreLabel?, fileBase, shareTitle }
+        async function drawPosterImage(o) {
+            const m = appState.madrasa || {}, groups = o.groups;
             const W = 1080, SC = 1.5, pad = 76, cw = W - pad * 2, F = '"Plus Jakarta Sans", "Noto Sans Malayalam", "Noto Sans Arabic", "Segoe UI", Arial, sans-serif', SCRIPT = 'Playball, "Brush Script MT", cursive';
             const acc = /^#[0-9a-f]{6}$/i.test(m.accent || '') ? m.accent : '#064e3b';
             const hx = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
@@ -388,9 +394,9 @@
             try { await Promise.all(['500 28px "Plus Jakarta Sans"', '700 28px "Plus Jakarta Sans"', '800 28px "Plus Jakarta Sans"', '40px Playball'].map(f => document.fonts.load(f))); await document.fonts.ready; } catch (e) { }
             const logo = typeof m.logo === 'string' && m.logo.startsWith('/') && !m.logo.startsWith('//') ? await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = m.logo; }) : null;
             // ---- layout (all heights known first, so the picture is exactly as tall as its content) ----
-            const nameBase = logo ? 292 : 118, subBase = nameBase + 44, divBase = (m.subtitle ? subBase : nameBase) + 46, topBase = divBase + 104, pillTop = topBase + 36, pillH = 60, headH = pillTop + pillH + 58;
-            const rowH = 110, cardHead = 120, cardPadB = 20, gapC = 36, footH = 300;
-            const H = headH + 60 + groups.reduce((a, g) => a + cardHead + g.items.length * rowH + cardPadB + gapC, 0) + footH;
+            const nameBase = logo ? 292 : 118, subBase = nameBase + 44, divBase = (m.subtitle ? subBase : nameBase) + 46, kickBase = divBase + 58, topBase = divBase + (o.kicker ? 160 : 104), pillTop = topBase + 36, pillH = 60, headH = pillTop + pillH + 58;
+            const rowH = 110, cardHead = 120, cardPadB = 20, gapC = 36, footH = 300, moreH = 70;
+            const H = headH + 60 + groups.reduce((a, g) => a + cardHead + g.items.length * rowH + (g.more ? moreH : 0) + cardPadB + gapC, 0) + footH;
             const c = document.createElement('canvas'); c.width = Math.round(W * SC); c.height = Math.round(H * SC); const x = c.getContext('2d'); x.scale(SC, SC);
             const rr = (px, py, w, h, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); };
             const fit = (t, maxW) => { t = String(t); if (x.measureText(t).width <= maxW) return t; while (t.length > 1 && x.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1); return t + '\u2026'; };
@@ -414,16 +420,21 @@
             if (m.subtitle) { x.shadowBlur = 0; x.fillStyle = 'rgba(255,255,255,.78)'; x.font = `500 25px ${F}`; x.fillText(fit(m.subtitle, cw), W / 2, subBase); }
             x.restore();
             ornament(divBase, 250);
+            if (o.kicker) { // small gold line above the big word, e.g. "ATTENDANCE" or "CLASS 5 - ATTENDANCE"
+                x.save(); let kf = 34, ks = 10; const kw = () => { x.font = `800 ${kf}px ${F}`; return [...o.kicker].reduce((a, q) => a + x.measureText(q).width + ks, -ks); };
+                while (kw() > cw - 40 && kf > 18) { kf -= 2; ks = Math.max(3, ks - .6); }
+                x.fillStyle = '#fde68a'; spaced(o.kicker, W / 2, kickBase, ks, 'center'); x.restore();
+            }
             x.save(); x.font = `800 86px ${F}`; x.shadowColor = 'rgba(0,0,0,.4)'; x.shadowBlur = 14; x.shadowOffsetY = 4;
             const tg = x.createLinearGradient(0, topBase - 70, 0, topBase + 6); tg.addColorStop(0, '#fff3b8'); tg.addColorStop(.5, '#f6c744'); tg.addColorStop(1, '#c58a12'); x.fillStyle = tg; spaced('TOPPERS', W / 2, topBase, 14, 'center'); x.restore();
-            const exName = ex ? ex.name : ''; x.font = `700 28px ${F}`; const pw = Math.min(cw, x.measureText(exName).width + 100);
+            const exName = o.pill || ''; x.font = `700 28px ${F}`; const pw = Math.min(cw, x.measureText(exName).width + 100);
             rr(W / 2 - pw / 2, pillTop, pw, pillH, pillH / 2); x.fillStyle = 'rgba(255,255,255,.1)'; x.fill(); x.lineWidth = 2.5; x.strokeStyle = '#e8b923'; x.stroke();
             x.fillStyle = '#fde68a'; x.textAlign = 'center'; x.fillText(fit(exName, pw - 60), W / 2, pillTop + 39);
             // ---- place cards ----
             const MED = { 1: ['#fff6c8', '#f7c948', '#a8741a'], 2: ['#ffffff', '#d3d9e3', '#6b7787'], 3: ['#ffe6cf', '#e29a5c', '#85461a'] }, BAR = { 1: '#f0b400', 2: '#94a3b8', 3: '#c2571a' }, INK = { 1: '#7a4a02', 2: '#334155', 3: '#6b3410' }, LAB = ['', 'FIRST PLACE', 'SECOND PLACE', 'THIRD PLACE'];
             let y = headH + 60;
             for (const g of groups) {
-                const k = Math.min(g.rank, 3), cardH = cardHead + g.items.length * rowH + cardPadB;
+                const k = Math.min(g.rank, 3), cardH = cardHead + g.items.length * rowH + (g.more ? moreH : 0) + cardPadB;
                 x.save(); x.shadowColor = 'rgba(15,23,42,.14)'; x.shadowBlur = 30; x.shadowOffsetY = 10; rr(pad, y, cw, cardH, 30); x.fillStyle = '#ffffff'; x.fill(); x.restore();
                 x.save(); rr(pad, y, cw, cardH, 30); x.clip(); x.fillStyle = BAR[k]; x.fillRect(pad, y, 14, cardH); x.restore();
                 rr(pad, y, cw, cardH, 30); x.lineWidth = 2; x.strokeStyle = rgba(BAR[k], .4); x.stroke();
@@ -434,31 +445,33 @@
                 let ry = y + cardHead;
                 for (const it of g.items) {
                     x.fillStyle = '#eef2f7'; x.fillRect(pad + 40, ry, cw - 80, 2);
-                    const pct = it.pct + '%'; x.font = `800 38px ${F}`; const pwid = x.measureText(pct).width + 54, px = pad + cw - 40 - pwid;
+                    const pct = o.value ? o.value(it) : it.pct + '%'; x.font = `800 38px ${F}`; const pwid = x.measureText(pct).width + 54, px = pad + cw - 40 - pwid;
                     rr(px, ry + 22, pwid, 64, 32); x.fillStyle = rgba(acc, .1); x.fill(); x.lineWidth = 2; x.strokeStyle = rgba(acc, .35); x.stroke();
                     x.fillStyle = acc; x.textAlign = 'center'; x.fillText(pct, px + pwid / 2, ry + 66);
                     x.textAlign = 'left'; x.fillStyle = '#0f172a'; x.font = `700 38px ${F}`; x.fillText(fit(it.name, px - (pad + 52) - 24), pad + 52, ry + 54);
-                    x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText(fit(clsLabel(it.cls), px - (pad + 52) - 24), pad + 52, ry + 90);
+                    x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText(fit(o.sub ? o.sub(it) : clsLabel(it.cls), px - (pad + 52) - 24), pad + 52, ry + 90);
                     ry += rowH;
                 }
+                if (g.more) { x.fillStyle = '#eef2f7'; x.fillRect(pad + 40, ry, cw - 80, 2); x.textAlign = 'center'; x.fillStyle = '#64748b'; x.font = `600 26px ${F}`; x.fillText(fit('+ ' + g.more + ' more with the same ' + (o.moreLabel || 'score'), cw - 100), W / 2, ry + 44); }
                 y += cardH + gapC;
             }
             // ---- closing ----
             ornament(y + 22, 210);
             x.textAlign = 'center'; x.fillStyle = acc; x.font = `400 78px ${SCRIPT}`; x.fillText('Congratulations!', W / 2, y + 128);
-            x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText('Wishing every topper continued success', W / 2, y + 178);
+            x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText(o.closing || 'Wishing every topper continued success', W / 2, y + 178);
             x.fillStyle = '#b8860b'; x.font = `800 22px ${F}`; spaced((m.name || '').toUpperCase().slice(0, 48), W / 2, y + 232, 5, 'center');
             // ---- gold frame ----
             x.lineWidth = 7; x.strokeStyle = goldH(0, W); x.strokeRect(20, 20, W - 40, H - 40); x.lineWidth = 2; x.strokeStyle = rgba('#b8860b', .65); x.strokeRect(36, 36, W - 72, H - 72);
             const blob = await new Promise(r => c.toBlob(r, 'image/png'));
             if (!blob) throw new Error('Could not create the image');
-            const nm = 'toppers-' + String((ex && ex.name) || 'result').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) + '.png';
-            return { blob, name: nm, title: (m.name || '') + ' - Toppers' + (ex ? ' - ' + ex.name : '') };
+            const nm = String(o.fileBase || 'toppers').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) + '.png';
+            return { blob, name: nm, title: o.shareTitle || 'Toppers' };
         }
-        async function toppersImage(mode, btn) {
+        const toppersImage = (mode, btn) => posterAction(mode, btn, makeToppersImage);
+        async function posterAction(mode, btn, make) {
             const html = btn.innerHTML; btn.disabled = true; btn.classList.add('opacity-60'); btn.innerHTML = '<span class="btn-spin"></span>Preparing...';
             try {
-                const { blob, name, title } = await makeToppersImage(), file = new File([blob], name, { type: 'image/png' });
+                const { blob, name, title } = await make(), file = new File([blob], name, { type: 'image/png' });
                 if (mode === 'share' && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title, text: title }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
                 showToast(mode === 'share' ? 'Sharing is not available here, so the image was downloaded.' : 'Image downloaded.', 'success');
@@ -473,6 +486,100 @@
             card.classList.toggle('hidden', !show); if (!show) return;
             const ex = appState.exams.find(e => e.id === sel); document.getElementById('toppers-exam').textContent = ex ? ex.name : '';
             document.getElementById('toppers-list').innerHTML = topGroups(list).map(g => `<div class="px-4 md:px-6 py-3"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${TOP_PILL[Math.min(g.rank, 3)]}">${TOP_MEDAL[Math.min(g.rank, 3)]} ${ORD[g.rank] || g.rank + 'th'} place</span></div>${g.items.map(x => `<div class="flex items-center gap-3 py-1.5"><div class="min-w-0 flex-1"><div class="font-semibold text-slate-800 truncate">${esc(x.name)}</div><div class="text-xs text-slate-500">${esc(clsLabel(x.cls))}</div></div><div class="font-bold text-emerald-800">${esc(x.pct)}%</div></div>`).join('')}</div>`).join('');
+        }
+
+        // ================= TOPPERS & POSTERS (admin only): class-wise toppers and attendance toppers =================
+        // Worked out on this device from the data the admin already has - nothing is published and nothing is sent anywhere.
+        // Rules: equal percentage = same place, no place skipped (two on 1st -> next is 2nd). Marks: complete result and every subject passed.
+        // Attendance: present days / the class's working days (so classes with different working days are comparable).
+        // "Overall" = all exams together; a student counts only if present in every exam that has data for his/her class.
+        const tpEl = id => document.getElementById(id);
+        function tpCandidates(kind, examId, classId) {
+            const att = kind === 'att', stu = new Map(appState.students.map(s => [s.id, s])), cls = new Map(appState.classes.map(c => [c.id, c])), subs = {};
+            appState.subjects.forEach(s => { if (isActive(s)) (subs[s.classId] || (subs[s.classId] = [])).push(s); });
+            const byKey = new Map(), has = new Set();
+            for (const r of appState.results) {
+                const st = stu.get(r.studentId); if (!st) continue;
+                byKey.set(r.examId + '|' + r.studentId, r);
+                if (att ? Number(r.attendanceDays) >= 0 : Object.keys(r.marks || {}).length) has.add(st.classId + '|' + r.examId);
+            }
+            const out = [];
+            for (const st of appState.students) {
+                if (classId !== 'ALL' && st.classId !== classId) continue;
+                const c = cls.get(st.classId); if (!c) continue;
+                const exams = examId === '__ALL__' ? appState.exams.filter(e => has.has(st.classId + '|' + e.id)) : appState.exams.filter(e => e.id === examId);
+                if (!exams.length) continue;
+                let got = 0, tot = 0, ok = true;
+                for (const ex of exams) {
+                    const r = byKey.get(ex.id + '|' + st.id); if (!r) { ok = false; break; }
+                    if (att) {
+                        const d = Number(c.totalWorkingDays) || 0, a = Number(r.attendanceDays);
+                        if (!(a >= 0) || d <= 0) { ok = false; break; }
+                        got += Math.min(a, d); tot += d;
+                    } else {
+                        const all = subs[st.classId] || [], m = r.marks || {};
+                        if (!all.length || !all.every(x => m[x.id] !== undefined && m[x.id] !== 'AB' && (Number(m[x.id]) || 0) >= Number(x.passingMarks))) { ok = false; break; }
+                        got += sumMarks(m, all); tot += all.reduce((a, x) => a + Number(x.maxMarks), 0);
+                    }
+                }
+                if (ok && tot > 0) out.push({ name: st.name, cls: c.name, pct: exactPct(got, tot), got, tot });
+            }
+            return out;
+        }
+        function tpRank(cand, cap) {
+            cand.sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name));
+            const groups = []; let place = 0, prev = null;
+            for (const x of cand) {
+                if (prev === null || x.pct < prev - 1e-9) { place++; prev = x.pct; if (place > 3) break; groups.push({ rank: place, items: [], more: 0 }); }
+                const g = groups[groups.length - 1]; if (g.items.length < cap) g.items.push(x); else g.more++;
+            }
+            return groups;
+        }
+        const tpPct = x => (Math.round(x.pct * 100) / 100) + '%';
+        function tpScope(classId) { // everything the screen and the poster need for one scope (whole institution, or one class)
+            const kind = tpEl('tp-kind').value, examId = tpEl('tp-exam').value, cap = Number(tpEl('tp-cap').value) || 1e9;
+            const att = kind === 'att', inst = classId === 'ALL', cls = appState.classes.find(c => c.id === classId), ex = appState.exams.find(e => e.id === examId);
+            const exName = examId === '__ALL__' ? 'Overall (All Exams)' : (ex ? ex.name : ''), m = appState.madrasa || {};
+            const detail = x => att ? x.got + '/' + x.tot + ' days present' : x.got + '/' + x.tot + ' marks';
+            const sub = x => inst ? (att ? clsLabel(x.cls) + ' \u00b7 ' + detail(x) : clsLabel(x.cls)) : detail(x);
+            const groups = tpRank(tpCandidates(kind, examId, classId), cap);
+            return { att, inst, groups, sub, exName, title: inst ? 'Whole institution' : (cls ? cls.name : ''),
+                poster: { groups, pill: exName, value: tpPct, sub, moreLabel: att ? 'attendance' : 'percentage',
+                    kicker: att ? (inst ? 'ATTENDANCE' : (clsLabel(cls.name) + ' \u00b7 ATTENDANCE').toUpperCase()) : (inst ? '' : clsLabel(cls.name).toUpperCase()),
+                    closing: att ? 'For outstanding attendance and dedication' : 'Wishing every topper continued success',
+                    fileBase: ['toppers', att ? 'attendance' : '', inst ? '' : (cls ? cls.name : ''), exName].filter(Boolean).join('-'),
+                    shareTitle: (m.name || '') + ' - ' + (att ? 'Attendance ' : '') + 'Toppers' + (inst ? '' : ' - ' + (cls ? cls.name : '')) + ' - ' + exName } };
+        }
+        function tpPoster(mode, classId, btn) { posterAction(mode, btn, async () => { const sc = tpScope(classId); if (!sc.groups.length) throw new Error('No toppers to show'); return drawPosterImage(sc.poster); }); }
+        function renderTpSelectors() {
+            const e = tpEl('tp-exam'), c = tpEl('tp-class'); if (!e || !c) return;
+            const ev = e.value, cv = c.value;
+            e.innerHTML = appState.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('') + (appState.exams.length > 1 ? '<option value="__ALL__">Overall (all exams together)</option>' : '');
+            c.innerHTML = (appState.classes.length > 1 ? '<option value="ALL">All classes (one poster for each class)</option>' : '') + appState.classes.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+            if ([...e.options].some(o => o.value === ev)) e.value = ev;
+            if ([...c.options].some(o => o.value === cv)) c.value = cv;
+            renderTpResults();
+        }
+        function tpCard(sc, classId) {
+            const btn = (mode, cls, icon, label) => `<button type="button" onclick="tpPoster('${mode}', '${esc(classId)}', this)" class="flex-1 ${cls} font-semibold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas ${icon}"></i> ${label}</button>`;
+            const head = `<div class="bg-amber-500 px-4 md:px-6 py-3 text-slate-950 flex items-center gap-2"><i class="fas ${sc.att ? 'fa-calendar-check' : 'fa-trophy'}"></i><h3 class="font-bold">${esc(sc.inst ? sc.title : clsLabel(sc.title))}</h3><span class="ml-auto text-xs font-semibold opacity-80 text-right">${esc(sc.exName)}</span></div>`;
+            if (!sc.groups.length) return `<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">${head}<p class="text-center text-slate-400 text-xs py-5 px-4">${sc.att ? 'No attendance entered yet for this selection.' : 'No eligible student yet (complete result with every subject passed).'}</p></div>`;
+            const rows = sc.groups.map(g => `<div class="px-4 md:px-6 py-3"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${TOP_PILL[Math.min(g.rank, 3)]}">${TOP_MEDAL[Math.min(g.rank, 3)]} ${ORD[g.rank]} place</span></div>`
+                + g.items.map(x => `<div class="flex items-center gap-3 py-1.5"><div class="min-w-0 flex-1"><div class="font-semibold text-slate-800 truncate">${esc(x.name)}</div><div class="text-xs text-slate-500">${esc(sc.sub(x))}</div></div><div class="font-bold text-emerald-800">${esc(tpPct(x))}</div></div>`).join('')
+                + (g.more ? `<div class="text-xs text-slate-500 py-1">+ ${g.more} more with the same ${sc.att ? 'attendance' : 'percentage'}</div>` : '') + '</div>').join('');
+            return `<div class="rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">${head}<div class="divide-y divide-slate-100">${rows}</div><div class="flex gap-2 p-3 md:px-6 bg-slate-50 border-t border-slate-100">${btn('download', 'bg-emerald-800 hover:bg-emerald-700 text-white', 'fa-download', 'Download poster')}${btn('share', 'bg-amber-500 hover:bg-amber-400 text-slate-950', 'fa-share-alt', 'Share')}</div></div>`;
+        }
+        function renderTpResults() {
+            const area = tpEl('tp-results'); if (!area) return;
+            const kind = tpEl('tp-kind').value, inst = tpEl('tp-level').value === 'inst', classId = tpEl('tp-class').value;
+            tpEl('tp-class-wrap').classList.toggle('hidden', inst);
+            tpEl('tp-note').textContent = kind === 'att'
+                ? 'Attendance % = days present \u00f7 the class\u2019s working days, so classes with different working days can be compared. Students with the same % share a place. For \u201cOverall\u201d a student counts only if attendance is entered for every exam.'
+                : 'Only students whose result is complete and who passed every subject are counted. Students with the same percentage share a place.';
+            if (!appState.exams.length || !appState.classes.length) { area.innerHTML = emptyMsg('Create an exam and a class first.'); return; }
+            if (inst) { area.innerHTML = tpCard(tpScope('ALL'), 'ALL'); return; }
+            const ids = classId === 'ALL' ? appState.classes.map(c => c.id) : [classId];
+            area.innerHTML = ids.map(id => tpCard(tpScope(id), id)).join('');
         }
 
         async function handleResultSearch(e) {
@@ -699,7 +806,7 @@
         }
 
         // ================= SUB-TABS =================
-        const subState = { acad: 'exams', stu: 'dir', setup: 'portal' };
+        const subState = { acad: 'exams', stu: 'dir', setup: 'portal', rep: 'sheets' };
         function showSub(group, id) {
             subState[group] = id;
             document.querySelectorAll(`.subpanel[data-group="${group}"]`).forEach(p => p.classList.toggle('hidden', p.dataset.sub !== id));
@@ -1803,6 +1910,7 @@
             if ([...bc.options].some(o => o.value === bcv)) bc.value = bcv;
             updateBulkInfo();
             renderClassReport();
+            renderTpSelectors();
         }
         function renderClassReport() {
             const area = document.getElementById('class-print-area');
@@ -2278,7 +2386,7 @@
                 academics: "Examination, Class & Subject Configuration",
                 students: "Student Registration & CSV Bulk Import",
                 marks: "Student Marks & Attendance Entry",
-                reports: "Class Result Sheets (PDF)",
+                reports: "Result Sheets, Toppers & Posters",
                 setup: "Setup: Portal, Grading & Student Fields"
             };
             document.getElementById('admin-page-title').textContent = titles[tabId] || "Dashboard";
@@ -2940,7 +3048,7 @@
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
             document.querySelectorAll('select').forEach(enhanceSelect);
             const mew = document.getElementById('marks-entry-workspace'); if (mew) { mew.addEventListener('input', () => { entryDirty = true; }); mew.addEventListener('change', () => { entryDirty = true; }); }
-            ['acad', 'stu', 'setup'].forEach(g => showSub(g, subState[g]));
+            ['acad', 'stu', 'setup', 'rep'].forEach(g => showSub(g, subState[g]));
             [['stat-students', () => { switchAdminTab('students'); showSub('stu', 'dir'); }], ['stat-classes', () => { switchAdminTab('academics'); showSub('acad', 'classes'); }],
              ['stat-exams', () => { switchAdminTab('academics'); showSub('acad', 'exams'); }], ['stat-results', () => switchAdminTab('marks')]].forEach(([id, fn]) => {
                 const c = document.getElementById(id)?.closest('.rounded-xl'); if (c) { c.style.cursor = 'pointer'; c.addEventListener('click', fn); } });
