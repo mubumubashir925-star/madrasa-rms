@@ -80,18 +80,20 @@
         }
 
         // The server puts a revision number into every page. Same number as the saved copy = nothing changed = no data request.
-        const PUB = { rev: '', checkedAt: 0 };
+        const PUB = { rev: '', checkedAt: 0, skew: 0 }, CD = { t: 0, at: 0, busy: false };
+        const pubNow = () => Date.now() + (PUB.skew || 0); // server clock, so a wrong phone clock cannot open the results early
         async function fetchPublicInfo(pre) {
             let info = pre || null; if (!info) info = await api(API_T + '/public');
             if (info.unavailable) { try { localStorage.removeItem('pi_' + TENANT); } catch (e) { } showBlocked(info.portal && info.portal.message, info.madrasa && info.madrasa.name); return false; }
+            if (info.now) PUB.skew = info.now - Date.now();
             appState = { ...emptyState(), ...info }; applyAccent((info.madrasa || {}).accent || ''); renderPublicPortal();
-            PUB.rev = String(info.rev ?? PUB.rev); try { localStorage.setItem('pi_' + TENANT, JSON.stringify(info)); } catch (e) { }
+            PUB.rev = String(info.rev ?? PUB.rev); if (!(info.portal && info.portal.opensAt)) { try { localStorage.setItem('pi_' + TENANT, JSON.stringify(info)); } catch (e) { } } // a countdown copy is never saved
             return true;
         }
         async function loadPublicData() {
             PUB.rev = META('rev'); PUB.checkedAt = Date.now();
             let c = null; try { c = JSON.parse(localStorage.getItem('pi_' + TENANT) || 'null'); } catch (e) { }
-            if (c && c.madrasa && c.rev != null && String(c.rev) === PUB.rev && !META('blocked')) { // saved copy is current
+            if (c && c.madrasa && c.rev != null && String(c.rev) === PUB.rev && !META('blocked') && !(c.portal && c.portal.opensAt)) { // saved copy is current
                 appState = { ...emptyState(), ...c }; applyAccent((c.madrasa || {}).accent || ''); renderPublicPortal(); hideAppLoader(); return;
             }
             try { const pre = window.__pi ? await window.__pi : null; window.__pi = null; await fetchPublicInfo(pre); }
@@ -199,6 +201,7 @@
                 catch (err) { if (err.status === 401) { SAVE.busy = false; return handleSessionExpired(); } failed = failed || err; }
             }
             SAVE.busy = false;
+            if (!failed && appState.portal.enabled && (diff.upserts.exams?.length || (diff.upserts.settings && diff.upserts.settings.portal))) setTimeout(() => api('/admin/prewarm', { method: 'POST', body: {} }).catch(() => { }), 1500); // toppers + rankings get ready before parents arrive
             if (failed) {
                 if ((!failed.status || failed.status >= 500) && SAVE.fails < 5) { SAVE.fails++; queueSave([2000, 4000, 8000, 15000, 30000][SAVE.fails - 1]); return; }
                 SAVE.err = failed.message || 'Could not save'; saveChip('err', SAVE.err); showToast(SAVE.err, 'error'); return;
@@ -312,12 +315,127 @@
                 }
             }
 
-            const open = !!appState.portal.enabled;
-            document.getElementById('search-card').classList.toggle('hidden', !open);
+            const open = !!appState.portal.enabled, opensAt = Number(appState.portal.opensAt) || 0, waiting = open && opensAt > pubNow() && !isAdminAuthenticated;
+            document.getElementById('search-card').classList.toggle('hidden', !open || waiting);
             document.getElementById('portal-closed').classList.toggle('hidden', open);
+            document.getElementById('portal-countdown').classList.toggle('hidden', !waiting);
             document.getElementById('portal-closed-msg').textContent = appState.portal.message || 'Results are not published yet. Please check back soon.';
-            if (!open) document.getElementById('result-display-container').classList.add('hidden');
+            if (!open || waiting) document.getElementById('result-display-container').classList.add('hidden');
             document.getElementById('search-adm-label').textContent = admLabel();
+            if (waiting) startCountdown(opensAt); else stopCountdown();
+            renderToppers();
+        }
+
+        // ---- scheduled opening: countdown (no server calls while waiting) ----
+        function stopCountdown() { clearInterval(CD.t); CD.t = 0; CD.at = 0; }
+        function startCountdown(at) {
+            if (CD.at === at && (CD.t || CD.busy)) return;
+            stopCountdown(); CD.at = at;
+            const clock = document.getElementById('cd-clock'), when = new Date(at);
+            document.getElementById('cd-at').textContent = when.toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+            const m = (appState.portal.message || '').trim(); document.getElementById('cd-msg').textContent = m && m !== 'Results are not published yet. Please check back soon.' ? m : '';
+            const box = (n, l) => `<div class="bg-emerald-900 text-white rounded-xl px-3 py-2 min-w-[3.6rem]"><div class="text-2xl md:text-3xl font-bold tabular-nums">${String(n).padStart(2, '0')}</div><div class="text-[10px] uppercase tracking-wide text-emerald-200">${l}</div></div>`;
+            const tick = () => {
+                const left = Math.max(0, CD.at - pubNow()), s = Math.floor(left / 1000);
+                if (left <= 0) { clearInterval(CD.t); CD.t = 0; clock.innerHTML = '<div class="text-lg font-bold text-emerald-800">Opening now...</div>'; openAfterJitter(); return; }
+                const d = Math.floor(s / 86400), parts = [];
+                if (d > 0) parts.push(box(d, 'days'));
+                parts.push(box(Math.floor(s % 86400 / 3600), 'hours'), box(Math.floor(s % 3600 / 60), 'min'), box(s % 60, 'sec'));
+                clock.innerHTML = parts.join('<div class="text-2xl font-bold text-emerald-900 pt-2">:</div>');
+            };
+            tick(); if (left0(at)) CD.t = setInterval(tick, 1000);
+        }
+        const left0 = at => at - pubNow() > 0;
+        // everybody waiting reloads at a slightly different moment (0-10 s) so the server is not hit by all at one second
+        function openAfterJitter() {
+            if (CD.busy) return; CD.busy = true;
+            setTimeout(async () => { try { await fetchPublicInfo(); } catch (e) { } CD.busy = false; renderPublicPortal(); }, Math.random() * 10000); // if the server says it is not time yet, the countdown simply restarts
+        }
+
+        // ---- toppers (shown only after results are published) ----
+        const ORD = ['', '1st', '2nd', '3rd'], TOP_MEDAL = ['', '&#129351;', '&#129352;', '&#129353;'], TOP_PILL = ['', 'bg-amber-100 text-amber-800', 'bg-slate-200 text-slate-700', 'bg-orange-100 text-orange-800'];
+        function topGroups(list) { const g = []; for (const x of list) { let b = g.find(y => y.rank === x.rank); if (!b) g.push(b = { rank: x.rank, items: [] }); b.items.push(x); } return g; }
+        // same rule as the server: complete results, all subjects passed, equal percentage = same place, no place skipped
+        function topsOf(examId) {
+            const subs = {}; appState.subjects.forEach(s => (subs[s.classId] || (subs[s.classId] = [])).push(s));
+            const stu = new Map(appState.students.map(s => [s.id, s])), cls = new Map(appState.classes.map(c => [c.id, c.name])), cand = [];
+            for (const r of appState.results) {
+                if (r.examId !== examId) continue; const st = stu.get(r.studentId); if (!st) continue;
+                const all = subs[st.classId] || [], m = r.marks || {};
+                if (!all.every(x => x.active === false || m[x.id] !== undefined)) continue;
+                const l = all.filter(x => x.active !== false && m[x.id] !== undefined), mx = l.reduce((a, x) => a + x.maxMarks, 0);
+                if (!l.length || !l.every(x => m[x.id] !== 'AB' && (Number(m[x.id]) || 0) >= x.passingMarks)) continue;
+                cand.push({ name: st.name, cls: cls.get(st.classId) || '', pct: mx > 0 ? l.reduce((a, x) => a + (Number(m[x.id]) || 0), 0) / mx * 100 : 0 });
+            }
+            cand.sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name));
+            const top = []; let place = 0, prev = null;
+            for (const x of cand) { if (prev === null || x.pct < prev - 1e-9) { place++; prev = x.pct; } if (place > 3) break; top.push({ rank: place, name: x.name, cls: x.cls, pct: Math.round(x.pct * 100) / 100 }); }
+            return top;
+        }
+        const topsHTML = examId => { const t = topsOf(examId); return t.length ? topGroups(t).map(g => `<div class="text-right"><span class="font-bold">${ORD[g.rank]}</span>: ${g.items.map(x => `${esc(x.name)} <span class="text-slate-400">(${esc(x.cls)}, ${esc(x.pct)}%)</span>`).join('<br>')}</div>`).join('') : '<span class="text-slate-400">Not available yet</span>'; };
+
+        // ---- toppers as a picture: download or share (drawn on a canvas, nothing leaves the phone) ----
+        async function makeToppersImage() {
+            const sel = document.getElementById('search-exam-select').value, list = (appState.toppers || {})[sel] || [];
+            if (!list.length) throw new Error('No toppers to show');
+            const ex = appState.exams.find(e => e.id === sel), m = appState.madrasa || {}, groups = topGroups(list);
+            const W = 1080, pad = 64, accent = /^#[0-9a-f]{6}$/i.test(m.accent || '') ? m.accent : '#064e3b', F = '"Plus Jakarta Sans", "Noto Sans Malayalam", "Noto Sans Arabic", "Segoe UI", Arial, sans-serif';
+            try { await document.fonts.ready; } catch (e) { }
+            const logo = typeof m.logo === 'string' && m.logo.startsWith('/') && !m.logo.startsWith('//') ? await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = m.logo; }) : null;
+            const headH = logo ? 330 : 250, gH = 90, rH = 100, gap = 30, footH = 130;
+            const H = headH + 30 + groups.reduce((a, g) => a + gH + g.items.length * rH + gap, 0) + footH;
+            const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+            const rr = (px, py, w, h, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); };
+            const fit = (t, maxW) => { t = String(t); if (x.measureText(t).width <= maxW) return t; while (t.length > 1 && x.measureText(t + '\u2026').width > maxW) t = t.slice(0, -1); return t + '\u2026'; };
+            x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+            x.fillStyle = accent; x.fillRect(0, 0, W, headH); x.fillStyle = '#f59e0b'; x.fillRect(0, headH, W, 10);
+            let y = 70;
+            if (logo) { x.save(); x.beginPath(); x.arc(W / 2, 110, 70, 0, Math.PI * 2); x.closePath(); x.fillStyle = '#fff'; x.fill(); x.clip(); const k = Math.max(140 / logo.width, 140 / logo.height); x.drawImage(logo, W / 2 - logo.width * k / 2, 110 - logo.height * k / 2, logo.width * k, logo.height * k); x.restore(); y = 235; }
+            x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.fillStyle = '#ffffff';
+            let fs = 46; x.font = `700 ${fs}px ${F}`; while (x.measureText(m.name || '').width > W - pad * 2 && fs > 24) { fs -= 2; x.font = `700 ${fs}px ${F}`; }
+            x.fillText(m.name || '', W / 2, y); y += 60;
+            x.fillStyle = '#fbbf24'; x.font = `800 38px ${F}`; x.fillText('\u2605  TOPPERS  \u2605', W / 2, y); y += 46;
+            x.fillStyle = '#d1fae5'; x.font = `600 28px ${F}`; x.fillText(fit(ex ? ex.name : '', W - pad * 2), W / 2, y);
+            y = headH + 30;
+            const fills = ['', '#fde68a', '#e2e8f0', '#fed7aa'], inks = ['', '#92400e', '#334155', '#9a3412'];
+            for (const g of groups) {
+                const k = Math.min(g.rank, 3), label = (ORD[g.rank] || g.rank + 'th') + ' place';
+                x.font = `800 32px ${F}`; const pw = x.measureText(label).width + 56;
+                rr(pad, y + 14, pw, 58, 29); x.fillStyle = fills[k]; x.fill();
+                x.fillStyle = inks[k]; x.textAlign = 'left'; x.fillText(label, pad + 28, y + 54); y += gH;
+                for (const it of g.items) {
+                    x.textAlign = 'right'; x.fillStyle = accent; x.font = `800 38px ${F}`; const pct = it.pct + '%'; x.fillText(pct, W - pad, y + 46); const pwid = x.measureText(pct).width;
+                    x.textAlign = 'left'; x.fillStyle = '#0f172a'; x.font = `700 36px ${F}`; x.fillText(fit(it.name, W - pad * 2 - pwid - 40), pad, y + 40);
+                    x.fillStyle = '#64748b'; x.font = `500 26px ${F}`; x.fillText(fit(it.cls, W - pad * 2 - pwid - 40), pad, y + 78);
+                    x.fillStyle = '#e2e8f0'; x.fillRect(pad, y + rH - 4, W - pad * 2, 2); y += rH;
+                }
+                y += gap;
+            }
+            x.textAlign = 'center'; x.fillStyle = '#94a3b8'; x.font = `500 24px ${F}`;
+            x.fillText('Check your result online', W / 2, H - 70); x.fillStyle = accent; x.font = `700 26px ${F}`; x.fillText(fit(location.host + location.pathname.replace(/\/$/, ''), W - pad * 2), W / 2, H - 34);
+            const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+            if (!blob) throw new Error('Could not create the image');
+            const nm = 'toppers-' + String((ex && ex.name) || 'result').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) + '.png';
+            return { blob, name: nm, title: (m.name || '') + ' - Toppers' + (ex ? ' - ' + ex.name : '') };
+        }
+        async function toppersImage(mode, btn) {
+            const html = btn.innerHTML; btn.disabled = true; btn.classList.add('opacity-60'); btn.innerHTML = '<span class="btn-spin"></span>Preparing...';
+            try {
+                const { blob, name, title } = await makeToppersImage(), file = new File([blob], name, { type: 'image/png' });
+                if (mode === 'share' && navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title, text: title }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+                showToast(mode === 'share' ? 'Sharing is not available here, so the image was downloaded.' : 'Image downloaded.', 'success');
+            } catch (e) { showToast(e.message || 'Could not create the image', 'error'); }
+            finally { btn.disabled = false; btn.classList.remove('opacity-60'); btn.innerHTML = html; }
+        }
+        function renderToppers() {
+            const card = document.getElementById('toppers-card'); if (!card) return;
+            const p = appState.portal || {}, sel = document.getElementById('search-exam-select').value;
+            const list = ((appState.toppers || {})[sel]) || [];
+            const show = !!p.enabled && p.showToppers !== false && !(Number(p.opensAt) > pubNow()) && list.length > 0;
+            card.classList.toggle('hidden', !show); if (!show) return;
+            const ex = appState.exams.find(e => e.id === sel); document.getElementById('toppers-exam').textContent = ex ? ex.name : '';
+            document.getElementById('toppers-list').innerHTML = topGroups(list).map(g => `<div class="px-4 md:px-6 py-3"><div class="flex items-center gap-2 mb-1"><span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${TOP_PILL[Math.min(g.rank, 3)]}">${TOP_MEDAL[Math.min(g.rank, 3)]} ${ORD[g.rank] || g.rank + 'th'} place</span></div>${g.items.map(x => `<div class="flex items-center gap-3 py-1.5"><div class="min-w-0 flex-1"><div class="font-semibold text-slate-800 truncate">${esc(x.name)}</div><div class="text-xs text-slate-500">${esc(x.cls)}</div></div><div class="font-bold text-emerald-800">${esc(x.pct)}%</div></div>`).join('')}</div>`).join('');
         }
 
         async function handleResultSearch(e) {
@@ -368,7 +486,7 @@
             el.innerHTML = list.slice(0, lim).map(ex => {
                 const n = appState.results.filter(r => r.examId === ex.id).length;
                 return cardHTML('exam:' + ex.id, ex.name, ex.isPublic ? '<span class="text-emerald-600 font-semibold">&#9679; Public</span>' : '<span>&#9675; Hidden (draft)</span>',
-                    [['Results entered', n + ' students'], ['Visibility', ex.isPublic ? 'Visible on public portal' : 'Hidden']],
+                    [['Results entered', n + ' students'], ['Visibility', ex.isPublic ? 'Visible on public portal' : 'Hidden'], ['Toppers', topsHTML(ex.id)]],
                     [{ on: `editExam('${ex.id}')`, cls: 'abtn-edit', icon: 'fa-pen', label: 'Edit' }, { on: `toggleExamVisibility('${ex.id}')`, cls: 'abtn-ok', icon: 'fa-eye', label: ex.isPublic ? 'Hide' : 'Publish' }, { on: `deleteExam('${ex.id}')`, cls: 'abtn-del', icon: 'fa-trash', label: 'Delete' }]);
             }).join('') + moreBtn('exams', list.length - lim);
         }
@@ -1507,6 +1625,8 @@
             document.getElementById('portal-badge').textContent = p.enabled ? 'Public: ON' : 'Public: OFF';
             document.getElementById('portal-message').value = p.message || '';
             document.getElementById('portal-show-pos').checked = p.showPosition !== false;
+            document.getElementById('portal-show-top').checked = p.showToppers !== false;
+            document.getElementById('portal-opens-at').value = p.opensAt ? new Date(p.opensAt - new Date(p.opensAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
             document.getElementById('portal-link').textContent = location.origin + pubPath();
             document.getElementById('admin-link').textContent = location.origin + adminPath();
             document.getElementById('grade-rows').innerHTML = [...appState.grades.scale].sort((a, b) => b.min - a.min).map(gradeRowHTML).join('');
@@ -1515,10 +1635,12 @@
             document.getElementById('field-rows').innerHTML = appState.fields.map(fieldRowHTML).join('');
         }
         function savePortal() {
-            appState.portal = { enabled: document.getElementById('portal-enabled').checked, message: document.getElementById('portal-message').value.trim(), showPosition: document.getElementById('portal-show-pos').checked };
-            document.getElementById('portal-badge').textContent = appState.portal.enabled ? 'Public: ON' : 'Public: OFF';
+            appState.portal = { enabled: document.getElementById('portal-enabled').checked, message: document.getElementById('portal-message').value.trim(), showPosition: document.getElementById('portal-show-pos').checked, showToppers: document.getElementById('portal-show-top').checked, opensAt: (() => { const v = document.getElementById('portal-opens-at').value, t = v ? new Date(v).getTime() : 0; return t > Date.now() ? t : 0; })() };
+            const sched = appState.portal.enabled && appState.portal.opensAt > 0;
+            document.getElementById('portal-badge').textContent = sched ? 'Scheduled' : appState.portal.enabled ? 'Public: ON' : 'Public: OFF';
+            if (!sched) document.getElementById('portal-opens-at').value = '';
             saveState();
-            showToast(appState.portal.enabled ? 'Public portal is now ON' : 'Public portal is now OFF', 'success');
+            showToast(sched ? 'Portal will open automatically at ' + new Date(appState.portal.opensAt).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : appState.portal.enabled ? 'Public portal is now ON' : 'Public portal is now OFF', 'success');
         }
         function addGradeRow() { document.getElementById('grade-rows').insertAdjacentHTML('beforeend', gradeRowHTML({ min: 0, grade: '', title: '' })); }
         function saveGrades() {

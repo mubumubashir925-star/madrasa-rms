@@ -39,7 +39,7 @@
         @keyframes se-rot { to { transform: rotate(360deg); } }
     </style>
     <link rel="stylesheet" href="/app.css">
-<script>try{var _m=function(n){return(document.querySelector('meta[name="'+n+'"]')||{}).content||''},_t=_m('tenant'),_c=null;try{_c=JSON.parse(localStorage.getItem('pi_'+_t)||'null')}catch(e){}if(_t&&_m('route')==='public'&&!_m('blocked')&&!(_c&&_c.rev!=null&&String(_c.rev)===_m('rev')))window.__pi=fetch('/api/t/'+_t+'/public').then(function(r){return r.ok?r.json():null}).catch(function(){return null})}catch(e){}</script>
+<script>try{var _m=function(n){return(document.querySelector('meta[name="'+n+'"]')||{}).content||''},_t=_m('tenant'),_c=null;try{_c=JSON.parse(localStorage.getItem('pi_'+_t)||'null')}catch(e){}if(_t&&_m('route')==='public'&&!_m('blocked')&&!(_c&&_c.rev!=null&&String(_c.rev)===_m('rev')&&!(_c.portal&&_c.portal.opensAt)))window.__pi=fetch('/api/t/'+_t+'/public').then(function(r){return r.ok?r.json():null}).catch(function(){return null})}catch(e){}</script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-dvh flex flex-col">
     <div id="net-bar" class="net-bar"></div>
@@ -169,6 +169,14 @@
                 <h2 class="text-xl font-bold text-slate-800 mb-2">Announcement</h2>
                 <p id="portal-closed-msg" class="text-slate-600 whitespace-pre-line"></p>
             </div>
+            <div id="portal-countdown" class="hidden bg-white rounded-2xl shadow-xl border border-emerald-200 p-6 md:p-10 text-center mb-8">
+                <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl mb-4"><i class="fas fa-hourglass-half"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 mb-1">Results will be published in</h2>
+                <div id="cd-clock" class="my-5 flex items-start justify-center gap-2 md:gap-3"></div>
+                <p id="cd-at" class="text-sm font-semibold text-slate-700"></p>
+                <p id="cd-msg" class="text-xs text-slate-500 mt-2 whitespace-pre-line"></p>
+                <p class="text-[11px] text-slate-400 mt-4">This page opens by itself when the time comes. You do not need to keep refreshing.</p>
+            </div>
             <div id="search-card" class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
                 <div class="bg-emerald-900 px-4 md:px-6 py-4 text-white flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -183,7 +191,7 @@
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-2">Select Examination <span class="text-red-500">*</span></label>
                             <div class="relative">
-                                <select id="search-exam-select" required class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition appearance-none text-slate-700 font-medium">
+                                <select id="search-exam-select" required onchange="renderToppers()" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition appearance-none text-slate-700 font-medium">
                                     <!-- Dynamic Public Exams -->
                                 </select>
                                 <i class="fas fa-book-open absolute left-3.5 top-3.5 text-slate-400"></i>
@@ -210,6 +218,19 @@
                         </button>
                     </div>
                 </form>
+            </div>
+
+            <div id="toppers-card" class="hidden bg-white rounded-2xl shadow-xl border border-amber-200 overflow-hidden mb-8">
+                <div class="bg-amber-500 px-4 md:px-6 py-3 text-slate-950 flex items-center gap-2">
+                    <i class="fas fa-trophy"></i>
+                    <h2 class="font-bold text-lg">Toppers</h2>
+                    <span id="toppers-exam" class="ml-auto text-xs font-semibold opacity-80 text-right"></span>
+                </div>
+                <div id="toppers-list" class="divide-y divide-slate-100"></div>
+                <div class="flex gap-2 p-3 md:px-6 bg-slate-50 border-t border-slate-100">
+                    <button type="button" onclick="toppersImage('download', this)" class="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-download"></i> Download image</button>
+                    <button type="button" onclick="toppersImage('share', this)" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2"><i class="fas fa-share-alt"></i> Share</button>
+                </div>
             </div>
 
             <!-- Result Display Container (Hidden by default) -->
@@ -689,6 +710,12 @@
                             </div>
                             <div><label class="block text-xs font-bold uppercase text-slate-600 mb-1">Announcement shown while closed</label><textarea id="portal-message" rows="3" maxlength="500" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></textarea></div>
                             <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="portal-show-pos" class="w-4 h-4 accent-emerald-700"> Show class position on marksheet</label>
+                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="portal-show-top" class="w-4 h-4 accent-emerald-700"> Show Top 3 students (whole institution) on the public page</label>
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1"><i class="fas fa-clock text-emerald-700 mr-1"></i> Open automatically at (optional)</label>
+                                <div class="flex gap-2"><input type="datetime-local" id="portal-opens-at" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><button type="button" onclick="document.getElementById('portal-opens-at').value='';savePortal()" class="px-3 py-2 text-xs font-semibold border border-slate-300 rounded-lg bg-white">Clear</button></div>
+                                <p class="text-xs text-slate-500 mt-1.5">Switch the portal ON and set a time (e.g. today 8:00 PM). Parents see a countdown, and results open exactly then. Leave empty to open immediately.</p>
+                            </div>
                             <div class="flex flex-col sm:flex-row gap-2">
                                 <button onclick="savePortal()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm">Save</button>
                                 <button onclick="shareLink()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-5 py-2.5 rounded-lg text-sm"><i class="fas fa-share-alt mr-1"></i> Share public link</button>

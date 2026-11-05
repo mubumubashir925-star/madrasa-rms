@@ -34,6 +34,15 @@ One website, many institutions. Each institution has its own address, admin logi
 - **Delete** needs you to type the address; it permanently erases all that institution's data.
 - Admins see an amber reminder inside their panel 14 days before the paid-until date.
 
+## 3b. Result day (v12): scheduled opening + toppers
+- **Setup -> Public Portal**: switch the portal ON and set **Open automatically at** (e.g. today 8:00 PM). Until then parents only see a countdown (no results, no exam list, no toppers). At the set time the page opens by itself; each visitor's page reloads at a random moment within 10 seconds, so everyone does not hit the server in the same second. The server clock decides, not the parent's phone.
+- Leave the time empty to open immediately when the portal is switched ON (as before).
+- **Top 3 toppers** are shown under the search box, for the selected exam, across the whole institution (by overall percentage; only students who passed every subject and whose result is complete). Everyone with the same percentage shares a place and no place is skipped: two students on 1st place -> the next one is 2nd, then 3rd. All students on 1st, 2nd and 3rd are shown, however many. Switch off with "Show Top 3 students" in the same panel.
+- Parents can **Download image** or **Share** the toppers as a picture (made on their phone; Share opens WhatsApp etc. where the phone supports it).
+- In the admin panel, open any exam card (Exams tab) to see its toppers, even before publishing.
+- Toppers and class positions are calculated once, right after you publish (and never per visitor), so the first wave of parents is served from ready data.
+- Tip: set the time, press Save, and open the public link once yourself before the announced time to see the countdown.
+
 ## 4. Good to know
 - Data is fully separated: every database query is locked to the logged-in institution.
 - Addresses: 3-40 letters/numbers/hyphens. Changing an address changes the link, so tell the client.

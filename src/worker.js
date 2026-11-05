@@ -172,7 +172,7 @@ const deletes = (db, tid, t, keys) => {
 };
 
 const DEF = {
-  portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true },
+  portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true, showToppers: true, opensAt: 0 },
   grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
   fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }],
 };
@@ -238,7 +238,7 @@ async function sync(db, t, body) {
     const { madrasa: m, announcements: a, portal: po, grades: gr, fields: fl, classSigns: cs, teachers: tch, assistants: asst } = up.settings;
     const okSign = v => !v || (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= 90000);
     const put = (k, v) => stmts.push(db.prepare('INSERT INTO settings (tenant_id, key, value) VALUES (?, ?, ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value').bind(tid, k, JSON.stringify(v)));
-    if (po) put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition });
+    if (po) { const at = Math.floor(Number(po.opensAt)); put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition, showToppers: po.showToppers !== false, opensAt: Number.isFinite(at) && at > 0 && at < 4102444800000 ? at : 0 }); }
     if (gr) {
       if (!Array.isArray(gr.scale) || !gr.scale.length || gr.scale.length > 12) throw new Error('Add 1 to 12 grade rows');
       put('grades', { scale: gr.scale.map(x => ({ min: num(x.min, 0, 100), grade: str(x.grade, 12), title: opt(x.title, 40) })), fail: { grade: str(gr.fail?.grade, 12), title: opt(gr.fail?.title, 40) } });
@@ -299,12 +299,68 @@ async function sync(db, t, body) {
 
 async function publicInfo(db, t) {
   const st = tenantState(t), c = memo(t);
-  if (st === 'active' && c.info) return jsonStr(c.info);
-  const set = await settings(db, t.id, ['madrasa', 'announcements', 'portal', 'fields']);
-  if (st !== 'active') return json({ madrasa: { ...pubMadrasa(t, set.madrasa), shareText: '' }, announcements: [], portal: { enabled: false, message: publicBlockedMsg, showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
-  const { results } = set.portal.enabled ? await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(t.id).all() : { results: [] };
-  c.info = JSON.stringify({ rev: t.rev || 0, madrasa: pubMadrasa(t, set.madrasa), announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) });
-  return jsonStr(c.info);
+  if (st !== 'active') {
+    const set = await settings(db, t.id, ['madrasa', 'announcements', 'portal', 'fields']);
+    return json({ madrasa: { ...pubMadrasa(t, set.madrasa), shareText: '' }, announcements: [], portal: { enabled: false, message: publicBlockedMsg, showPosition: true }, fields: set.fields.slice(0, 1), exams: [], unavailable: true });
+  }
+  if (!c.infoObj) { // same for everybody until something changes (revision), so it is built once
+    const set = await settings(db, t.id, ['madrasa', 'announcements', 'portal', 'fields']);
+    const { results } = set.portal.enabled ? await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(t.id).all() : { results: [] };
+    c.infoObj = { rev: t.rev || 0, madrasa: pubMadrasa(t, set.madrasa), announcements: set.announcements, portal: set.portal, fields: set.fields.slice(0, 1), exams: results.map(e => ({ id: e.id, name: e.name, isPublic: true })) };
+  }
+  const o = c.infoObj, now = Date.now(), at = Number(o.portal.opensAt) || 0;
+  // scheduled opening: until the set time nothing but the countdown is sent (no exams, no toppers)
+  if (o.portal.enabled && at > now) return jsonStr(JSON.stringify({ ...o, exams: [], toppers: {}, now, portal: { ...o.portal, opensAt: at } }));
+  const out = { ...o, now, portal: { ...o.portal, opensAt: 0 } };
+  if (o.portal.enabled && o.portal.showToppers !== false && o.exams.length) out.toppers = await getToppers(db, t, o.exams);
+  return jsonStr(JSON.stringify(out));
+}
+
+// ---------- toppers + class ranking: calculated once per revision (ready before parents arrive), never per visitor ----------
+const TOP_ID = '~top2'; // (new name: older saved copies used a different ranking rule)
+async function buildExamStats(db, t, examId) {
+  const tid = t.id, rev = t.rev || 0;
+  const [cl, su, re] = await db.batch([
+    db.prepare('SELECT id,name FROM classes WHERE tenant_id=?').bind(tid),
+    db.prepare('SELECT id,class_id,max_marks,pass_marks,active FROM subjects WHERE tenant_id=?').bind(tid),
+    db.prepare('SELECT s.name, s.class_id, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=?').bind(tid, examId),
+  ]);
+  const clsName = new Map(cl.results.map(x => [x.id, x.name])), subsBy = {};
+  for (const x of su.results) (subsBy[x.class_id] || (subsBy[x.class_id] = [])).push({ id: x.id, maxMarks: x.max_marks, passingMarks: x.pass_marks, active: x.active !== 0 });
+  const byClass = {}, cand = [];
+  for (const r of re.results) {
+    const subs = subsBy[r.class_id] || [], m = JSON.parse(r.marks || '{}');
+    if (!subs.every(x => !x.active || m[x.id] !== undefined)) continue; // incomplete result: not counted
+    const l = subs.filter(x => x.active && m[x.id] !== undefined), mx = l.reduce((a, x) => a + x.maxMarks, 0), pct = exact(sumMarks(m, l), mx);
+    (byClass[r.class_id] || (byClass[r.class_id] = [])).push(pct);
+    if (l.length > 0 && l.every(x => subPassed(m, x))) cand.push({ name: r.name, cls: clsName.get(r.class_id) || '', pct });
+  }
+  // 1st, 2nd, 3rd place: everybody with the same percentage shares a place, and no place is skipped (two on 1st -> next is 2nd)
+  const top = []; let place = 0, prev = null;
+  for (const x of cand.sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name))) {
+    if (prev === null || x.pct < prev - 1e-9) { place++; prev = x.pct; }
+    if (place > 3) break;
+    if (top.length < 30) top.push({ rank: place, name: x.name, cls: x.cls, pct: Math.round(x.pct * 100) / 100 });
+  }
+  const up = (cid, data) => db.prepare('INSERT INTO class_stats (tenant_id, exam_id, class_id, rev, data) VALUES (?, ?, ?, ?, ?) ON CONFLICT(tenant_id, exam_id, class_id) DO UPDATE SET rev=excluded.rev, data=excluded.data').bind(tid, examId, cid, rev, JSON.stringify(data));
+  try { await db.batch([...Object.entries(byClass).map(([cid, pcts]) => up(cid, pcts)), up(TOP_ID, top)]); } catch (e) { /* still works without the saved copy */ }
+  return { top };
+}
+async function getToppers(db, t, exams) {
+  const c = memo(t); if (c.toppers) return c.toppers;
+  const { results } = await db.prepare('SELECT exam_id, data FROM class_stats WHERE tenant_id=? AND class_id=? AND rev=?').bind(t.id, TOP_ID, t.rev || 0).all();
+  const have = new Map(results.map(r => [r.exam_id, r.data])), out = {};
+  for (const e of exams) { const d = have.get(e.id); out[e.id] = d !== undefined ? JSON.parse(d) : (await buildExamStats(db, t, e.id)).top; }
+  return (c.toppers = out);
+}
+// called by the admin panel right after publishing: get everything ready before parents arrive
+async function prewarm(db, t) {
+  const set = await settings(db, t.id, ['portal']); if (!set.portal.enabled) return { skipped: true };
+  const { results } = await db.prepare('SELECT id FROM exams WHERE tenant_id=? AND is_public=1').bind(t.id).all();
+  const { results: fresh } = await db.prepare('SELECT exam_id FROM class_stats WHERE tenant_id=? AND class_id=? AND rev=?').bind(t.id, TOP_ID, t.rev || 0).all();
+  const done = new Set(fresh.map(r => r.exam_id)); let n = 0;
+  for (const e of results) if (!done.has(e.id)) { await buildExamStats(db, t, e.id); n++; }
+  return { built: n };
 }
 
 async function publicResult(db, t, url) {
@@ -313,6 +369,7 @@ async function publicResult(db, t, url) {
   const c = memo(t);
   const set = c.res || (c.res = await settings(db, tid, ['madrasa', 'portal', 'grades', 'fields', 'classSigns', 'assistants']));
   if (!set.portal.enabled) return fail(set.portal.message || 'Results are not available yet.', 403);
+  if ((Number(set.portal.opensAt) || 0) > Date.now()) return fail('Results are not published yet. Please check again at the announced time.', 403);
   const examId = url.searchParams.get('exam') || '', adm = (url.searchParams.get('adm') || '').trim().toUpperCase();
   if (!examId || !adm) return fail('Exam and admission number are required');
   const pubExams = c.pubExams || (c.pubExams = (await db.prepare('SELECT id,name FROM exams WHERE tenant_id=? AND is_public=1 ORDER BY rowid').bind(tid).all()).results);
@@ -567,7 +624,7 @@ async function api(req, env, url, p) {
     if (!m && (p === '/api/public' || p === '/api/result') && defSlug) m = [p, defSlug, p.slice(5)]; // old links / cached pages keep working
     if (m && req.method === 'GET') {
       const t = await tenantBySlug(db, m[1]); if (!t) return fail('Institution not found', 404);
-      if (m[2] === 'rev') return json({ rev: t.rev || 0, active: tenantState(t) === 'active' }); // tiny check: has anything public changed?
+      if (m[2] === 'rev') return json({ rev: t.rev || 0, active: tenantState(t) === 'active', now: Date.now() }); // tiny check: has anything public changed?
       return m[2] === 'public' ? publicInfo(db, t) : publicResult(db, t, url);
     }
     const em = p.match(/^\/api\/t\/([a-z0-9-]+)\/entry\/([A-Za-z0-9_-]{24,64})$/);
@@ -588,6 +645,7 @@ async function api(req, env, url, p) {
         if (have !== null && Number(have) === (a.t.arev || 0)) return json({ unchanged: true, arev: a.t.arev || 0, rev: a.t.rev || 0, institution: inst }); // nothing changed: the device copy is current
         return jsonStr(await adminState(db, a.t));
       }
+      if (p === '/api/admin/prewarm' && req.method === 'POST') return json({ ok: true, ...(await prewarm(db, a.t)) });
       if (p === '/api/admin/account' && req.method === 'POST') return changeTenantAccount(env, a.t, await req.json());
       if (p === '/api/admin/sync' && req.method === 'POST') { const r = await sync(db, a.t, await req.json()); return json({ ok: true, rev: r.rev, arev: r.arev }); }
     }
