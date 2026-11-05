@@ -55,6 +55,9 @@ Reports tab -> **Toppers & Posters**. Nothing here is shown on the public page; 
 - Each card has **Download poster** and **Share** (WhatsApp etc.), with the institution name/logo and a "Congratulations!" closing, in the same design as the public Toppers poster.
 - Rules: Marks = complete result and every subject passed. Attendance = days present / the class's working days (percentage, so classes with different working days are comparable). Equal percentage = same place, no place skipped. *Overall* counts a student only if he/she has a result (or attendance) in every exam that has data for the class.
 
+## 3e. How places / positions are numbered (everywhere)
+Equal percentage = same place, and the next place is **never skipped**: three students on 1st -> the next students are 2nd, then 3rd. This applies to the public Toppers, admin toppers and posters, the class result sheet (Pos column), the marksheet PDFs and the public result page (Class Position).
+
 ## 4. Good to know
 - Data is fully separated: every database query is locked to the logged-in institution.
 - Addresses: 3-40 letters/numbers/hyphens. Changing an address changes the link, so tell the client.
