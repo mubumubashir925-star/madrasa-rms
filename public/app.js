@@ -1261,6 +1261,7 @@
 
         // ================= HELPERS =================
         const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0), 0);
+        const denseRank = (list, v) => { let n = 0, prev = null; for (const p of list.filter(q => q > v + 1e-9).sort((a, b) => b - a)) if (prev === null || p < prev - 1e-9) { n++; prev = p; } return n + 1; }; // equal percentage = same position, and the next position is never skipped (3 on 1st -> next is 2nd)
         const exactPct = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, not the rounded one
         const isAb = v => v === 'AB';
         const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
@@ -1944,7 +1945,7 @@
                 return { st, per, o, max, p: pctOf(o, max), failN, attDays: have[0].att, attPct: have.some(x => x.att !== null) ? pctOf(have.reduce((a, x) => a + (x.att || 0), 0), have.length * days) : null, grade: gradeOf(exactPct(o, max), failN > 0, G) };
             }).filter(Boolean).sort((a, b) => (a.pend ? 1 : 0) - (b.pend ? 1 : 0) || exactPct(b.o, b.max) - exactPct(a.o, a.max) || a.st.name.localeCompare(b.st.name));
             const done = rows.filter(r => !r.pend);
-            rows.forEach(r => r.rank = r.pend ? '-' : 1 + done.filter(x => exactPct(x.o, x.max) > exactPct(r.o, r.max) + 1e-9).length);
+            { const dp = done.map(x => exactPct(x.o, x.max)); rows.forEach(r => r.rank = r.pend ? '-' : denseRank(dp, exactPct(r.o, r.max))); }
             const th = 'border border-slate-300 px-2 py-1.5 bg-slate-100 text-[11px] uppercase', td = 'border border-slate-300 px-2 py-1 text-center';
             const cols = all ? exams.map(e => `<th class="${th}">${esc(e.name)}</th>`).join('')
                 : subs.map(s => `<th class="${th}">${esc(s.name)}<br><span class="font-normal">/${s.maxMarks}</span></th>`).join('');
@@ -2286,7 +2287,7 @@
                 details: [{ label: 'Student Name', value: st.name }, ...appState.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admissionNo : fieldVal(st, f.id) })).filter(x => x.value)],
                 result: { attendanceDays: Number.isFinite(Number(cur.attendanceDays)) ? Number(cur.attendanceDays) : 0, marks, grades: Object.fromEntries(mySubs.map(s => [s.id, isAb(marks[s.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exactPct(Number(marks[s.id]) || 0, Number(s.maxMarks)), !subOk(marks, s), G)])) },
                 summary: { obtained, max: maxPer, percentage: pctOf(obtained, maxPer), passed, grade: gradeOf(myPct, !passed, G) },
-                position: appState.portal.showPosition !== false ? { rank: 1 + pcts.filter(p => p > myPct + 1e-9).length, of: pcts.length } : null,
+                position: appState.portal.showPosition !== false ? { rank: denseRank(pcts, myPct), of: pcts.length } : null,
                 assistants: (appState.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })),
                 exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exactPct(oObt, oMax), failedCount > 0, G) }
             };
