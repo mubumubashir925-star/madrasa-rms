@@ -54,7 +54,7 @@
         function emptyState() {
             return { madrasa: { name: 'Institution', subtitle: '', logo: '', headTitle: 'Principal', headName: '' }, announcements: [],
                 portal: { enabled: false, message: '', showPosition: true },
-                grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
+                grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Needs Improvement' } },
                 fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }], classSigns: {}, teachers: [], assistants: [], exams: [], classes: [], subjects: [], students: [], results: [] };
         }
         const clone = o => JSON.parse(JSON.stringify(o));
@@ -824,16 +824,17 @@
             const exams = all ? appState.exams : appState.exams.filter(e => e.id === examId);
             const perAll = appState.students.map(st => {
                 const subs = subsBy.get(st.classId) || [], maxAll = subs.reduce((a, s) => a + Number(s.maxMarks), 0);
-                let obtained = 0, max = 0, failedExams = 0, done = 0, partial = 0, absent = 0, attSum = 0, attN = 0;
+                let obtained = 0, max = 0, failedExams = 0, done = 0, partial = 0, absent = 0, absExams = 0, attSum = 0, attN = 0;
                 exams.forEach(ex => {
                     const r = resBy.get(ex.id + '|' + st.id); if (!r || !subs.length) return;
                     const m = r.marks || {}; if (subs.some(s => m[s.id] === undefined)) { partial++; return; } // blank = marks still pending
+                    if (subs.every(s => isAb(m[s.id]))) { absExams++; return; } // did not appear: not a fail, left out of pass % and averages
                     done++; obtained += sumMarks(m, subs); max += maxAll;
                     if (subs.some(s => isAb(m[s.id]) || Number(m[s.id]) < Number(s.passingMarks))) failedExams++;
                     absent += subs.filter(s => isAb(m[s.id])).length;
                     const days = Number((clsOf.get(st.classId) || {}).totalWorkingDays) || 0; if (Number(r.attendanceDays) >= 0 && days > 0) { attSum += Math.min(100, r.attendanceDays / days * 100); attN++; }
                 });
-                const status = done ? 'done' : partial ? 'partial' : 'none', pct = done ? exactPct(obtained, max) : 0, passed = done > 0 && failedExams === 0;
+                const status = done ? 'done' : partial ? 'partial' : absExams ? 'absent' : 'none', pct = done ? exactPct(obtained, max) : 0, passed = done > 0 && failedExams === 0;
                 return { st, status, pct, passed, absent, att: attN ? attSum / attN : null, grade: done ? gradeOf(pct, !passed, G).grade : '' };
             });
             const per = perAll.filter(x => genderMatch(x.st, gf));
@@ -860,7 +861,7 @@
                 });
                 if (entered) subjectRows.push({ cls: c.name, name: s.name, entered, gE, gP, pass, fail: entered - pass, ab, passPct: pctOf(pass, entered), avg: r1(sum / Math.max(1, n)), hi, max: s.maxMarks });
             }));
-            return { total: per.length, done: done.length, partial, none, passed, failed, passPct: pctOf(passed, done.length), failPct: pctOf(failed, done.length), avg: r1(mean(done.map(x => x.pct))),
+            return { total: per.length, done: done.length, partial, none, absentAll: per.filter(x => x.status === 'absent').length, passed, failed, passPct: pctOf(passed, done.length), failPct: pctOf(failed, done.length), avg: r1(mean(done.map(x => x.pct))),
                 hi: byPct[0], lo: byPct[byPct.length - 1], absentStudents: done.filter(x => x.absent > 0).length, attAvg: attList.length ? r1(mean(attList)) : null,
                 gradeOrder, gradeCount, classRows, subjectRows, genderRows, byG, counts: genderCounts(appState.students), top: byPct.slice(0, 5), all };
         }
@@ -908,7 +909,7 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
                     ${kpi('hi', 'Highest', d.hi ? Math.round(d.hi.pct * 10) / 10 + '%' : '-', d.hi ? esc(d.hi.st.name) : '', 'g')}
                     ${kpi('lo', 'Lowest', d.lo ? Math.round(d.lo.pct * 10) / 10 + '%' : '-', d.lo ? esc(d.lo.st.name) : '', 'r')}
-                    ${kpi('absent', 'With absent (AB)', d.absentStudents, 'students', 's', gsplit('absent'))}
+                    ${kpi('absent', 'With absent (AB)', d.absentStudents, d.absentAll ? `${d.absentAll} did not appear at all` : 'students', 's', gsplit('absent'))}
                     ${kpi('att', 'Average attendance', d.attAvg === null ? '-' : d.attAvg + '%', d.attAvg === null ? 'not entered yet' : '')}
                     ${kpi('partial', 'Marks incomplete', d.partial, 'some subjects pending', 'a', gsplit('partial'))}
                     ${kpi('none', 'Not entered', d.none, 'no marks yet', 's', gsplit('none'))}
@@ -958,7 +959,7 @@
                 <div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid ${ac};padding-bottom:8px">${m.logo ? `<img src="${esc(m.logo)}" style="height:54px;width:auto;max-width:90px;object-fit:contain" alt="">` : ''}<div><div style="font-size:18px;font-weight:800;text-transform:uppercase;color:${ac}">${esc(m.name)}</div>${m.subtitle ? `<div style="font-size:10px;color:#475569">${esc(m.subtitle)}</div>` : ''}</div></div>
                 <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div style="font-size:14px;font-weight:700">Institution Overview &mdash; ${esc(examName)}${gf !== 'ALL' ? ' &mdash; ' + GF_LABEL[gf] + ' only' : ''}</div><div style="font-size:9px;color:#64748b;white-space:nowrap">Generated ${date}</div></div>
                 <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px">${box('Students', d.total, ink, bg('total'))}${box('Result complete', d.done, '#0369a1', bg('done'))}${box('Passed', d.passed, 'rgb(var(--em-700))', bg('passed'))}${box('Failed', d.failed, '#dc2626', bg('failed'))}${box('Pass %', d.passPct + '%', 'rgb(var(--em-700))', bgp('passPct'))}${box('Average', d.avg + '%', ink, bgp('avg'))}</div>
-                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">${box('Highest', d.hi ? Math.round(d.hi.pct * 10) / 10 + '%' : '-', '#059669')}${box('Lowest', d.lo ? Math.round(d.lo.pct * 10) / 10 + '%' : '-', '#dc2626')}${box('With absent', d.absentStudents, ink, bg('absent'))}${box('Attendance', d.attAvg === null ? '-' : d.attAvg + '%', ink)}${box('Incomplete', d.partial, '#b45309', bg('partial'))}${box('Not entered', d.none, '#475569', bg('none'))}</div>
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">${box('Highest', d.hi ? Math.round(d.hi.pct * 10) / 10 + '%' : '-', '#059669')}${box('Lowest', d.lo ? Math.round(d.lo.pct * 10) / 10 + '%' : '-', '#dc2626')}${box('With absent', d.absentStudents, ink, bg('absent') || (d.absentAll ? d.absentAll + ' did not appear' : ''))}${box('Attendance', d.attAvg === null ? '-' : d.attAvg + '%', ink)}${box('Incomplete', d.partial, '#b45309', bg('partial'))}${box('Not entered', d.none, '#475569', bg('none'))}</div>
                 ${sec('Results at a glance', `<div style="display:flex;border-radius:6px;overflow:hidden;background:#e2e8f0">${seg(d.passed, '#10b981')}${seg(d.failed, '#ef4444')}${seg(d.partial, '#fbbf24')}${seg(d.none, '#cbd5e1')}</div><div style="font-size:9px;color:#475569;margin-top:4px">Passed ${d.passed} &bull; Failed ${d.failed} &bull; Incomplete ${d.partial} &bull; Not entered ${d.none}</div>`)}
                 ${hasGender && d.genderRows.length ? sec('Boys vs Girls', table(['Group', 'Students', 'Complete', 'Passed', 'Failed', 'Pass %', 'Avg %', 'Highest'], d.genderRows.map(r => `<tr>${td(r.label, `text-align:left;font-weight:700;color:${gcol(r.k)}`)}${td(r.total)}${td(r.done)}${td(r.passed, 'color:#047857;font-weight:600')}${td(r.failed, 'color:#dc2626;font-weight:600')}${td(bar(r.passPct, r.done))}${td(r.done ? r.avg + '%' : '-')}${td(r.hi === null ? '-' : r.hi + '%')}</tr>`).join(''))) : ''}
                 ${sec('Grade distribution', `<table style="width:100%;border-collapse:collapse">${d.gradeOrder.map(g => { const n = d.gradeCount[g] || 0; return `<tr><td style="width:36px;font-size:10.5px;font-weight:700;padding:2px 0">${esc(g)}</td><td><div style="height:9px;background:#e2e8f0;border-radius:4px;overflow:hidden"><div style="height:9px;width:${(n / maxGrade * 100).toFixed(1)}%;background:${g === appState.grades.fail.grade ? '#ef4444' : 'rgb(var(--em-600))'}"></div></div></td><td style="width:30px;text-align:right;font-size:10.5px">${n}</td></tr>`; }).join('')}</table>`)}
@@ -1264,6 +1265,12 @@
         const denseRank = (list, v) => { let n = 0, prev = null; for (const p of list.filter(q => q > v + 1e-9).sort((a, b) => b - a)) if (prev === null || p < prev - 1e-9) { n++; prev = p; } return n + 1; }; // equal percentage = same position, and the next position is never skipped (3 on 1st -> next is 2nd)
         const exactPct = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, not the rounded one
         const isAb = v => v === 'AB';
+        // Student-facing wording + colours (admin sets them in Setup -> Grading). Admin analytics keep saying "Failed".
+        const WORDING_DEF = { passText: 'PASSED', failText: 'NEEDS IMPROVEMENT', subFailText: 'NEEDS IMPROVEMENT', absentText: 'ABSENT', absentNote: 'Did not appear for this examination', note: '', failColor: '#d97706', absentColor: '#64748b' };
+        const wordingOf = w => { w = w || {}; const t = (v, d, n) => String(v ?? '').trim().slice(0, n) || d, hx = (v, d) => (/^#[0-9a-fA-F]{6}$/.test(v || '') ? v : d);
+            return { passText: t(w.passText, WORDING_DEF.passText, 30), failText: t(w.failText, WORDING_DEF.failText, 30), subFailText: t(w.subFailText, WORDING_DEF.subFailText, 30), absentText: t(w.absentText, WORDING_DEF.absentText, 30), absentNote: t(w.absentNote, WORDING_DEF.absentNote, 80), note: String(w.note ?? '').trim().slice(0, 160), failColor: hx(w.failColor, WORDING_DEF.failColor), absentColor: hx(w.absentColor, WORDING_DEF.absentColor) }; };
+        const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+        const absAllOf = (marks, subs) => subs.length > 0 && subs.every(x => isAb(marks && marks[x.id])); // did not appear for the exam at all
         const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
         const ord = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
         const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.scale].sort((a, b) => b.min - a.min); return s.find(x => p >= x.min) || s[s.length - 1] || g.fail; };
@@ -1537,6 +1544,7 @@
         // Builds the inside of one marksheet (same markup for the public page, image export and bulk PDF).
         function marksheetHTML(d, uid = 'p') {
             const { madrasa, exam, cls, subjects, details, result, summary, position, exams, overall } = d;
+            const gt = t => (/^\s*fail(ed|ure)?\s*$/i.test(t || '') ? '' : (t || '')), W = wordingOf(d.wording), absAll = !!summary.absentAll, absN = Number(summary.absentSubs) || 0;
             const inst = madrasa.name || 'Institution', logo = (madrasa.logo || '').trim();
             const sec = msSecurity(inst, logo, uid);
             const sig = (title, name) => (name ? `<p class="ms-sign-name">${esc(name)}</p>` : '') + `<p class="ms-sign-title">${esc(title)}</p>`;
@@ -1544,39 +1552,45 @@
             const detailsHTML = [...details, { label: 'Class', value: cls.name }].map(x => `<div><p class="ms-k">${esc(x.label)}</p><p class="ms-v">${esc(x.value)}</p></div>`).join('');
 
             const tile = (c, label, val, sub) => `<div class="ms-tile ${c}"><p class="ms-tl">${label}</p><p class="ms-tv">${val}</p>${sub ? `<p class="ms-ts">${sub}</p>` : ''}</div>`;
-            const boxes = [
-                summary.passed ? tile('ok', 'Result', 'PASSED') : tile('bad', 'Result', 'FAILED'),
-                tile('gold', 'Grade', esc(summary.grade.grade), esc(summary.grade.title))
+            const tileC = (hex, label, val, sub) => `<div class="ms-tile" style="background:${hexA(hex, .1)};border-color:${hexA(hex, .45)};color:${hex}"><p class="ms-tl">${label}</p><p class="ms-tv" style="${String(val).length > 12 ? 'font-size:12px' : ''}">${val}</p>${sub ? `<p class="ms-ts">${sub}</p>` : ''}</div>`;
+            const boxes = absAll ? [tileC(W.absentColor, 'Result', esc(W.absentText), esc(W.absentNote))] : [
+                summary.passed ? tile('ok', 'Result', esc(W.passText)) : tileC(W.failColor, 'Result', esc(W.failText)),
+                tile('gold', 'Grade', esc(summary.grade.grade), esc(gt(summary.grade.title)))
             ];
-            if (position) boxes.push(tile('sky', 'Class Position', ord(position.rank), `of ${position.of} students`));
+            if (position && !absAll) boxes.push(tile('sky', 'Class Position', ord(position.rank), `of ${position.of} students`));
+            const bannerTxt = !absAll && !summary.passed ? [absN ? `Absent in ${absN} subject${absN > 1 ? 's' : ''}` : '', W.note].filter(Boolean).join(' \u2022 ') : '';
+            const bannerHTML = bannerTxt ? `<p style="text-align:center;font-size:12px;font-weight:600;margin:-4px 0 10px;color:${W.failColor}">${esc(bannerTxt)}</p>` : '';
 
             // The server only says whether each subject was passed; pass marks themselves are never sent or shown.
-            const row = sub => { const ab = result.marks[sub.id] === 'AB'; return { ab, o: ab ? 0 : Number(result.marks[sub.id] ?? 0), ok: !ab && !!sub.passed, g: esc((result.grades[sub.id] || {}).grade || '-') }; };
+            const row = sub => { const ab = result.marks[sub.id] === 'AB'; return { ab, o: ab ? 0 : Number(result.marks[sub.id] ?? 0), ok: !ab && !!sub.passed, g: esc((result.grades[sub.id] || {}).grade || '-'), bad: ab ? W.absentColor : W.failColor }; };
+            const pill = (ab, ok, bad) => ab ? `<span class="ms-pill" style="background:${hexA(bad, .15)};color:${bad}">${esc(W.absentText)}</span>` : ok ? `<span class="ms-pill pass">PASS</span>` : `<span class="ms-pill" style="background:${hexA(bad, .15)};color:${bad}">${esc(W.subFailText)}</span>`;
             const tbody = subjects.map(sub => {
-                const { ab, o, ok, g } = row(sub);
+                const { ab, o, ok, g, bad } = row(sub);
                 return `<tr><td class="ms-sub">${esc(sub.name)}</td>
                     <td class="c" style="color:#475569">${sub.maxMarks}</td>
-                    <td class="c" style="font-weight:800;color:${ok ? '#0f172a' : '#dc2626'}">${ab ? 'AB' : o}</td>
-                    <td class="c" style="font-weight:800;color:${ok ? '#b45309' : '#dc2626'}">${g}</td>
-                    <td class="c"><span class="ms-pill ${ab ? 'abs' : ok ? 'pass' : 'fail'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></td></tr>`;
+                    <td class="c" style="font-weight:800;color:${ok ? '#0f172a' : bad}">${ab ? 'AB' : o}</td>
+                    <td class="c" style="font-weight:800;color:${ok ? '#b45309' : bad}">${g}</td>
+                    <td class="c">${pill(ab, ok, bad)}</td></tr>`;
             }).join('');
-            const tfoot = `<tr><td style="text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:11px">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:rgb(var(--em-800))">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:rgb(var(--em-800))">${summary.percentage}%</td></tr>`;
+            const tfoot = absAll ? '' : `<tr><td style="text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:11px">Grand Total</td><td class="c">${summary.max}</td><td class="c" style="color:rgb(var(--em-800))">${summary.obtained}</td><td class="c" style="color:#b45309">${esc(summary.grade.grade)}</td><td class="c" style="color:rgb(var(--em-800))">${summary.percentage}%</td></tr>`;
             const cards = subjects.map(sub => {
-                const { ab, o, ok, g } = row(sub);
-                return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : 'border-red-200 bg-red-50'}">
+                const { ab, o, ok, g, bad } = row(sub);
+                return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${ok ? 'border-slate-200 bg-white' : ''}" ${ok ? '' : `style="border-color:${hexA(bad, .4)};background:${hexA(bad, .07)}"`}>
                     <div class="min-w-0"><p class="font-semibold text-slate-800 text-sm">${esc(sub.name)}</p><p class="text-xs text-slate-500 mt-0.5">Max ${sub.maxMarks}</p></div>
-                    <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : 'text-red-600'}">${ab ? 'AB' : o}</p>
+                    <div class="text-right shrink-0"><p class="text-lg font-bold leading-tight ${ok ? 'text-slate-900' : ''}" ${ok ? '' : `style="color:${bad}"`}>${ab ? 'AB' : o}</p>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">${g}</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${ab ? 'ABSENT' : ok ? 'PASS' : 'FAIL'}</span></div></div>`;
-            }).join('') + `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`;
+                    ${pill(ab, ok, bad)}</div></div>`;
+            }).join('') + (absAll ? '' : `<div class="flex items-center justify-between p-3.5 rounded-xl bg-emerald-900 text-white text-sm"><span class="font-semibold">Grand Total</span><span class="font-bold">${summary.obtained} / ${summary.max} &bull; ${summary.percentage}%</span></div>`);
 
             const days = Number(cls.totalWorkingDays) || 200, present = Number(result.attendanceDays || 0), att = days > 0 ? Math.min(100, present / days * 100).toFixed(1) : 0;
             const attOn = Number(result.attendanceDays) >= 0;
             const bg = 'background:rgba(241,245,249,.9)';
             const overallHTML = exams.length < 2 ? '' : `<div class="ms-overall mb-4"><h4>Overall Performance &mdash; All Exams</h4><div class="ms-tablewrap" style="margin-bottom:0"><table class="ms-table" style="font-size:12px">
                 <thead><tr><th>Exam</th><th class="c">Marks</th><th class="c">%</th><th class="c">Result</th><th class="c">Grade</th></tr></thead><tbody>`
-                + exams.map(x => `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? 'rgb(var(--em-700))' : '#dc2626'}">${x.passed ? 'PASS' : 'FAIL'}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
-                + `<tr><td style="font-weight:800;${bg}">Overall</td><td class="c" style="font-weight:800;${bg}">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;${bg}">${overall.percentage}%</td><td class="c" style="font-weight:800;${bg};color:${overall.failedCount ? '#dc2626' : 'rgb(var(--em-700))'}">${overall.failedCount ? 'Failed in ' + overall.failedCount : 'Passed all'}</td><td class="c" style="font-weight:800;${bg}">${esc(overall.grade.grade)}${overall.grade.title ? ' &bull; ' + esc(overall.grade.title) : ''}</td></tr></tbody></table></div></div>`;
+                + exams.map(x => x.absent ? `<tr><td>${esc(x.name)}</td><td class="c">-</td><td class="c">-</td><td class="c" style="font-weight:800;color:${W.absentColor}">${esc(W.absentText)}</td><td class="c">-</td></tr>`
+                    : `<tr><td>${esc(x.name)}</td><td class="c">${x.obtained}/${x.max}</td><td class="c">${x.percentage}%</td><td class="c" style="font-weight:800;color:${x.passed ? 'rgb(var(--em-700))' : W.failColor}">${x.passed ? 'PASS' : `<span style="font-size:10px;line-height:1.2;display:inline-block">${esc(W.subFailText)}</span>`}</td><td class="c" style="font-weight:800">${esc(x.grade.grade)}</td></tr>`).join('')
+                + (overall.count ? `<tr><td style="font-weight:800;${bg}">Overall</td><td class="c" style="font-weight:800;${bg}">${overall.obtained}/${overall.max}</td><td class="c" style="font-weight:800;${bg}">${overall.percentage}%</td><td class="c" style="font-weight:800;${bg};color:${overall.failedCount ? W.failColor : 'rgb(var(--em-700))'}">${overall.failedCount ? `<span style="font-size:10px;line-height:1.2;display:inline-block">${esc(W.failText)} (${overall.failedCount})</span>` : 'Passed all'}</td><td class="c" style="font-weight:800;${bg}">${esc(overall.grade.grade)}${!overall.failedCount && gt(overall.grade.title) ? ' &bull; ' + esc(gt(overall.grade.title)) : ''}</td></tr>` : '')
+                + `</tbody></table></div></div>`;
             const extras = (d.assistants || []).filter(a => a.name || a.sign), sealHTML = `<div class="ms-seal" title="Security hologram">${sec.seal}</div>`;
             let footHTML;
             if (!extras.length) footHTML = `<div class="ms-foot">${sigBlock(cls.teacherTitle || 'Class Teacher', cls.teacherName, cls.teacherSign)}${sealHTML}${sigBlock(madrasa.headTitle || 'Principal', madrasa.headName, madrasa.headSign)}</div>`;
@@ -1596,7 +1610,7 @@
                     </div>
                     <div class="ms-titlebar"><span class="ms-rule"></span><div><span class="ms-exam">${esc(exam.name)}</span></div><span class="ms-rule"></span></div>
                     <div class="ms-details">${detailsHTML}</div>
-                    <div class="ms-stats" style="grid-template-columns:repeat(${boxes.length}, minmax(0, 1fr))">${boxes.join('')}</div>
+                    <div class="ms-stats" style="grid-template-columns:repeat(${boxes.length}, minmax(0, 1fr))">${boxes.join('')}</div>${bannerHTML}
                     <div class="ms-cards md:hidden print:hidden space-y-2 mb-4">${cards}</div>
                     <div class="hidden md:block print:block ms-tablewrap">
                         <table class="ms-table">
@@ -1604,8 +1618,8 @@
                             <tbody>${tbody}</tbody><tfoot>${tfoot}</tfoot>
                         </table>
                     </div>
-                    <div class="ms-mini"${attOn ? '' : ' style="grid-template-columns:1fr"'}>
-                        <div class="ms-box"><h4>Percentage</h4><p class="big">${summary.percentage}%</p></div>
+                    <div class="ms-mini"${attOn && !absAll ? '' : ' style="grid-template-columns:1fr"'}>
+                        ${absAll ? '' : `<div class="ms-box"><h4>Percentage</h4><p class="big">${summary.percentage}%</p></div>`}
                         ${attOn ? `<div class="ms-box"><h4>Attendance</h4><p class="big">${att}% <small>(${present}/${days} days)</small></p><div class="ms-bar"><div style="width:${att}%"></div></div></div>` : ''}
                     </div>
                     ${overallHTML}
@@ -1805,6 +1819,7 @@
             document.getElementById('grade-rows').innerHTML = [...appState.grades.scale].sort((a, b) => b.min - a.min).map(gradeRowHTML).join('');
             document.getElementById('fail-grade').value = appState.grades.fail.grade;
             document.getElementById('fail-title').value = appState.grades.fail.title || '';
+            wdFill();
             document.getElementById('field-rows').innerHTML = appState.fields.map(fieldRowHTML).join('');
         }
         function savePortal() {
@@ -1815,12 +1830,27 @@
             saveState();
             showToast(sched ? 'Portal will open automatically at ' + new Date(appState.portal.opensAt).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : appState.portal.enabled ? 'Public portal is now ON' : 'Public portal is now OFF', 'success');
         }
+        // ---- result wording & colours (what students / parents see) ----
+        const WD_SWATCHES = ['#d97706', '#ea580c', '#e11d48', '#7c3aed', '#2563eb', '#0d9488', '#64748b', '#475569'], wdId = id => document.getElementById(id);
+        function wdFill() {
+            const w = wordingOf(appState.grades.wording);
+            wdId('wd-pass').value = w.passText; wdId('wd-fail').value = w.failText; wdId('wd-subfail').value = w.subFailText; wdId('wd-absent').value = w.absentText; wdId('wd-absentnote').value = w.absentNote; wdId('wd-note').value = w.note;
+            wdId('wd-failcolor').value = w.failColor; wdId('wd-absentcolor').value = w.absentColor;
+            [['wd-failsw', 'wd-failcolor'], ['wd-absentsw', 'wd-absentcolor']].forEach(([box, inp]) => { wdId(box).innerHTML = WD_SWATCHES.map(c => `<button type="button" title="${c}" onclick="wdPick('${inp}','${c}')" class="w-7 h-7 rounded-full border-2 border-white shadow ring-1 ring-slate-300" style="background:${c}"></button>`).join(''); });
+            wdPreview();
+        }
+        function wdPick(inp, c) { wdId(inp).value = c; wdPreview(); }
+        function wdRead() { return wordingOf({ passText: wdId('wd-pass').value, failText: wdId('wd-fail').value, subFailText: wdId('wd-subfail').value, absentText: wdId('wd-absent').value, absentNote: wdId('wd-absentnote').value, note: wdId('wd-note').value, failColor: wdId('wd-failcolor').value, absentColor: wdId('wd-absentcolor').value }); }
+        function wdPreview() {
+            const w = wdRead(), t = (hex, label, val, sub) => `<div class="rounded-xl text-center px-2 py-2" style="border:1px solid ${hexA(hex, .45)};background:${hexA(hex, .1)};color:${hex}"><p style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;opacity:.75">${label}</p><p class="font-extrabold" style="font-size:${String(val).length > 12 ? 12 : 17}px">${esc(val)}</p>${sub ? `<p style="font-size:10px;opacity:.85">${esc(sub)}</p>` : ''}</div>`;
+            wdId('wd-preview').innerHTML = t(w.failColor, 'Result', w.failText, w.note) + t(w.absentColor, 'Result', w.absentText, w.absentNote);
+        }
         function addGradeRow() { document.getElementById('grade-rows').insertAdjacentHTML('beforeend', gradeRowHTML({ min: 0, grade: '', title: '' })); }
         function saveGrades() {
             const scale = [...document.querySelectorAll('.grade-row')].map(r => ({ min: Number(r.querySelector('.g-min').value), grade: r.querySelector('.g-grade').value.trim(), title: r.querySelector('.g-title').value.trim() }));
             const fail = { grade: document.getElementById('fail-grade').value.trim(), title: document.getElementById('fail-title').value.trim() };
             if (!scale.length || scale.some(x => !x.grade || isNaN(x.min) || x.min < 0 || x.min > 100) || !fail.grade) { showToast('Fill every grade row (min % 0-100) and the fail grade.', 'error'); return; }
-            appState.grades = { scale: scale.sort((a, b) => b.min - a.min), fail };
+            appState.grades = { scale: scale.sort((a, b) => b.min - a.min), fail, wording: wdRead() };
             saveState(); renderSetup(); showToast('Grading criteria saved', 'success');
         }
         function addFieldRow() {
@@ -1937,25 +1967,26 @@
             const rows = students.map(st => {
                 const per = exams.map(ex => { const r = appState.results.find(r => r.examId === ex.id && r.studentId === st.id);
                     if (!r) return null; const ap = subs.filter(s => r.marks[s.id] !== undefined);
-                    return { m: r.marks, pend: subs.some(s => r.marks[s.id] === undefined), att: Number(r.attendanceDays) >= 0 ? Number(r.attendanceDays) : null, o: sumMarks(r.marks, ap), mx: ap.reduce((a, s) => a + Number(s.maxMarks), 0), fail: ap.length === 0 || ap.some(s => isAb(r.marks[s.id]) || (Number(r.marks[s.id]) || 0) < Number(s.passingMarks)) }; });
-                const have = per.filter(x => x && !x.pend), pendRow = !all && per[0] && per[0].pend;
-                if (!have.length && !pendRow) return null;
+                    return { m: r.marks, pend: subs.some(s => r.marks[s.id] === undefined), att: Number(r.attendanceDays) >= 0 ? Number(r.attendanceDays) : null, o: sumMarks(r.marks, ap), mx: ap.reduce((a, s) => a + Number(s.maxMarks), 0), abs: ap.length > 0 && ap.every(s => isAb(r.marks[s.id])), fail: ap.length === 0 || ap.some(s => isAb(r.marks[s.id]) || (Number(r.marks[s.id]) || 0) < Number(s.passingMarks)) }; });
+                const have = per.filter(x => x && !x.pend && !x.abs), pendRow = !all && per[0] && per[0].pend, absRow = !have.length && per.some(x => x && !x.pend && x.abs); // absRow = did not appear at all
+                if (!have.length && !pendRow && !absRow) return null;
+                if (absRow) return { st, per, abs: true, o: 0, max: 0, p: 0, failN: 0, attDays: null, attPct: null, grade: { grade: '-' } };
                 if (pendRow) return { st, per, pend: true, o: 0, max: 0, p: 0, failN: 0, attDays: null, attPct: null, grade: { grade: '-' } };
                 const o = have.reduce((a, x) => a + x.o, 0), max = have.reduce((a, x) => a + x.mx, 0), failN = have.filter(x => x.fail).length;
                 return { st, per, o, max, p: pctOf(o, max), failN, attDays: have[0].att, attPct: have.some(x => x.att !== null) ? pctOf(have.reduce((a, x) => a + (x.att || 0), 0), have.length * days) : null, grade: gradeOf(exactPct(o, max), failN > 0, G) };
-            }).filter(Boolean).sort((a, b) => (a.pend ? 1 : 0) - (b.pend ? 1 : 0) || exactPct(b.o, b.max) - exactPct(a.o, a.max) || a.st.name.localeCompare(b.st.name));
-            const done = rows.filter(r => !r.pend);
-            { const dp = done.map(x => exactPct(x.o, x.max)); rows.forEach(r => r.rank = r.pend ? '-' : denseRank(dp, exactPct(r.o, r.max))); }
+            }).filter(Boolean).sort((a, b) => ((a.pend || a.abs) ? 1 : 0) - ((b.pend || b.abs) ? 1 : 0) || exactPct(b.o, b.max) - exactPct(a.o, a.max) || a.st.name.localeCompare(b.st.name));
+            const done = rows.filter(r => !r.pend && !r.abs);
+            { const dp = done.map(x => exactPct(x.o, x.max)); rows.forEach(r => r.rank = (r.pend || r.abs) ? '-' : denseRank(dp, exactPct(r.o, r.max))); }
             const th = 'border border-slate-300 px-2 py-1.5 bg-slate-100 text-[11px] uppercase', td = 'border border-slate-300 px-2 py-1 text-center';
             const cols = all ? exams.map(e => `<th class="${th}">${esc(e.name)}</th>`).join('')
                 : subs.map(s => `<th class="${th}">${esc(s.name)}<br><span class="font-normal">/${s.maxMarks}</span></th>`).join('');
             const body = rows.map(r => `<tr><td class="${td} font-bold">${r.rank}</td><td class="${td}">${esc(r.st.admissionNo)}</td><td class="${td} text-left font-medium">${esc(r.st.name)}</td>`
-                + (all ? r.per.map(x => `<td class="${td}">${x ? (x.pend ? 'Pending' : x.o + '/' + x.mx) : '-'}</td>`).join('')
+                + (all ? r.per.map(x => `<td class="${td}">${x ? (x.pend ? 'Pending' : x.abs ? 'AB' : x.o + '/' + x.mx) : '-'}</td>`).join('')
                     : subs.map(s => { const v = r.per[0].m[s.id], ab = isAb(v), bad = v !== undefined && (ab || Number(v) < Number(s.passingMarks));
                         const g = (v === undefined || ab) ? '' : gradeOf(exactPct(Number(v), Number(s.maxMarks)), bad, G).grade;
                         return `<td class="${td} ${bad ? 'text-red-600 font-bold' : ''}">${ab ? 'AB' : (v ?? '-')}${g ? `<span class="block text-[9px] font-semibold text-slate-500">${esc(g)}</span>` : ''}</td>`; }).join(''))
-                + `<td class="${td} font-bold">${r.pend ? '-' : r.o + '/' + r.max}</td><td class="${td}">${r.pend ? '-' : r.p + '%'}</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td}">${r.attPct === null ? '-' : all ? r.attPct + '%' : `${r.attDays}/${days}<span class="block text-[9px] text-slate-500">${r.attPct}%</span>`}</td><td class="${td} font-semibold ${r.pend ? 'text-amber-600' : r.failN ? 'text-red-600' : 'text-emerald-700'}">${r.pend ? 'PENDING' : all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
-            const passed = done.filter(r => r.failN === 0).length, failed = done.length - passed, pendingN = rows.length - done.length;
+                + `<td class="${td} font-bold">${(r.pend || r.abs) ? '-' : r.o + '/' + r.max}</td><td class="${td}">${(r.pend || r.abs) ? '-' : r.p + '%'}</td><td class="${td} font-bold">${esc(r.grade.grade)}</td><td class="${td}">${r.attPct === null ? '-' : all ? r.attPct + '%' : `${r.attDays}/${days}<span class="block text-[9px] text-slate-500">${r.attPct}%</span>`}</td><td class="${td} font-semibold ${r.abs ? 'text-slate-500' : r.pend ? 'text-amber-600' : r.failN ? 'text-red-600' : 'text-emerald-700'}">${r.abs ? 'ABSENT' : r.pend ? 'PENDING' : all ? (r.failN ? r.failN + ' failed' : 'Passed all') : (r.failN ? 'FAIL' : 'PASS')}</td></tr>`).join('');
+            const passed = done.filter(r => r.failN === 0).length, failed = done.length - passed, pendingN = rows.filter(r => r.pend).length, absentN = rows.filter(r => r.abs).length;
             const stat = (l, v, c, sub) => `<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;color:#64748b">${l}</div><div style="font-size:15px;font-weight:700;color:${c}">${v}</div>${sub ? `<div style="font-size:8px;color:#475569;margin-top:2px;line-height:1.3">${sub}</div>` : ''}</div>`;
             const showGS = GF.rep === 'ALL' && students.some(s => genderOf(s));
             const gc = list => { if (!showGS) return ''; let M = 0, F = 0, U = 0; list.forEach(x => { const g = genderOf(x.st || x); if (g === 'M') M++; else if (g === 'F') F++; else U++; }); return `<span style="color:#0369a1">${M} Boys</span> &middot; <span style="color:#be185d">${F} Girls</span>${U ? ` &middot; ${U} Not set` : ''}`; };
@@ -1963,7 +1994,7 @@
             const okRow = r => r.failN === 0, badRow = r => r.failN > 0;
             const overview = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:10px">`
                 + stat('Total Students', students.length, '#0f172a', gc(students)) + stat('Appeared', done.length, '#0f172a', gc(done)) + stat('Passed', passed, 'rgb(var(--em-700))', gc(done.filter(okRow))) + stat('Failed', failed, '#dc2626', gc(done.filter(badRow)))
-                + stat('Pass %', pctOf(passed, done.length) + '%', 'rgb(var(--em-700))', gp(done, okRow)) + stat('Fail %', pctOf(failed, done.length) + '%', '#dc2626', gp(done, badRow)) + (pendingN ? stat('Pending', pendingN, '#b45309', gc(rows.filter(r => r.pend))) : '') + `</div>`;
+                + stat('Pass %', pctOf(passed, done.length) + '%', 'rgb(var(--em-700))', gp(done, okRow)) + stat('Fail %', pctOf(failed, done.length) + '%', '#dc2626', gp(done, badRow)) + (pendingN ? stat('Pending', pendingN, '#b45309', gc(rows.filter(r => r.pend))) : '') + (absentN ? stat('Did not appear', absentN, '#475569', gc(rows.filter(r => r.abs))) : '') + `</div>`;
             const key = [...G.scale].sort((a, b) => b.min - a.min).map(x => `${esc(x.grade)} (${x.min}%+)`).join(' &bull; ') + ` &bull; ${esc(G.fail.grade)} (fail) &bull; AB = absent`;
             const sign = (title, name, img) => `<div style="text-align:center"><div style="border-bottom:1px solid #94a3b8;height:40px;margin-bottom:4px;display:flex;align-items:flex-end;justify-content:center">${img ? `<img src="${esc(img)}" style="max-height:38px;max-width:80%;object-fit:contain" alt="">` : ''}</div>${name ? `<div style="font-weight:700;font-size:12px">${esc(name)}</div>` : ''}<div style="font-size:11px;color:#475569">${esc(title)}</div></div>`;
             const html = `<div class="text-center mb-3"><h2 class="text-lg font-bold uppercase font-serif">${esc(appState.madrasa.name)}</h2>
@@ -2272,24 +2303,24 @@
             if (!complete(cur.marks)) return null; // marks still pending
             const marks = cur.marks || {}, mySubs = take(marks), maxPer = maxOf(mySubs);
             const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(s => subOk(marks, s));
-            const myPct = exactPct(obtained, maxPer);
+            const myPct = exactPct(obtained, maxPer), absentAll = absAllOf(marks, mySubs), absentSubs = mySubs.filter(x => isAb(marks[x.id])).length;
             const mateIds = new Set(appState.students.filter(s => s.classId === st.classId).map(s => s.id));
-            const pcts = appState.results.filter(r => r.examId === ex.id && mateIds.has(r.studentId) && complete(r.marks)).map(r => { const l = take(r.marks); return exactPct(sumMarks(r.marks, l), maxOf(l)); });
+            const pcts = appState.results.filter(r => r.examId === ex.id && mateIds.has(r.studentId) && complete(r.marks) && !absAllOf(r.marks, take(r.marks))).map(r => { const l = take(r.marks); return exactPct(sumMarks(r.marks, l), maxOf(l)); });
             const exams = appState.exams.filter(e => e.isPublic).map(e => ({ e, r: mine.find(r => r.examId === e.id) })).filter(x => x.r && complete(x.r.marks)).map(({ e, r }) => {
                 const l = take(r.marks), o = sumMarks(r.marks, l), mx = maxOf(l), ok = l.length > 0 && l.every(s => subOk(r.marks, s));
-                return { name: e.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exactPct(o, mx), !ok, G) };
+                return { name: e.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, absent: absAllOf(r.marks, l), grade: gradeOf(exactPct(o, mx), !ok, G) };
             });
-            const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length;
+            const cnt = exams.filter(x => !x.absent), oObt = cnt.reduce((a, x) => a + x.obtained, 0), oMax = cnt.reduce((a, x) => a + x.max, 0), failedCount = cnt.filter(x => !x.passed).length;
             return {
-                madrasa: appState.madrasa, exam: { id: ex.id, name: ex.name },
+                wording: wordingOf(G.wording), madrasa: appState.madrasa, exam: { id: ex.id, name: ex.name },
                 cls: { name: cls.name, totalWorkingDays: Number(cls.totalWorkingDays) || 200, teacherTitle: cls.teacherTitle || '', teacherName: cls.teacherName || '', teacherSign: (appState.classSigns || {})[cls.id] || '' },
                 subjects: mySubs.map(s => ({ id: s.id, name: s.name, maxMarks: Number(s.maxMarks), passed: subOk(marks, s) })),
                 details: [{ label: 'Student Name', value: st.name }, ...appState.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admissionNo : fieldVal(st, f.id) })).filter(x => x.value)],
                 result: { attendanceDays: Number.isFinite(Number(cur.attendanceDays)) ? Number(cur.attendanceDays) : 0, marks, grades: Object.fromEntries(mySubs.map(s => [s.id, isAb(marks[s.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exactPct(Number(marks[s.id]) || 0, Number(s.maxMarks)), !subOk(marks, s), G)])) },
-                summary: { obtained, max: maxPer, percentage: pctOf(obtained, maxPer), passed, grade: gradeOf(myPct, !passed, G) },
-                position: appState.portal.showPosition !== false ? { rank: denseRank(pcts, myPct), of: pcts.length } : null,
+                summary: { obtained, max: maxPer, percentage: pctOf(obtained, maxPer), passed, absentAll, absentSubs, grade: absentAll ? { grade: 'AB', title: 'Absent' } : gradeOf(myPct, !passed, G) },
+                position: appState.portal.showPosition !== false && !absentAll ? { rank: denseRank(pcts, myPct), of: pcts.length } : null,
                 assistants: (appState.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })),
-                exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exactPct(oObt, oMax), failedCount > 0, G) }
+                exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: cnt.length, grade: gradeOf(exactPct(oObt, oMax), failedCount > 0, G) }
             };
         }
         function bulkSelection() {
@@ -2938,7 +2969,7 @@
             document.getElementById('entry-live-att-perc').textContent = `${attPerc}%`;
 
             const inputs = document.querySelectorAll('.entry-mark-input');
-            let totalMax = 0, totalObtained = 0, failed = false, pending = 0;
+            let totalMax = 0, totalObtained = 0, failed = false, pending = 0, abN = 0;
 
             inputs.forEach(inp => {
                 const subId = inp.getAttribute('data-subject-id');
@@ -2949,7 +2980,7 @@
                 const val = (ab || blank) ? 0 : Number(inp.value);
                 const statusSpan = document.getElementById(`live-sub-status-${subId}`);
                 if (ab) {
-                    totalMax += max; failed = true;
+                    totalMax += max; failed = true; abN++;
                     statusSpan.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700";
                     statusSpan.textContent = "AB";
                 } else if (blank) {
@@ -2977,6 +3008,9 @@
             } else if (pending > 0) {
                 overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-amber-400 text-slate-950";
                 overallEl.textContent = `${pending} PENDING`;
+            } else if (abN === inputs.length) {
+                overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-slate-500 text-white";
+                overallEl.textContent = "ABSENT";
             } else if (!failed) {
                 overallEl.className = "inline-block mt-0.5 px-3 py-0.5 rounded text-xs font-bold uppercase bg-emerald-500 text-slate-950";
                 overallEl.textContent = "PASSED";
