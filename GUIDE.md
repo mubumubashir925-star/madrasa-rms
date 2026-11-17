@@ -58,6 +58,17 @@ Reports tab -> **Toppers & Posters**. Nothing here is shown on the public page; 
 ## 3e. How places / positions are numbered (everywhere)
 Equal percentage = same place, and the next place is **never skipped**: three students on 1st -> the next students are 2nd, then 3rd. This applies to the public Toppers, admin toppers and posters, the class result sheet (Pos column), the marksheet PDFs and the public result page (Class Position).
 
+## 3f. Student-friendly results: wording, colours and "did not appear" (v18)
+**Setup -> Grading -> Result wording & colours.** The admin chooses what students and parents see instead of a blunt "Failed": the *Passed* word, the *Not passed* word (default **NEEDS IMPROVEMENT**), the *subject not passed* word, the *Absent* word and note, an optional encouraging line, and two colours (not passed / absent) with a live preview. It applies to the public result page and to marksheet PDFs / images (single and bulk). Admin reports, class result sheets and the overview keep saying Failed, because staff need the exact figures. Set the **Fail grade title** (just above) to something gentle too; a bare "Fail" title is never shown to students.
+
+**Students who did not appear** (AB in every subject of the exam) are treated as a separate case, not as failed:
+- Public result / marksheet: a grey **ABSENT** tile with the note, no percentage, grade or class position.
+- Not counted in the class position, toppers, pass %, fail % or averages (admin class sheet and overview show them separately as *Did not appear*).
+- In the all-exams table the exam shows ABSENT and is left out of the overall total.
+- A student who missed only some subjects still gets the *not passed* wording, with a small note "Absent in N subject(s)".
+- On the mark-entry screen, **Absent in all subjects** ticks AB for every subject in one tap.
+Wording is stored inside the existing grades setting, so no database migration is needed. Old data works with the defaults.
+
 ## 4. Good to know
 - Data is fully separated: every database query is locked to the logged-in institution.
 - Addresses: 3-40 letters/numbers/hyphens. Changing an address changes the link, so tell the client.
