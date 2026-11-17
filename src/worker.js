@@ -173,7 +173,7 @@ const deletes = (db, tid, t, keys) => {
 
 const DEF = {
   portal: { enabled: false, message: 'Results are not published yet. Please check back soon.', showPosition: true, showToppers: true, opensAt: 0 },
-  grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Fail' } },
+  grades: { scale: [{ min: 85, grade: 'A+', title: 'Outstanding' }, { min: 70, grade: 'A', title: 'Very Good' }, { min: 55, grade: 'B', title: 'Good' }, { min: 0, grade: 'C', title: 'Satisfactory' }], fail: { grade: 'F', title: 'Needs Improvement' } },
   fields: [{ id: 'admissionNo', label: 'Admission No', show: true }, { id: 'fatherName', label: 'Father / Guardian', show: true }],
 };
 // ---- public views get the logo as a small cacheable image link instead of a big embedded copy ----
@@ -203,6 +203,10 @@ const gradeOf = (p, failed, g) => { if (failed) return g.fail; const s = [...g.s
 const pctOf = (a, b) => (b > 0 ? Math.round(a / b * 1000) / 10 : 0);
 const sumMarks = (m, subs) => subs.reduce((a, s) => a + (Number(m?.[s.id]) || 0), 0);
 const denseRank = (list, v) => { let n = 0, prev = null; for (const p of list.filter(q => q > v + 1e-9).sort((a, b) => b - a)) if (prev === null || p < prev - 1e-9) { n++; prev = p; } return n + 1; }; // equal percentage = same position, and the next position is never skipped (3 on 1st -> next is 2nd)
+// What students see instead of a bare "Failed" (admin chooses the words and colours in Setup -> Grading). Stored inside the 'grades' setting.
+const WORDING_DEF = { passText: 'PASSED', failText: 'NEEDS IMPROVEMENT', subFailText: 'NEEDS IMPROVEMENT', absentText: 'ABSENT', absentNote: 'Did not appear for this examination', note: '', failColor: '#d97706', absentColor: '#64748b' };
+const wordingOf = w => { w = w || {}; const t = (v, d, n) => String(v ?? '').trim().slice(0, n) || d, hx = (v, d) => (/^#[0-9a-fA-F]{6}$/.test(v || '') ? v : d);
+  return { passText: t(w.passText, WORDING_DEF.passText, 30), failText: t(w.failText, WORDING_DEF.failText, 30), subFailText: t(w.subFailText, WORDING_DEF.subFailText, 30), absentText: t(w.absentText, WORDING_DEF.absentText, 30), absentNote: t(w.absentNote, WORDING_DEF.absentNote, 80), note: String(w.note ?? '').trim().slice(0, 160), failColor: hx(w.failColor, WORDING_DEF.failColor), absentColor: hx(w.absentColor, WORDING_DEF.absentColor) }; };
 const exact = (a, b) => (b > 0 ? a / b * 100 : 0); // grades use the exact percentage, never the rounded one
 const subPassed = (m, x) => !absent(m?.[x.id]) && (Number(m?.[x.id]) || 0) >= x.passingMarks;
 
@@ -242,7 +246,7 @@ async function sync(db, t, body) {
     if (po) { const at = Math.floor(Number(po.opensAt)); put('portal', { enabled: !!po.enabled, message: opt(po.message, 500), showPosition: !!po.showPosition, showToppers: po.showToppers !== false, opensAt: Number.isFinite(at) && at > 0 && at < 4102444800000 ? at : 0 }); }
     if (gr) {
       if (!Array.isArray(gr.scale) || !gr.scale.length || gr.scale.length > 12) throw new Error('Add 1 to 12 grade rows');
-      put('grades', { scale: gr.scale.map(x => ({ min: num(x.min, 0, 100), grade: str(x.grade, 12), title: opt(x.title, 40) })), fail: { grade: str(gr.fail?.grade, 12), title: opt(gr.fail?.title, 40) } });
+      put('grades', { scale: gr.scale.map(x => ({ min: num(x.min, 0, 100), grade: str(x.grade, 12), title: opt(x.title, 40) })), fail: { grade: str(gr.fail?.grade, 12), title: opt(gr.fail?.title, 40) }, wording: wordingOf(gr.wording) });
     }
     if (fl) {
       if (!Array.isArray(fl) || fl.length > 20 || !fl.some(f => f.id === 'admissionNo')) throw new Error('Invalid student fields');
@@ -395,35 +399,38 @@ async function publicResult(db, t, url) {
   const take = m => subs.filter(x => x.active && m?.[x.id] !== undefined);
   const maxOf = l => l.reduce((a, x) => a + x.maxMarks, 0);
   const complete = m => subs.every(x => !x.active || m?.[x.id] !== undefined); // blank marks = still pending
+  const absAllOf = m => { const l = take(m); return l.length > 0 && l.every(x => absent(m[x.id])); }; // did not appear for the exam at all (AB in every subject)
   const marks = JSON.parse(cur.marks);
   if (!complete(marks)) return fail(`The result of ${st.name} (${adm}) is not complete yet. Marks of some subjects are still pending - please check again later.`, 404);
   const mySubs = take(marks), maxPer = maxOf(mySubs);
   const obtained = sumMarks(marks, mySubs), passed = mySubs.length > 0 && mySubs.every(x => subPassed(marks, x));
   const percentage = pctOf(obtained, maxPer), G = set.grades, myPct = exact(obtained, maxPer);
+  const absentAll = absAllOf(marks), absentSubs = mySubs.filter(x => absent(marks[x.id])).length;
   // class ranking: one saved row per exam+class (valid while the revision is unchanged); rebuilt once, then reused by everyone
   let pcts = null;
   if (set.portal.showPosition) {
     const sr = await db.prepare('SELECT rev, data FROM class_stats WHERE tenant_id=? AND exam_id=? AND class_id=?').bind(tid, examId, st.class_id).first();
-    if (sr && sr.rev === (t.rev || 0)) pcts = JSON.parse(sr.data);
+    const cd = sr && sr.rev === (t.rev || 0) ? JSON.parse(sr.data) : null; // v2 = students who did not appear are left out of the ranking (older saved copies are rebuilt once)
+    if (cd && cd.v === 2) pcts = cd.p;
     else {
       const { results: mates } = await db.prepare('SELECT r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=? AND s.class_id=?').bind(tid, examId, st.class_id).all();
-      pcts = mates.map(r => JSON.parse(r.marks)).filter(complete).map(m => { const l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
-      try { await db.prepare('INSERT INTO class_stats (tenant_id, exam_id, class_id, rev, data) VALUES (?, ?, ?, ?, ?) ON CONFLICT(tenant_id, exam_id, class_id) DO UPDATE SET rev=excluded.rev, data=excluded.data').bind(tid, examId, st.class_id, t.rev || 0, JSON.stringify(pcts)).run(); } catch (e) { /* ranking still works without the saved copy */ }
+      pcts = mates.map(r => JSON.parse(r.marks)).filter(complete).filter(m => !absAllOf(m)).map(m => { const l = take(m); return exact(sumMarks(m, l), maxOf(l)); });
+      try { await db.prepare('INSERT INTO class_stats (tenant_id, exam_id, class_id, rev, data) VALUES (?, ?, ?, ?, ?) ON CONFLICT(tenant_id, exam_id, class_id) DO UPDATE SET rev=excluded.rev, data=excluded.data').bind(tid, examId, st.class_id, t.rev || 0, JSON.stringify({ v: 2, p: pcts })).run(); } catch (e) { /* ranking still works without the saved copy */ }
     }
   }
   const exams = mine.filter(x => complete(JSON.parse(x.row.marks))).map(x => {
     const m = JSON.parse(x.row.marks), l = take(m), o = sumMarks(m, l), mx = maxOf(l), ok = l.length > 0 && l.every(y => subPassed(m, y));
-    return { name: x.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, grade: gradeOf(exact(o, mx), !ok, G) };
+    return { name: x.name, obtained: o, max: mx, percentage: pctOf(o, mx), passed: ok, absent: absAllOf(m), grade: gradeOf(exact(o, mx), !ok, G) };
   });
-  const oObt = exams.reduce((a, x) => a + x.obtained, 0), oMax = exams.reduce((a, x) => a + x.max, 0), failedCount = exams.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
+  const cnt = exams.filter(x => !x.absent), oObt = cnt.reduce((a, x) => a + x.obtained, 0), oMax = cnt.reduce((a, x) => a + x.max, 0), failedCount = cnt.filter(x => !x.passed).length, extra = JSON.parse(st.extra || '{}');
   return json({
-    rev: t.rev || 0,
+    rev: t.rev || 0, wording: wordingOf(G.wording),
     madrasa: pubMadrasa(t, set.madrasa, true), assistants: (set.assistants || []).filter(a => a.show && (a.name || a.sign)).map(a => ({ title: a.title, name: a.name, sign: a.sign })), exam, cls: { name: cls0?.name || 'N/A', totalWorkingDays: cls0?.working_days || 200, teacherTitle: cls0?.teacher_title || '', teacherName: cls0?.teacher_name || '', teacherSign: set.classSigns?.[st.class_id] || '' }, subjects: mySubs.map(x => ({ id: x.id, name: x.name, maxMarks: x.maxMarks, passed: subPassed(marks, x) })),
     details: [{ label: 'Student Name', value: st.name }, ...set.fields.filter(f => f.show).map(f => ({ label: f.label, value: f.id === 'admissionNo' ? st.admission_no : f.id === 'fatherName' ? st.father_name : extra[f.id] || '' })).filter(d => d.value)],
     result: { attendanceDays: cur.attendance_days, marks, grades: Object.fromEntries(mySubs.map(x => [x.id, absent(marks[x.id]) ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(Number(marks[x.id]) || 0, x.maxMarks), !subPassed(marks, x), G)])) },
-    summary: { obtained, max: maxPer, percentage, passed, grade: gradeOf(exact(obtained, maxPer), !passed, G) },
-    position: set.portal.showPosition && pcts ? { rank: denseRank(pcts, myPct), of: pcts.length } : null,
-    exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: exams.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
+    summary: { obtained, max: maxPer, percentage, passed, absentAll, absentSubs, grade: absentAll ? { grade: 'AB', title: 'Absent' } : gradeOf(exact(obtained, maxPer), !passed, G) },
+    position: set.portal.showPosition && pcts && !absentAll ? { rank: denseRank(pcts, myPct), of: pcts.length } : null,
+    exams, overall: { obtained: oObt, max: oMax, percentage: pctOf(oObt, oMax), failedCount, count: cnt.length, grade: gradeOf(exact(oObt, oMax), failedCount > 0, G) },
   });
 }
 
