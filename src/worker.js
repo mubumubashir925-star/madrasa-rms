@@ -451,6 +451,21 @@ async function entryApi(req, env, url, slug, token) {
   const subs = su.results.filter(x => !picked.size || picked.has(x.id));
   const classIds = new Set(subs.map(x => x.class_id)), classes = cl.results.filter(c => classIds.has(c.id));
   const subOf = id => subs.find(x => x.id === id);
+  if (req.method === 'GET' && url.searchParams.get('all') === '1') { // for the PDF: every mark + attendance inside this teacher's own scope, for one exam
+    const exam = ex.results.find(e => e.id === url.searchParams.get('exam'));
+    if (!exam) return fail('Please choose an exam.', 403);
+    const { results: rr } = await db.prepare('SELECT r.student_id, s.class_id, r.attendance_days, r.marks FROM results r JOIN students s ON s.tenant_id=r.tenant_id AND s.id=r.student_id WHERE r.tenant_id=? AND r.exam_id=?').bind(tid, exam.id).all();
+    const marks = {}, att = {};
+    subs.forEach(x => { marks[x.id] = {}; });
+    classes.forEach(c => { att[c.id] = {}; });
+    for (const r of rr) {
+      if (!classIds.has(r.class_id)) continue;
+      const m = JSON.parse(r.marks || '{}');
+      for (const x of subs) if (x.class_id === r.class_id && m[x.id] !== undefined) marks[x.id][r.student_id] = m[x.id];
+      if (tc.attendance !== false && r.attendance_days >= 0) att[r.class_id][r.student_id] = r.attendance_days;
+    }
+    return json({ marks, att });
+  }
   if (req.method === 'GET' && !url.searchParams.get('subject')) {
     const { results: stu } = await db.prepare('SELECT id,class_id,admission_no,name,extra FROM students WHERE tenant_id=? ORDER BY rowid').bind(tid).all();
     return json({ teacher: tc.name, madrasa: { name: mad.name, logo: logoRef(t, mad.logo), accent: mad.accent || '' }, exams: ex.results.map(e => ({ id: e.id, name: e.name })), attendance: tc.attendance !== false, classes: classes.map(c => ({ id: c.id, name: c.name, workingDays: c.working_days || 200 })),
