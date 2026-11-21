@@ -115,6 +115,7 @@
                 <div class="col-span-2"><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Exam</label><select id="te-exam" onchange="teLoad()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
                 <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Class</label><select id="te-class" onchange="teClassChange()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
                 <div><label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Subject</label><select id="te-subject" onchange="teLoad()" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50"></select></div>
+                <button type="button" onclick="teOpenPdf()" class="col-span-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 active:bg-slate-50"><i class="fas fa-file-pdf text-red-600"></i> Download marks PDF</button>
                 <p class="col-span-2 text-[11px] text-slate-400">Enter the marks, tap <b>Save</b>. Leave a mark blank if it is not ready &mdash; you can come back and add it later.</p>
             </div>
             <div id="te-loading" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 py-12 flex flex-col items-center gap-3 text-sm text-slate-500"><span class="se-spin"></span>Loading students...</div>

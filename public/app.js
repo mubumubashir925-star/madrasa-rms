@@ -2285,6 +2285,62 @@
             } catch (e) { showToast(e.message || 'Could not save. Check your connection and try again.', 'error'); }
             finally { btn.disabled = false; btn.classList.remove('opacity-60'); }
         }
+
+        // ---- marks PDF for the teacher (same look as the admin's class result sheet: heading, one page per class, filled AND blank marks) ----
+        function teOpenPdf() {
+            const r = TE.roster; if (!r) return;
+            if (teEl('te-sheet').dataset.dirty) { showToast('Save your marks first (tap Save), then download the PDF.', 'info'); return; }
+            const old = document.getElementById('te-pdf-modal'); if (old) old.remove();
+            const nSubs = c => r.subjects.filter(x => x.classId === c.id).length + (r.attendance ? 1 : 0);
+            const el = document.createElement('div'); el.id = 'te-pdf-modal'; el.className = 'fixed inset-0 z-[100] bg-slate-900/60 flex items-end sm:items-center justify-center sm:p-4';
+            el.onclick = e => { if (e.target === el) el.remove(); };
+            const btn = (cls, id, icon, label) => `<button type="button" onclick="teMakePdf('${esc(id)}', this)" class="${cls} px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2"><i class="fas ${icon}"></i>${label}</button>`;
+            el.innerHTML = `<div class="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] flex flex-col">
+                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between"><h3 class="font-bold text-slate-800"><i class="fas fa-file-pdf text-red-600 mr-2"></i>Marks PDF</h3><button type="button" class="text-slate-400 text-2xl leading-none px-1" onclick="document.getElementById('te-pdf-modal').remove()">&times;</button></div>
+                <div class="p-5 overflow-y-auto space-y-4">
+                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-1">Exam</p><select id="te-pdf-exam" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm font-medium bg-slate-50">${r.exams.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></div>
+                    ${r.classes.length > 1 ? `<div>${btn('w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold', '__all__', 'fa-download', 'All classes &amp; subjects (one PDF)')}<p class="text-[11px] text-slate-500 mt-1.5">Every class starts on its own page.</p></div>` : ''}
+                    <div><p class="text-xs font-bold uppercase text-slate-600 mb-2">${r.classes.length > 1 ? 'Or one class at a time' : 'Class'}</p>
+                        <div class="space-y-2">${r.classes.map(c => `<div class="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2"><div class="min-w-0 flex-1"><p class="font-semibold text-sm text-slate-800 truncate">${esc(c.name)}</p><p class="text-[11px] text-slate-400">${nSubs(c)} column${nSubs(c) === 1 ? '' : 's'}</p></div>${btn('border border-emerald-700 text-emerald-800 bg-white', c.id, 'fa-download', 'PDF')}</div>`).join('')}</div></div>
+                    <p class="text-[11px] text-slate-500">The PDF shows the marks saved so far. Marks not entered yet are left blank (shaded), so you can see what is pending.</p>
+                </div></div>`;
+            document.body.appendChild(el);
+        }
+        async function teMakePdf(which, btn) {
+            const r = TE.roster, examId = teEl('te-pdf-exam').value, ex = r.exams.find(x => x.id === examId); if (!ex) return;
+            const html = btn.innerHTML; btn.disabled = true; btn.classList.add('opacity-60'); btn.innerHTML = '<span class="btn-spin"></span>Preparing...';
+            try {
+                const data = await api(`${API_T}/entry/${TE.token}?exam=${encodeURIComponent(examId)}&all=1`);
+                const classes = which === '__all__' ? r.classes : r.classes.filter(c => c.id === which);
+                const m = r.madrasa || {}, ac = 'rgb(var(--em-800))', ink = '#0f172a', date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                const th = (t, sub) => `<th style="padding:5px 6px;background:${ac};color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.03em;border:1px solid ${ac};text-align:center">${esc(t)}${sub ? `<br><span style="font-weight:400;font-size:9px">${esc(sub)}</span>` : ''}</th>`;
+                const pages = classes.map(c => {
+                    const students = r.students.filter(x => x.classId === c.id).sort(seNat), subs = r.subjects.filter(x => x.classId === c.id), withAtt = !!r.attendance;
+                    if (!students.length || (!subs.length && !withAtt)) return '';
+                    let filled = 0, blank = 0;
+                    const cell = (v, bad) => { const empty = v === undefined || v === null || v === ''; if (empty) { blank++; return `<td style="padding:5px 6px;border:1px solid #cbd5e1;background:#fef3c7;text-align:center">&nbsp;</td>`; } filled++; return `<td style="padding:5px 6px;border:1px solid #cbd5e1;text-align:center;font-weight:700;font-size:11.5px;${bad ? 'color:#dc2626;' : ''}">${esc(v)}</td>`; };
+                    const rows = students.map((st, i) => `<tr style="${i % 2 ? 'background:#f8fafc' : ''}"><td style="padding:5px 6px;border:1px solid #cbd5e1;text-align:center;font-size:11px">${i + 1}</td><td style="padding:5px 6px;border:1px solid #cbd5e1;text-align:center;font-size:11px">${esc(st.admissionNo)}</td><td style="padding:5px 8px;border:1px solid #cbd5e1;font-size:11.5px;font-weight:600">${esc(st.name)}</td>`
+                        + subs.map(sb => { const v = (data.marks[sb.id] || {})[st.id]; return cell(v, v !== undefined && v !== 'AB' && Number(v) < Number(sb.passingMarks)); }).join('')
+                        + (withAtt ? cell((data.att[c.id] || {})[st.id], false) : '') + '</tr>').join('');
+                    const total = filled + blank;
+                    return `<section class="te-page" style="break-after:page;padding:2mm 1mm"><div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid ${ac};padding-bottom:8px">${m.logo ? `<img src="${esc(m.logo)}" style="height:54px;width:auto;max-width:90px;object-fit:contain" alt="">` : ''}<div><div style="font-size:18px;font-weight:800;text-transform:uppercase;color:${ac}">${esc(m.name || '')}</div><div style="font-size:11px;color:#475569">Marks entry sheet &mdash; ${esc(r.teacher)}</div></div></div>
+                        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:10px 0 8px"><div style="font-size:15px;font-weight:800;color:${ink}">${esc(ex.name)} &bull; ${esc(clsLabel(c.name))}</div><div style="font-size:10px;color:#64748b">${students.length} students &middot; ${date}</div></div>
+                        <table style="width:100%;border-collapse:collapse"><thead><tr>${th('Sl.')}${th(admLabel())}<th style="padding:5px 8px;background:${ac};color:#fff;font-size:10px;text-transform:uppercase;border:1px solid ${ac};text-align:left">Name</th>${subs.map(sb => th(sb.name, '/' + sb.maxMarks)).join('')}${withAtt ? th('Attendance', '/' + c.workingDays + ' days') : ''}</tr></thead><tbody>${rows}</tbody></table>
+                        <p style="font-size:10px;color:#475569;margin-top:8px">Entered: <b style="color:${ink}">${filled}</b> &middot; Not entered (shaded): <b style="color:#b45309">${blank}</b> &middot; of ${total} &middot; Red = below pass mark &middot; AB = absent</p></section>`;
+                }).join('');
+                if (!pages) { showToast('Nothing to show for this selection.', 'info'); return; }
+                const modal = document.getElementById('te-pdf-modal'); if (modal) modal.remove();
+                const root = document.createElement('div'); root.id = 'print-root';
+                root.innerHTML = `<style>@page{size:A4 landscape;margin:8mm}@media print{#print-root .te-page:last-child{break-after:auto!important}#print-root tr{break-inside:avoid}#print-root thead{display:table-header-group}}</style><div style="font-family:system-ui,Arial,sans-serif;color:${ink}">${pages}</div>`;
+                document.body.appendChild(root); document.body.classList.add('print-ov');
+                try { await Promise.all([...root.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => { }) : 0)); } catch (e) { }
+                const only = which === '__all__' ? 'All classes' : (classes[0] || {}).name || '', old = document.title;
+                document.title = fileSafe('Marks_' + (m.name || '') + '_' + ex.name + '_' + only).replace(/ /g, '_');
+                const done = () => { document.title = old; document.body.classList.remove('print-ov'); root.remove(); window.removeEventListener('afterprint', done); };
+                window.addEventListener('afterprint', done); setTimeout(() => window.print(), 150);
+            } catch (e) { showToast(e.message || 'Could not prepare the PDF. Check your connection and try again.', 'error'); }
+            finally { btn.disabled = false; btn.classList.remove('opacity-60'); btn.innerHTML = html; }
+        }
         window.addEventListener('beforeunload', e => { const b = document.getElementById('te-sheet'); if (b && b.dataset.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
         // ================= BULK STUDENT MARKSHEETS (same design as the public page) =================
